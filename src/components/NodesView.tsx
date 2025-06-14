@@ -119,6 +119,38 @@ const NodesView: React.FC = () => {
       consensusType: 'PoW'
     },
     {
+      id: 'trollcoin',
+      name: 'Trollcoin Core',
+      symbol: 'TROLL',
+      rpcPort: 9666,
+      p2pPort: 9667,
+      dataDir: './data/trollcoin',
+      executable: 'trollcoind',
+      startCommand: 'trollcoind -daemon -datadir=./data/trollcoin -rpcport=9666 -port=9667',
+      status: 'stopped',
+      syncProgress: 0,
+      peers: 0,
+      blockHeight: 0,
+      diskUsage: '0 GB',
+      logo: () => <img src="/TROLL logo.png" alt="TROLL" className="w-8 h-8 object-contain" />,
+      consensusType: 'PoW',
+      installInstructions: [
+        'git clone https://github.com/TrollCoin2/TrollCoin-2.0.git',
+        'cd TrollCoin-2.0',
+        'sudo apt-get install build-essential libboost-all-dev libssl-dev libcurl4-openssl-dev libminiupnpc-dev libdb++-dev libstdc++6 make',
+        'cd src/',
+        'make -f makefile.unix USE_UPNP=1',
+        'strip trollcoind',
+        'sudo cp trollcoind /usr/local/bin/',
+        'mkdir -p ~/.trollcoin',
+        'echo "rpcuser=trollrpc" >> ~/.trollcoin/trollcoin.conf',
+        'echo "rpcpassword=$(openssl rand -hex 32)" >> ~/.trollcoin/trollcoin.conf',
+        'echo "rpcallowip=127.0.0.1" >> ~/.trollcoin/trollcoin.conf',
+        'echo "server=1" >> ~/.trollcoin/trollcoin.conf',
+        'echo "daemon=1" >> ~/.trollcoin/trollcoin.conf'
+      ]
+    },
+    {
       id: 'ghost',
       name: 'GHOST Core',
       symbol: 'GHOST',
@@ -153,7 +185,7 @@ const NodesView: React.FC = () => {
     }
   ]);
 
-  const [selectedNode, setSelectedNode] = useState<string>('ghost');
+  const [selectedNode, setSelectedNode] = useState<string>('trollcoin');
   const [showConsole, setShowConsole] = useState(false);
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
@@ -204,6 +236,12 @@ const NodesView: React.FC = () => {
       addConsoleOutput('Enabling staking mode for block validation...');
     }
 
+    if (node.id === 'trollcoin') {
+      addConsoleOutput('Trollcoin is a Proof-of-Work (PoW) cryptocurrency');
+      addConsoleOutput('Starting Trollcoin daemon with RPC enabled...');
+      addConsoleOutput('Connecting to Trollcoin network peers...');
+    }
+
     try {
       // Simulate node startup
       setTimeout(() => {
@@ -225,6 +263,13 @@ const NodesView: React.FC = () => {
           addConsoleOutput('Loading GHOST wallet...');
           addConsoleOutput('Staking enabled - ready to validate blocks');
           addConsoleOutput('Connecting to GHOST network peers...');
+        }
+
+        if (nodeId === 'trollcoin') {
+          addConsoleOutput('Trollcoin daemon started successfully');
+          addConsoleOutput('RPC server listening on port 9666');
+          addConsoleOutput('P2P network listening on port 9667');
+          addConsoleOutput('Synchronizing with Trollcoin blockchain...');
         }
       }, 2000);
 
@@ -248,6 +293,11 @@ const NodesView: React.FC = () => {
           
           if (nodeId === 'ghost') {
             addConsoleOutput('GHOST node is now staking and validating blocks');
+          }
+          
+          if (nodeId === 'trollcoin') {
+            addConsoleOutput('Trollcoin node fully synchronized');
+            addConsoleOutput('Ready for mining and transactions');
           }
         } else {
           setNodes(prev => prev.map(n => 
@@ -289,6 +339,9 @@ const NodesView: React.FC = () => {
     if (nodeId === 'ghost') {
       addConsoleOutput('GHOST staking stopped');
     }
+    if (nodeId === 'trollcoin') {
+      addConsoleOutput('Trollcoin daemon stopped');
+    }
     toast.success(`${node.name} stopped`);
   };
 
@@ -303,6 +356,10 @@ const NodesView: React.FC = () => {
       addConsoleOutput('ghost-cli loadwallet "default"');
       addConsoleOutput('Wallet loaded successfully');
       addConsoleOutput('Staking status: Active');
+    } else if (nodeId === 'trollcoin') {
+      addConsoleOutput('trollcoind loadwallet "default"');
+      addConsoleOutput('Wallet loaded successfully');
+      addConsoleOutput('Ready for Trollcoin transactions');
     } else {
       addConsoleOutput(`${node.executable} loadwallet "default"`);
       addConsoleOutput('Wallet loaded successfully');
@@ -478,11 +535,13 @@ const NodesView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Installation Instructions for GHOST */}
-              {selectedNodeData.id === 'ghost' && selectedNodeData.installInstructions && (
+              {/* Installation Instructions for GHOST and Trollcoin */}
+              {(selectedNodeData.id === 'ghost' || selectedNodeData.id === 'trollcoin') && selectedNodeData.installInstructions && (
                 <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold">GHOST Core Installation</h4>
+                    <h4 className="text-lg font-semibold">
+                      {selectedNodeData.id === 'ghost' ? 'GHOST Core Installation' : 'Trollcoin Installation'}
+                    </h4>
                     <motion.button
                       onClick={() => setShowInstallInstructions(!showInstallInstructions)}
                       className="text-sm text-blue-400 hover:text-blue-300"
@@ -499,7 +558,10 @@ const NodesView: React.FC = () => {
                       className="space-y-3"
                     >
                       <p className="text-slate-400 text-sm mb-4">
-                        Follow these steps to compile and install GHOST Core from source:
+                        {selectedNodeData.id === 'ghost' 
+                          ? 'Follow these steps to compile and install GHOST Core from source:'
+                          : 'Follow these steps to compile and install Trollcoin from source:'
+                        }
                       </p>
                       <div className="bg-black/50 rounded-lg p-4 font-mono text-sm">
                         {selectedNodeData.installInstructions.map((instruction, index) => (
@@ -509,15 +571,28 @@ const NodesView: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                      <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                        <p className="text-purple-400 font-medium mb-2">PoS Staking Information:</p>
-                        <ul className="text-sm text-slate-300 space-y-1">
-                          <li>• GHOST uses Proof-of-Stake consensus</li>
-                          <li>• Staking requires holding GHOST coins in your wallet</li>
-                          <li>• Rewards are earned by validating blocks</li>
-                          <li>• Keep your wallet unlocked for staking</li>
-                        </ul>
-                      </div>
+                      {selectedNodeData.id === 'ghost' && (
+                        <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                          <p className="text-purple-400 font-medium mb-2">PoS Staking Information:</p>
+                          <ul className="text-sm text-slate-300 space-y-1">
+                            <li>• GHOST uses Proof-of-Stake consensus</li>
+                            <li>• Staking requires holding GHOST coins in your wallet</li>
+                            <li>• Rewards are earned by validating blocks</li>
+                            <li>• Keep your wallet unlocked for staking</li>
+                          </ul>
+                        </div>
+                      )}
+                      {selectedNodeData.id === 'trollcoin' && (
+                        <div className="mt-4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                          <p className="text-orange-400 font-medium mb-2">Trollcoin Mining Information:</p>
+                          <ul className="text-sm text-slate-300 space-y-1">
+                            <li>• Trollcoin uses Proof-of-Work consensus</li>
+                            <li>• Mining rewards are earned by solving blocks</li>
+                            <li>• Compatible with CPU and GPU mining</li>
+                            <li>• RPC interface for mining pool integration</li>
+                          </ul>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </div>
@@ -646,6 +721,33 @@ const NodesView: React.FC = () => {
                         <div>
                           <p className="text-slate-400">Wallet Required:</p>
                           <p className="text-yellow-400 font-medium">Yes (for staking)</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Block Time:</p>
+                          <p className="text-blue-400 font-medium">~60 seconds</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Trollcoin Specific Configuration */}
+                {selectedNodeData.id === 'trollcoin' && (
+                  <div className="mt-6">
+                    <h5 className="text-md font-semibold mb-3">Trollcoin PoW Configuration</h5>
+                    <div className="bg-slate-900/50 rounded p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-400">Mining Status:</p>
+                          <p className="text-orange-400 font-medium">Ready</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Consensus:</p>
+                          <p className="text-orange-400 font-medium">Proof-of-Work</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Algorithm:</p>
+                          <p className="text-yellow-400 font-medium">Scrypt</p>
                         </div>
                         <div>
                           <p className="text-slate-400">Block Time:</p>

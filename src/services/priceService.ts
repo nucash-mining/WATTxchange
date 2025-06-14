@@ -94,6 +94,15 @@ class PriceService {
       high24h: 2.35,
       low24h: 2.10,
       volume24h: 125000,
+    },
+    TROLL: {
+      symbol: 'TROLL',
+      price: 0.000045,
+      change24h: 0.000003,
+      changePercent24h: 7.1,
+      high24h: 0.000048,
+      low24h: 0.000042,
+      volume24h: 2500000,
     }
   };
 
@@ -152,9 +161,10 @@ class PriceService {
       let priceData: PriceData;
 
       try {
-        // For ALT, we need to use the USDT pair
+        // For ALT, GHOST, and TROLL, we need to use the USDT pair
         const tradingPair = symbol === 'ALT' ? 'ALT_USDT' : 
                            symbol === 'GHOST' ? 'GHOST_USDT' :
+                           symbol === 'TROLL' ? 'TROLL_USDT' :
                            `${symbol}_USDT`;
         
         const response = await fetch(`${this.baseUrl}/ticker/24hr?symbol=${tradingPair}`, {
@@ -248,7 +258,7 @@ class PriceService {
       return Array.isArray(tickers) ? tickers.map(ticker => ticker.symbol) : [];
     } catch (error) {
       console.error('Error fetching trading pairs:', error);
-      return ['ALT_USDT', 'BTC_USDT', 'ETH_USDT', 'LTC_USDT', 'GHOST_USDT']; // Fallback pairs
+      return ['ALT_USDT', 'BTC_USDT', 'ETH_USDT', 'LTC_USDT', 'GHOST_USDT', 'TROLL_USDT']; // Fallback pairs
     }
   }
 

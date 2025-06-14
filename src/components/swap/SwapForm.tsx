@@ -51,6 +51,12 @@ const SwapForm: React.FC = () => {
       name: 'GHOST', 
       balance: '1,250.75',
       icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />
+    },
+    { 
+      symbol: 'TROLL', 
+      name: 'Trollcoin', 
+      balance: '15,420.69',
+      icon: () => <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />
     }
   ];
 
@@ -180,6 +186,12 @@ const SwapForm: React.FC = () => {
                 <span className="text-purple-400">Proof-of-Stake</span>
               </div>
             )}
+            {(sendToken === 'TROLL' || receiveToken === 'TROLL') && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">TROLL Type</span>
+                <span className="text-orange-400">Proof-of-Work</span>
+              </div>
+            )}
           </div>
 
           {/* Create Swap Button */}
@@ -217,6 +229,11 @@ const SwapForm: React.FC = () => {
                       {token.symbol === 'GHOST' && (
                         <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">
                           PoS
+                        </span>
+                      )}
+                      {token.symbol === 'TROLL' && (
+                        <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-1 rounded">
+                          PoW
                         </span>
                       )}
                     </div>
@@ -283,6 +300,20 @@ const SwapForm: React.FC = () => {
               <p className="text-sm text-slate-300 mt-1">
                 GHOST uses PoS consensus. Swaps may take longer due to block validation times.
                 Ensure sufficient network confirmations for secure atomic swaps.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Trollcoin PoW Notice */}
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+          <div className="flex items-start space-x-2">
+            <img src="/TROLL logo.png" alt="TROLL" className="w-5 h-5 mt-0.5" />
+            <div>
+              <p className="font-medium text-orange-400">Trollcoin Proof-of-Work</p>
+              <p className="text-sm text-slate-300 mt-1">
+                Trollcoin uses PoW consensus with Scrypt algorithm. Mining-based validation 
+                provides strong security for atomic swap transactions.
               </p>
             </div>
           </div>

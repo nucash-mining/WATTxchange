@@ -10,14 +10,15 @@ const TradeForm: React.FC = () => {
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
-  const [selectedPair, setSelectedPair] = useState<'ALT/BTC' | 'ALT/USDT' | 'XMR/BTC' | 'WATT/ALT' | 'GHOST/BTC'>('ALT/BTC');
+  const [selectedPair, setSelectedPair] = useState<'ALT/BTC' | 'ALT/USDT' | 'XMR/BTC' | 'WATT/ALT' | 'GHOST/BTC' | 'TROLL/BTC'>('ALT/BTC');
 
-  const { getPrice, formatPrice } = usePrices(['ALT', 'BTC', 'XMR', 'WATT', 'GHOST']);
+  const { getPrice, formatPrice } = usePrices(['ALT', 'BTC', 'XMR', 'WATT', 'GHOST', 'TROLL']);
   const altPrice = getPrice('ALT');
   const btcPrice = getPrice('BTC');
   const xmrPrice = getPrice('XMR');
   const wattPrice = getPrice('WATT');
   const ghostPrice = getPrice('GHOST');
+  const trollPrice = getPrice('TROLL');
 
   // Get current exchange rates
   const altToBtcRate = priceService.getAltPriceInBtc();
@@ -33,6 +34,8 @@ const TradeForm: React.FC = () => {
         return 1.5; // Example rate
       case 'GHOST/BTC':
         return ghostPrice && btcPrice ? ghostPrice.price / btcPrice.price : 0.000045;
+      case 'TROLL/BTC':
+        return trollPrice && btcPrice ? trollPrice.price / btcPrice.price : 0.000001;
       default:
         return 0;
     }
@@ -82,6 +85,12 @@ const TradeForm: React.FC = () => {
       name: 'GHOST', 
       balance: '1,250.75',
       icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />
+    },
+    { 
+      symbol: 'TROLL', 
+      name: 'Trollcoin', 
+      balance: '15,420.69',
+      icon: () => <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />
     }
   ];
 
@@ -130,7 +139,7 @@ const TradeForm: React.FC = () => {
       <div className="mb-6">
         <label className="block text-sm font-medium mb-2">Trading Pair</label>
         <div className="grid grid-cols-2 gap-2">
-          {['ALT/BTC', 'ALT/USDT', 'XMR/BTC', 'WATT/ALT', 'GHOST/BTC'].map((pair) => {
+          {['ALT/BTC', 'ALT/USDT', 'XMR/BTC', 'WATT/ALT', 'GHOST/BTC', 'TROLL/BTC'].map((pair) => {
             const [base, quote] = pair.split('/');
             const baseToken = tokens.find(t => t.symbol === base);
             const quoteToken = tokens.find(t => t.symbol === quote);
@@ -214,7 +223,7 @@ const TradeForm: React.FC = () => {
           <span className="text-sm text-slate-400">Current Price</span>
           <div className="text-right">
             <p className="font-bold">
-              {currentPrice.toFixed(selectedPair === 'ALT/BTC' ? 10 : 6)} {quoteToken}
+              {currentPrice.toFixed(selectedPair === 'ALT/BTC' || selectedPair === 'TROLL/BTC' ? 10 : 6)} {quoteToken}
             </p>
             <p className="text-xs text-slate-400">per {baseToken}</p>
           </div>
@@ -243,8 +252,8 @@ const TradeForm: React.FC = () => {
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder={selectedPair === 'ALT/BTC' ? '0.0000000000' : '0.000000'}
-              step={selectedPair === 'ALT/BTC' ? '0.0000000001' : '0.000001'}
+              placeholder={selectedPair === 'ALT/BTC' || selectedPair === 'TROLL/BTC' ? '0.0000000000' : '0.000000'}
+              step={selectedPair === 'ALT/BTC' || selectedPair === 'TROLL/BTC' ? '0.0000000001' : '0.000001'}
               className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-3 focus:outline-none focus:border-blue-500/50"
             />
           </div>
@@ -254,17 +263,25 @@ const TradeForm: React.FC = () => {
         <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Total</span>
-            <span>{calculateTotal().toFixed(selectedPair === 'ALT/BTC' ? 8 : 6)} {quoteToken}</span>
+            <span>{calculateTotal().toFixed(selectedPair === 'ALT/BTC' || selectedPair === 'TROLL/BTC' ? 8 : 6)} {quoteToken}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Fee (0.1%)</span>
-            <span>{(calculateTotal() * 0.001).toFixed(selectedPair === 'ALT/BTC' ? 8 : 6)} {quoteToken}</span>
+            <span>{(calculateTotal() * 0.001).toFixed(selectedPair === 'ALT/BTC' || selectedPair === 'TROLL/BTC' ? 8 : 6)} {quoteToken}</span>
           </div>
           {selectedPair === 'ALT/BTC' && amount && (
             <div className="pt-2 border-t border-slate-700/30">
               <div className="flex justify-between text-xs text-slate-400">
                 <span>Exchange Rate</span>
                 <span>100,000 ALT = 0.00016 BTC</span>
+              </div>
+            </div>
+          )}
+          {selectedPair === 'TROLL/BTC' && amount && (
+            <div className="pt-2 border-t border-slate-700/30">
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Trollcoin PoW</span>
+                <span>Proof-of-Work mining</span>
               </div>
             </div>
           )}

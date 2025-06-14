@@ -12,7 +12,7 @@ const WalletView: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { isConnected, address, chainId, altBalance, wattBalance, refreshBalances } = useWallet();
   
-  // Fetch prices for all supported cryptocurrencies including GHOST
+  // Fetch prices for all supported cryptocurrencies including GHOST and TROLL
   const { 
     prices, 
     loading: pricesLoading, 
@@ -23,7 +23,7 @@ const WalletView: React.FC = () => {
     lastUpdated,
     apiConnected,
     getTotalValue
-  } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST']);
+  } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL']);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -91,6 +91,15 @@ const WalletView: React.FC = () => {
       color: 'from-orange-600 to-red-600',
       nodeType: 'light' as const,
       syncStatus: 'connected' as const
+    },
+    {
+      name: 'Trollcoin',
+      symbol: 'TROLL',
+      balance: '15,420.69',
+      icon: () => <img src="/TROLL logo.png" alt="TROLL" className="w-8 h-8 object-contain" />,
+      color: 'from-red-500 to-orange-500',
+      nodeType: 'full' as const,
+      syncStatus: 'synced' as const
     },
     {
       name: 'GHOST',
@@ -289,8 +298,8 @@ const WalletView: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          {chainsWithPrices.slice(0, 6).map((chain) => {
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+          {chainsWithPrices.slice(0, 7).map((chain) => {
             const change = formatChange(chain.symbol);
             const IconComponent = chain.icon;
             return (

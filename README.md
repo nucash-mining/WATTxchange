@@ -6,8 +6,8 @@ A comprehensive multi-chain DeFi platform featuring blockchain node management, 
 
 ## 🌟 Features
 
-- **Multi-Chain Wallet** - Support for 7+ blockchains with real-time price feeds
-- **Blockchain Node Management** - Full and light nodes for Bitcoin, Ethereum, Litecoin, Monero, Altcoinchain, and GHOST
+- **Multi-Chain Wallet** - Support for 8+ blockchains with real-time price feeds
+- **Blockchain Node Management** - Full and light nodes for Bitcoin, Ethereum, Litecoin, Monero, Altcoinchain, GHOST, and Trollcoin
 - **Decentralized Exchange** - Powered by Swapin.co across 10 networks
 - **NFT Mining Game** - Virtual mining with real hardware component NFTs
 - **Atomic Swaps** - Trustless P2P cryptocurrency trading
@@ -217,6 +217,48 @@ ghost-cli walletpassphrase "your_passphrase" 0 true
 ghost-cli getstakinginfo
 ```
 
+#### Trollcoin Core (Proof-of-Work)
+
+```bash
+# Clone Trollcoin repository
+git clone https://github.com/TrollCoin2/TrollCoin-2.0.git
+cd TrollCoin-2.0
+
+# Install dependencies
+sudo apt-get install build-essential libboost-all-dev libssl-dev libcurl4-openssl-dev libminiupnpc-dev libdb++-dev libstdc++6 make
+
+# Build Trollcoin daemon
+cd src/
+make -f makefile.unix USE_UPNP=1
+strip trollcoind
+sudo cp trollcoind /usr/local/bin/
+
+# Configure trollcoin.conf
+mkdir -p ~/.trollcoin
+cat > ~/.trollcoin/trollcoin.conf << EOF
+rpcuser=trollrpc
+rpcpassword=$(openssl rand -hex 32)
+rpcallowip=127.0.0.1
+server=1
+daemon=1
+EOF
+
+# Start Trollcoin node
+trollcoind -daemon
+```
+
+**Trollcoin Mining Setup:**
+```bash
+# Check mining info
+trollcoind getmininginfo
+
+# Generate new address
+trollcoind getnewaddress
+
+# Start mining (CPU)
+trollcoind setgenerate true 1
+```
+
 ### Node Management Commands
 
 #### Start All Nodes
@@ -238,6 +280,9 @@ altcoind -daemon
 
 # GHOST (with staking)
 ghostd -daemon -staking=1
+
+# Trollcoin
+trollcoind -daemon
 ```
 
 #### Check Node Status
@@ -260,6 +305,10 @@ altcoin-cli getblockchaininfo
 # GHOST
 ghost-cli getblockchaininfo
 ghost-cli getstakinginfo
+
+# Trollcoin
+trollcoind getblockchaininfo
+trollcoind getmininginfo
 ```
 
 #### Stop All Nodes
@@ -281,6 +330,9 @@ altcoin-cli stop
 
 # GHOST
 ghost-cli stop
+
+# Trollcoin
+trollcoind stop
 ```
 
 ## 🔗 nuChain L2 Setup
@@ -567,6 +619,7 @@ function calculateMiningRewards(rig) {
 - XMR/BTC  
 - WATT/ALT
 - GHOST/BTC (PoS considerations)
+- TROLL/BTC (PoW mining-based)
 - ETH/ALT
 - LTC/ETH
 
@@ -576,6 +629,14 @@ GHOST uses Proof-of-Stake consensus, which affects atomic swap timing:
 - **Block validation**: Longer confirmation times
 - **Staking requirements**: Ensure sufficient network confirmations
 - **Timelock adjustments**: Extended timeouts for PoS finality
+
+### Trollcoin PoW Considerations
+
+Trollcoin uses Proof-of-Work consensus with Scrypt algorithm:
+- **Mining-based validation**: Strong security through computational work
+- **Block confirmation**: Standard PoW confirmation times
+- **Network hashrate**: Dependent on active miners
+- **Atomic swap security**: Robust due to mining difficulty
 
 ## 🛠️ Development
 
@@ -650,6 +711,7 @@ sudo ufw allow 9332/tcp    # Litecoin RPC
 sudo ufw allow 18081/tcp   # Monero RPC
 sudo ufw allow 8645/tcp    # Altcoinchain RPC
 sudo ufw allow 51725/tcp   # GHOST RPC
+sudo ufw allow 9666/tcp    # Trollcoin RPC
 sudo ufw enable
 
 # SSL/TLS for RPC endpoints
@@ -678,6 +740,7 @@ journalctl -f          # System logs
 watch -n 5 'bitcoin-cli getblockchaininfo'
 watch -n 5 'geth attach --exec "eth.syncing"'
 watch -n 5 'ghost-cli getstakinginfo'
+watch -n 5 'trollcoind getmininginfo'
 ```
 
 ### Performance Metrics
@@ -687,6 +750,8 @@ watch -n 5 'ghost-cli getstakinginfo'
 - **Memory usage**: RAM consumption per node
 - **Disk I/O**: Read/write operations
 - **Network bandwidth**: Upload/download speeds
+- **Mining hashrate**: For PoW chains (Trollcoin)
+- **Staking status**: For PoS chains (GHOST)
 
 ## 🚨 Troubleshooting
 
@@ -705,6 +770,10 @@ geth --syncmode "fast"
 # GHOST staking not working
 ghost-cli walletpassphrase "passphrase" 0 true
 ghost-cli getstakinginfo
+
+# Trollcoin mining issues
+trollcoind getmininginfo
+trollcoind setgenerate true 1
 ```
 
 #### Connection Issues
@@ -713,6 +782,11 @@ ghost-cli getstakinginfo
 curl -X POST -H "Content-Type: application/json" \
   --data '{"jsonrpc":"2.0","method":"getblockchaininfo","params":[],"id":1}' \
   http://localhost:8332/
+
+# Test Trollcoin RPC
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"getinfo","params":[],"id":1}' \
+  http://localhost:9666/
 
 # Test network connectivity
 telnet node_ip port_number
@@ -725,6 +799,9 @@ bitcoind -dbcache=4000
 
 # Optimize Ethereum
 geth --cache=4096 --maxpeers=50
+
+# Trollcoin optimization
+trollcoind -dbcache=1000
 
 # Monitor system resources
 iostat -x 1
@@ -751,6 +828,9 @@ sar -u 1
 
 # GHOST
 ~/.ghost/debug.log
+
+# Trollcoin
+~/.trollcoin/debug.log
 ```
 
 ## 🤝 Contributing

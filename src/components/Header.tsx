@@ -19,7 +19,7 @@ const Header: React.FC = () => {
             <img 
               src="/WATTxchange logo.png" 
               alt="WATT Token" 
-              className="w-8 h-8"
+              className="w-32 h-32" // Increased from w-8 h-8 to w-32 h-32 (4x larger)
             />
             <motion.div
               className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full"

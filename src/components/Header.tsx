@@ -19,7 +19,7 @@ const Header: React.FC = () => {
             <img 
               src="/WATTxchange logo.png" 
               alt="WATT Token" 
-              className="w-32 h-32" // Increased from w-8 h-8 to w-32 h-32 (4x larger)
+              className="w-32 h-32" 
             />
             <motion.div
               className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full"
@@ -28,10 +28,10 @@ const Header: React.FC = () => {
             />
           </div>
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent">
+            <h1 className="text-8xl font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent">
               WATTxchange
             </h1>
-            <p className="text-sm text-gray-400">Multi-Chain DeFi Hub</p>
+            <p className="text-2xl text-gray-400">Multi-Chain DeFi Hub</p>
           </div>
         </motion.div>
 

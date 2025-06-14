@@ -4,6 +4,8 @@ import { ShoppingCart, Search, Filter, Star, Cpu, HardDrive, Monitor, Zap, Downl
 import HardwareRentalModal from './marketplace/HardwareRentalModal';
 import MinerSetupModal from './marketplace/MinerSetupModal';
 import RentalContractModal from './marketplace/RentalContractModal';
+import HardwareRentalDashboard from './marketplace/HardwareRentalDashboard';
+import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 const TechMarketplaceView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -11,7 +13,9 @@ const TechMarketplaceView: React.FC = () => {
   const [showRentalModal, setShowRentalModal] = useState(false);
   const [showMinerSetupModal, setShowMinerSetupModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showRentalDashboard, setShowRentalDashboard] = useState(false);
   const [selectedApp, setSelectedApp] = useState<any>(null);
+  const { isMobile } = useDeviceDetect();
 
   const categories = [
     { name: 'All', count: 46 },
@@ -204,41 +208,50 @@ const TechMarketplaceView: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Featured Hardware Rental Banner */}
-      {(selectedCategory === 'All' || selectedCategory === 'Hardware Rental') && (
-        <motion.div
-          className="bg-gradient-to-r from-yellow-600/20 to-emerald-600/20 rounded-xl p-6 border border-yellow-500/30"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
-            <div className="mb-4 md:mb-0">
-              <h3 className="text-xl font-bold">Rent Out Your Hardware</h3>
-              <p className="text-gray-300 mt-2 max-w-2xl">
-                Turn your idle computing power into passive income. Rent out your CPU, GPU, or storage and earn WATT tokens while you sleep.
-                Our secure client ensures your system remains protected while sharing resources.
-              </p>
-              <div className="flex flex-wrap gap-3 mt-3">
-                <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
-                  <Cpu className="w-4 h-4 text-yellow-400" />
-                  <span>Earn 713633.13824723 WATT/MHz/hr</span>
-                </div>
-                <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
-                  <Shield className="w-4 h-4 text-emerald-400" />
-                  <span>Secure Sandboxed Environment</span>
-                </div>
-                <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
-                  <Clock className="w-4 h-4 text-blue-400" />
-                  <span>Automatic Throttling</span>
-                </div>
+      {/* Hardware Rental Dashboard Button */}
+      <motion.div
+        className="bg-gradient-to-r from-yellow-600/20 to-emerald-600/20 rounded-xl p-6 border border-yellow-500/30"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
+          <div className="mb-4 md:mb-0">
+            <h3 className="text-xl font-bold">Rent Out Your Hardware</h3>
+            <p className="text-gray-300 mt-2 max-w-2xl">
+              Turn your idle computing power into passive income. Rent out your CPU, GPU, or storage and earn WATT tokens while you sleep.
+              Our secure client ensures your system remains protected while sharing resources.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-3">
+              <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
+                <Cpu className="w-4 h-4 text-yellow-400" />
+                <span>Earn 713633.13824723 WATT/MHz/hr</span>
+              </div>
+              <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span>Secure Sandboxed Environment</span>
+              </div>
+              <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <span>Automatic Throttling</span>
               </div>
             </div>
+          </div>
+          <div className="flex space-x-3">
+            <motion.button
+              onClick={() => setShowRentalDashboard(!showRentalDashboard)}
+              className="flex items-center space-x-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Zap className="w-5 h-5" />
+              <span>{showRentalDashboard ? 'Hide Dashboard' : 'Show Dashboard'}</span>
+            </motion.button>
             <motion.button
               onClick={() => {
                 setSelectedApp(hardwareRentalApps[0]);
                 setShowRentalModal(true);
               }}
-              className="flex items-center space-x-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -246,6 +259,17 @@ const TechMarketplaceView: React.FC = () => {
               <span>Share My Hardware</span>
             </motion.button>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Hardware Rental Dashboard */}
+      {showRentalDashboard && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+        >
+          <HardwareRentalDashboard />
         </motion.div>
       )}
 

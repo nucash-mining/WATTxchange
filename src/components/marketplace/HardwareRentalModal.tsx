@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Cpu, Monitor, Server, Download, Check, Copy, AlertTriangle, Wallet, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useWallet } from '../../hooks/useWallet';
+import HardwareScanner from './HardwareScanner';
+import { hardwareRentalService, HardwareSpecs } from '../../services/hardwareRentalService';
 
 interface HardwareRentalModalProps {
   isOpen: boolean;
@@ -13,7 +15,7 @@ interface HardwareRentalModalProps {
 
 const HardwareRentalModal: React.FC<HardwareRentalModalProps> = ({ isOpen, onClose, app, onShowContract }) => {
   const [step, setStep] = useState(1);
-  const [systemInfo, setSystemInfo] = useState<any>(null);
+  const [systemInfo, setSystemInfo] = useState<HardwareSpecs | null>(null);
   const [walletAddress, setWalletAddress] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -32,55 +34,11 @@ const HardwareRentalModal: React.FC<HardwareRentalModalProps> = ({ isOpen, onClo
       if (isConnected && address) {
         setWalletAddress(address);
       }
-      
-      // Simulate system detection
-      setTimeout(() => {
-        detectSystemInfo();
-      }, 1000);
     }
   }, [isOpen, isConnected, address]);
 
-  const detectSystemInfo = () => {
-    // In a real implementation, this would detect actual system specs
-    // For demo purposes, we'll simulate detection
-    const detectedInfo = {
-      cpu: {
-        model: 'AMD Ryzen 9 5950X',
-        cores: 16,
-        threads: 32,
-        speed: 3.4,
-        maxSpeed: 4.9,
-        architecture: 'x86_64'
-      },
-      memory: {
-        total: 32,
-        available: 28,
-        type: 'DDR4'
-      },
-      gpu: {
-        model: 'NVIDIA GeForce RTX 3080',
-        memory: 10,
-        driver: '535.129.03',
-        cudaCores: 8704
-      },
-      storage: {
-        total: 2000,
-        available: 1250,
-        type: 'NVMe SSD'
-      },
-      network: {
-        download: 500,
-        upload: 50,
-        type: 'Ethernet'
-      },
-      os: {
-        name: 'Windows 11 Pro',
-        version: '22H2',
-        architecture: '64-bit'
-      }
-    };
-    
-    setSystemInfo(detectedInfo);
+  const handleScanComplete = (specs: HardwareSpecs) => {
+    setSystemInfo(specs);
   };
 
   const handleDownload = () => {
@@ -168,7 +126,7 @@ const HardwareRentalModal: React.FC<HardwareRentalModalProps> = ({ isOpen, onClo
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <AnimatePresence>
         <motion.div
-          className="bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-700/50 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-700/50 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
@@ -206,111 +164,8 @@ const HardwareRentalModal: React.FC<HardwareRentalModalProps> = ({ isOpen, onClo
                   </div>
                 </div>
 
-                {systemInfo ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
-                      <h5 className="font-medium text-yellow-400 mb-3">CPU</h5>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Model:</span>
-                          <span>{systemInfo.cpu.model}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Cores/Threads:</span>
-                          <span>{systemInfo.cpu.cores}/{systemInfo.cpu.threads}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Speed:</span>
-                          <span>{systemInfo.cpu.speed} GHz (Turbo: {systemInfo.cpu.maxSpeed} GHz)</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Architecture:</span>
-                          <span>{systemInfo.cpu.architecture}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
-                      <h5 className="font-medium text-emerald-400 mb-3">GPU</h5>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Model:</span>
-                          <span>{systemInfo.gpu.model}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Memory:</span>
-                          <span>{systemInfo.gpu.memory} GB</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">CUDA Cores:</span>
-                          <span>{systemInfo.gpu.cudaCores}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Driver:</span>
-                          <span>{systemInfo.gpu.driver}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
-                      <h5 className="font-medium text-blue-400 mb-3">System</h5>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">OS:</span>
-                          <span>{systemInfo.os.name} {systemInfo.os.version}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Memory:</span>
-                          <span>{systemInfo.memory.total} GB ({systemInfo.memory.type})</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Storage:</span>
-                          <span>{systemInfo.storage.available} GB free of {systemInfo.storage.total} GB</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Network:</span>
-                          <span>{systemInfo.network.download}/{systemInfo.network.upload} Mbps</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
-                      <h5 className="font-medium text-purple-400 mb-3">Estimated Earnings</h5>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-400 text-sm">Hourly:</span>
-                          <span className="text-xl font-bold text-yellow-400">{getEstimatedEarnings()} WATT</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400 text-sm">Daily:</span>
-                          <span className="font-medium">{(parseFloat(getEstimatedEarnings()) * 24).toFixed(8)} WATT</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400 text-sm">Monthly:</span>
-                          <span className="font-medium">{(parseFloat(getEstimatedEarnings()) * 24 * 30).toFixed(8)} WATT</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-3">Detecting system specifications...</span>
-                  </div>
-                )}
-
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                    <div>
-                      <p className="text-yellow-400 font-medium">Important Information</p>
-                      <p className="text-sm text-gray-300 mt-1">
-                        The hardware rental client runs in a secure sandbox with strict resource limits. You can set how much of your system resources to share,
-                        and the client will automatically throttle when you're using your computer. Your personal data remains private and secure.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* Hardware Scanner Component */}
+                <HardwareScanner onScanComplete={handleScanComplete} />
 
                 <div className="flex justify-end">
                   <motion.button

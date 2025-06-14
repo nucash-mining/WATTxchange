@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, ArrowUpDown, BarChart3, DollarSign, Network, ArrowLeftRight } from 'lucide-react';
+import { TrendingUp, ArrowUpDown, BarChart3, DollarSign, Network, ArrowLeftRight, Zap, Key } from 'lucide-react';
 import { usePrices } from '../hooks/usePrices';
 import OrderBook from './dex/OrderBook';
 import TradingChart from './dex/TradingChart';
@@ -9,10 +9,13 @@ import LiquidityPools from './dex/LiquidityPools';
 import SwapInterface from './dex/SwapInterface';
 import UniswapV4Interface from './dex/UniswapV4Interface';
 import CrossChainBridge from './dex/CrossChainBridge';
+import PerpetualTrading from './dex/PerpetualTrading';
+import ExchangeApiManager from './dex/ExchangeApiManager';
 
 const DEXView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge'>('uniswap');
+  const [activeTab, setActiveTab] = useState<'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps'>('uniswap');
   const { getPrice } = usePrices(['ALT', 'BTC', 'ETH']);
+  const [showApiManager, setShowApiManager] = useState(false);
 
   const altPrice = getPrice('ALT');
   const volume24h = altPrice ? altPrice.volume24h * altPrice.price : 0;
@@ -61,57 +64,79 @@ const DEXView: React.FC = () => {
           <p className="text-slate-400 mt-1">Multi-chain trading powered by Swapin.co</p>
         </div>
         
-        <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
-          <button
-            onClick={() => setActiveTab('uniswap')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              activeTab === 'uniswap'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
-            }`}
+        <div className="flex items-center space-x-3">
+          <motion.button
+            onClick={() => setShowApiManager(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            Uniswap V4
-          </button>
-          <button
-            onClick={() => setActiveTab('multichain')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              activeTab === 'multichain'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Multi-Chain
-          </button>
-          <button
-            onClick={() => setActiveTab('spot')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              activeTab === 'spot'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Spot Trading
-          </button>
-          <button
-            onClick={() => setActiveTab('pools')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              activeTab === 'pools'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Liquidity Pools
-          </button>
-          <button
-            onClick={() => setActiveTab('bridge')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              activeTab === 'bridge'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Bridge
-          </button>
+            <Key className="w-4 h-4" />
+            <span>API Keys</span>
+          </motion.button>
+          
+          <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
+            <button
+              onClick={() => setActiveTab('uniswap')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'uniswap'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Uniswap V4
+            </button>
+            <button
+              onClick={() => setActiveTab('multichain')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'multichain'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Multi-Chain
+            </button>
+            <button
+              onClick={() => setActiveTab('spot')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'spot'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Spot
+            </button>
+            <button
+              onClick={() => setActiveTab('perps')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'perps'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Perpetuals
+            </button>
+            <button
+              onClick={() => setActiveTab('pools')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'pools'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Pools
+            </button>
+            <button
+              onClick={() => setActiveTab('bridge')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'bridge'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Bridge
+            </button>
+          </div>
         </div>
       </motion.div>
 
@@ -162,6 +187,7 @@ const DEXView: React.FC = () => {
         )}
         {activeTab === 'pools' && <LiquidityPools />}
         {activeTab === 'bridge' && <CrossChainBridge />}
+        {activeTab === 'perps' && <PerpetualTrading />}
       </motion.div>
 
       {/* Swapin.co Info */}
@@ -199,6 +225,12 @@ const DEXView: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Exchange API Manager Modal */}
+      <ExchangeApiManager 
+        isOpen={showApiManager} 
+        onClose={() => setShowApiManager(false)} 
+      />
     </div>
   );
 };

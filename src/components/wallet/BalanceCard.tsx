@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownLeft, MoreHorizontal } from 'lucide-react';
 import ReceiveModal from './ReceiveModal';
 import SendModal from './SendModal';
+import DepositModal from './DepositModal';
 
 interface Chain {
   name: string;
@@ -23,6 +24,8 @@ interface BalanceCardProps {
 const BalanceCard: React.FC<BalanceCardProps> = ({ chain, showBalance, index }) => {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const IconComponent = chain.icon;
 
   const handleDoubleClick = () => {
@@ -60,9 +63,47 @@ const BalanceCard: React.FC<BalanceCardProps> = ({ chain, showBalance, index }) 
               </div>
             </div>
           </div>
-          <button className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button 
+              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+              onClick={() => setShowMenu(!showMenu)}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            
+            {/* Dropdown Menu */}
+            {showMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-700 z-10">
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowDepositModal(true);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-slate-700 transition-colors rounded-t-lg"
+                >
+                  Deposit
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    // Add additional actions here
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-slate-700 transition-colors"
+                >
+                  View Transactions
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    // Add additional actions here
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-slate-700 transition-colors rounded-b-lg"
+                >
+                  Hide Token
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -116,6 +157,12 @@ const BalanceCard: React.FC<BalanceCardProps> = ({ chain, showBalance, index }) 
         onClose={() => setShowSendModal(false)}
         chainSymbol={chain.symbol}
         balance={chain.balance}
+      />
+
+      <DepositModal
+        isOpen={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        chainSymbol={chain.symbol}
       />
     </>
   );

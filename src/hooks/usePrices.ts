@@ -89,7 +89,9 @@ export const usePrices = (symbols: string[], refreshInterval: number = 30000) =>
 
   const formatChange = (symbol: string): { value: string; isPositive: boolean } => {
     const price = getPrice(symbol);
-    if (!price || isNaN(price.changePercent24h)) return { value: '0.00%', isPositive: true };
+    if (!price || price.changePercent24h === null || price.changePercent24h === undefined || isNaN(price.changePercent24h)) {
+      return { value: '0.00%', isPositive: true };
+    }
     
     const isPositive = price.changePercent24h >= 0;
     const value = `${isPositive ? '+' : ''}${price.changePercent24h.toFixed(2)}%`;

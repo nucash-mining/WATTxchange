@@ -48,6 +48,17 @@ export const useWallet = () => {
     wattBalance: '0',
   });
 
+  // Check if wallet is already connected on component mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (window.ethereum && window.ethereum.selectedAddress) {
+        connectWallet();
+      }
+    };
+    
+    checkConnection();
+  }, []);
+
   const updateBalances = async (provider: ethers.BrowserProvider, address: string, chainId: number) => {
     try {
       // Get native token balance (ETH or ALT)
@@ -90,7 +101,7 @@ export const useWallet = () => {
     try {
       if (!window.ethereum) {
         toast.error('Please install MetaMask or another Web3 wallet');
-        return;
+        return false;
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -112,9 +123,11 @@ export const useWallet = () => {
       await updateBalances(provider, accounts[0], chainId);
 
       toast.success('Wallet connected successfully!');
+      return true;
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       toast.error('Failed to connect wallet');
+      return false;
     }
   };
 

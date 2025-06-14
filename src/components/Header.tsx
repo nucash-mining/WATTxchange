@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Wifi, WifiOff, Settings, Menu } from 'lucide-react';
 import WalletConnect from './WalletConnect';
+import { useWallet } from '../hooks/useWallet';
 
 interface HeaderProps {
   isMobile?: boolean;
@@ -9,7 +10,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ isMobile = false, onMenuToggle }) => {
-  const [isConnected, setIsConnected] = React.useState(true);
+  const { isConnected } = useWallet();
 
   return (
     <header className="bg-black/80 backdrop-blur-xl border-b border-gray-800 p-4">
@@ -80,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({ isMobile = false, onMenuToggle }) => {
                   <WifiOff className="w-4 h-4 text-red-400" />
                 )}
                 <span className="text-sm">
-                  {isConnected ? 'Connected' : 'Offline'}
+                  {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
               

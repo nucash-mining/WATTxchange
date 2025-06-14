@@ -7,7 +7,7 @@ import TradingChart from './dex/TradingChart';
 import TradeForm from './dex/TradeForm';
 import LiquidityPools from './dex/LiquidityPools';
 import SwapInterface from './dex/SwapInterface';
-import UniswapV4Interface from './dex/UniswapV4Interface';
+import SwapinV2Interface from './dex/UniswapV4Interface';
 import CrossChainBridge from './dex/CrossChainBridge';
 import PerpetualTrading from './dex/PerpetualTrading';
 import ExchangeApiManager from './dex/ExchangeApiManager';
@@ -86,7 +86,7 @@ const DEXView: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {isMobile ? 'V4' : 'Uniswap V4'}
+              {isMobile ? 'V2' : 'Swapin V2'}
             </button>
             <button
               onClick={() => setActiveTab('multichain')}
@@ -201,7 +201,7 @@ const DEXView: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {activeTab === 'uniswap' && <UniswapV4Interface />}
+        {activeTab === 'uniswap' && <SwapinV2Interface />}
         {activeTab === 'multichain' && <SwapInterface />}
         {activeTab === 'spot' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, ExternalLink, Zap } from 'lucide-react';
+import { Wallet, ExternalLink, Zap, WifiOff } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 
 interface WalletConnectProps {

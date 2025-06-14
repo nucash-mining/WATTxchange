@@ -13,7 +13,7 @@ import AddLiquidityModal from './AddLiquidityModal';
 import RemoveLiquidityModal from './RemoveLiquidityModal';
 import toast from 'react-hot-toast';
 
-const UniswapV4Interface: React.FC = () => {
+const SwapinV2Interface: React.FC = () => {
   const { isConnected, address, chainId, switchToAltcoinchain, signTransaction } = useWallet();
   const { isMobile } = useDeviceDetect();
   const [activeTab, setActiveTab] = useState<'swap' | 'pools' | 'positions'>('swap');
@@ -647,7 +647,28 @@ const UniswapV4Interface: React.FC = () => {
               </motion.button>
             </div>
 
-            {positions.length === 0 ? (
+            {!isConnected ? (
+              <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-12 border border-slate-700/50 text-center">
+                <Wallet className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold mb-2">Connect Wallet</h4>
+                <p className="text-slate-400 mb-6">Connect your wallet to view your liquidity positions</p>
+                <motion.button
+                  onClick={() => {
+                    // This will trigger the wallet connect flow
+                    if (window.ethereum) {
+                      window.ethereum.request({ method: 'eth_requestAccounts' });
+                    } else {
+                      toast.error('No wallet detected. Please install MetaMask or another Web3 wallet.');
+                    }
+                  }}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Connect Wallet
+                </motion.button>
+              </div>
+            ) : positions.length === 0 ? (
               <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-12 border border-slate-700/50 text-center">
                 <Info className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                 <h4 className="text-lg font-semibold mb-2">No active positions</h4>
@@ -694,7 +715,7 @@ const UniswapV4Interface: React.FC = () => {
         )}
       </motion.div>
 
-      {/* Uniswap V4 Features */}
+      {/* Swapin V2 Features */}
       <motion.div
         className="bg-gradient-to-r from-blue-600/10 to-purple-600/10 border border-blue-500/30 rounded-xl p-6"
         initial={{ opacity: 0, y: 20 }}
@@ -706,7 +727,7 @@ const UniswapV4Interface: React.FC = () => {
             <Zap className="w-6 h-6 text-blue-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-blue-400 mb-2">Uniswap V4 Features</h3>
+            <h3 className="text-lg font-semibold text-blue-400 mb-2">Swapin V2 Features</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-slate-800/50 rounded-lg p-4">
                 <h4 className="font-semibold text-purple-400 mb-2">Hooks</h4>
@@ -764,4 +785,4 @@ const UniswapV4Interface: React.FC = () => {
   );
 };
 
-export default UniswapV4Interface;
+export default SwapinV2Interface;

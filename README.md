@@ -26,7 +26,7 @@ A comprehensive multi-chain DeFi platform featuring blockchain node management, 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/wattxchange.git
+git clone https://github.com/nucash-mining/wattxchange.git
 cd wattxchange
 
 # Install dependencies

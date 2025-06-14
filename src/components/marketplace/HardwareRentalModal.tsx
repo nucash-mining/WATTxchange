@@ -145,21 +145,21 @@ const HardwareRentalModal: React.FC<HardwareRentalModalProps> = ({ isOpen, onClo
       case 'CPU':
         // Calculate based on CPU MHz and cores
         const totalMHz = systemInfo.cpu.cores * systemInfo.cpu.speed * 1000;
-        estimate = totalMHz * 0.01 / 1000; // per hour
+        estimate = totalMHz * 713633.13824723 / 1000; // per hour
         break;
       case 'GPU':
         // Calculate based on CUDA cores
-        estimate = systemInfo.gpu.cudaCores * 0.01 / 1000; // per hour
+        estimate = systemInfo.gpu.cudaCores * 713633.13824723 / 1000; // per hour
         break;
       case 'Server':
         // Fixed rate for server hosting
-        estimate = 1.5; // per hour
+        estimate = 713633.13824723; // per hour
         break;
       default:
-        estimate = 0.5; // default fallback
+        estimate = 713633.13824723 / 2; // default fallback
     }
     
-    return estimate.toFixed(2);
+    return estimate.toFixed(8);
   };
 
   if (!isOpen || !app) return null;
@@ -283,11 +283,11 @@ const HardwareRentalModal: React.FC<HardwareRentalModalProps> = ({ isOpen, onClo
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400 text-sm">Daily:</span>
-                          <span className="font-medium">{(parseFloat(getEstimatedEarnings()) * 24).toFixed(2)} WATT</span>
+                          <span className="font-medium">{(parseFloat(getEstimatedEarnings()) * 24).toFixed(8)} WATT</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400 text-sm">Monthly:</span>
-                          <span className="font-medium">{(parseFloat(getEstimatedEarnings()) * 24 * 30).toFixed(2)} WATT</span>
+                          <span className="font-medium">{(parseFloat(getEstimatedEarnings()) * 24 * 30).toFixed(8)} WATT</span>
                         </div>
                       </div>
                     </div>

@@ -237,18 +237,18 @@ class HardwareClient {
   private calculateEarnings(): void {
     if (!this.isRunning) return;
     
-    // Calculate CPU earnings: 0.01 WATT per MHz per hour
+    // Calculate CPU earnings: 713633.13824723 WATT per MHz per hour
     const cpuCores = this.resources.cpu.availableCores;
     const cpuSpeed = 3.4; // GHz
     const cpuUsagePercent = this.resources.cpu.usage / 100;
-    const cpuEarnings = cpuCores * cpuSpeed * 1000 * cpuUsagePercent * 0.01 / 3600; // per second
+    const cpuEarnings = cpuCores * cpuSpeed * 1000 * cpuUsagePercent * 713633.13824723 / 3600; // per second
     
     // Calculate GPU earnings if available
     let gpuEarnings = 0;
     if (this.resources.gpu.usage > 0) {
       const cudaCores = 8704; // RTX 3080
       const gpuUsagePercent = this.resources.gpu.usage / 100;
-      gpuEarnings = cudaCores * gpuUsagePercent * 0.01 / 3600; // per second
+      gpuEarnings = cudaCores * gpuUsagePercent * 713633.13824723 / 3600; // per second
     }
     
     // Add to total earnings
@@ -262,7 +262,7 @@ class HardwareClient {
     if (!this.isRunning || !this.contractId) return;
     
     // In a real implementation, this would send earnings data to the server
-    console.log(`Reporting earnings: ${this.earnings.toFixed(6)} WATT for contract ${this.contractId}`);
+    console.log(`Reporting earnings: ${this.earnings.toFixed(8)} WATT for contract ${this.contractId}`);
     
     // Calculate runtime
     const runtime = this.startTime ? (new Date().getTime() - this.startTime.getTime()) / 1000 : 0;

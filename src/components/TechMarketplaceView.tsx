@@ -35,7 +35,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Multi-algorithm cryptocurrency miner',
       category: 'Mining',
       rating: 4.8,
-      price: '0.05 WATT/hour',
+      price: '713633.13824723 WATT/hour',
       icon: Cpu,
       coins: ['XMR', 'ALT', 'ETI', 'EGAZ', 'HTH'],
       specs: 'RTX 4090, 24GB VRAM'
@@ -46,7 +46,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'NVIDIA GPU cryptocurrency miner',
       category: 'Mining',
       rating: 4.7,
-      price: '0.04 WATT/hour',
+      price: '713633.13824723 WATT/hour',
       icon: Monitor,
       coins: ['BTCZ', 'OCTA', 'ETHO', 'EGEM', 'HTH'],
       specs: 'RTX 3080, 12GB VRAM'
@@ -57,7 +57,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'High performance Monero CPU miner',
       category: 'Mining',
       rating: 4.9,
-      price: '0.02 WATT/hour',
+      price: '713633.13824723 WATT/hour',
       icon: Cpu,
       coins: ['XMR'],
       specs: 'AMD Ryzen 9 5950X'
@@ -68,7 +68,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Scrypt algorithm miner for DOGE',
       category: 'Mining',
       rating: 4.6,
-      price: '0.03 WATT/hour',
+      price: '713633.13824723 WATT/hour',
       icon: HardDrive,
       coins: ['DOGE'],
       specs: 'ASIC L7, 9.5GH/s'
@@ -79,7 +79,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Versatile mining rig for multiple algorithms',
       category: 'Mining',
       rating: 4.8,
-      price: '0.08 WATT/hour',
+      price: '713633.13824723 WATT/hour',
       icon: Zap,
       coins: ['ALT', 'ETI', 'EGAZ', 'BTCZ', 'OCTA', 'ETHO', 'EGEM', 'HTH'],
       specs: 'Mixed GPU Farm'
@@ -90,7 +90,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Specialized miner for Help The Homeless coin',
       category: 'Mining',
       rating: 4.9,
-      price: '0.04 WATT/hour',
+      price: '713633.13824723 WATT/hour',
       icon: Cpu,
       coins: ['HTH'],
       specs: 'NVIDIA RTX 3090, 24GB VRAM'
@@ -104,7 +104,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Rent out your CPU processing power and earn WATT tokens',
       category: 'Hardware Rental',
       rating: 4.9,
-      price: 'Earn 0.01 WATT/MHz/hr',
+      price: 'Earn 713633.13824723 WATT/MHz/hr',
       icon: Cpu,
       type: 'CPU',
       specs: 'Any x86_64 CPU with 2+ cores',
@@ -121,7 +121,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Share your GPU for AI and rendering tasks',
       category: 'Hardware Rental',
       rating: 4.7,
-      price: 'Earn 0.01 WATT/CUDA core/hr',
+      price: 'Earn 713633.13824723 WATT/CUDA core/hr',
       icon: Monitor,
       type: 'GPU',
       specs: 'NVIDIA RTX 2000+ series or AMD RX 6000+ series',
@@ -138,7 +138,7 @@ const TechMarketplaceView: React.FC = () => {
       description: 'Run blockchain nodes and earn passive income',
       category: 'Hardware Rental',
       rating: 4.8,
-      price: 'Earn 0.5-2.0 WATT/hour',
+      price: 'Earn 713633.13824723 WATT/hour',
       icon: Server,
       type: 'Server',
       specs: '16GB+ RAM, 500GB+ SSD, 100Mbps+ connection',
@@ -221,7 +221,7 @@ const TechMarketplaceView: React.FC = () => {
               <div className="flex flex-wrap gap-3 mt-3">
                 <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
                   <Cpu className="w-4 h-4 text-yellow-400" />
-                  <span>Earn 0.01 WATT/MHz/hr</span>
+                  <span>Earn 713633.13824723 WATT/MHz/hr</span>
                 </div>
                 <div className="flex items-center space-x-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full">
                   <Shield className="w-4 h-4 text-emerald-400" />

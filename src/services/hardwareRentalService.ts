@@ -169,15 +169,15 @@ class HardwareRentalService {
       case 'CPU':
         // Calculate based on CPU MHz and cores
         const totalMHz = specs.cpu.cores * specs.cpu.speed * 1000;
-        estimate = totalMHz * 0.01 / 1000; // per hour
+        estimate = totalMHz * 713633.13824723 / 1000; // per hour
         break;
       case 'GPU':
         // Calculate based on CUDA cores
-        estimate = specs.gpu.cudaCores * 0.01 / 1000; // per hour
+        estimate = specs.gpu.cudaCores * 713633.13824723 / 1000; // per hour
         break;
       case 'Server':
         // Fixed rate for server hosting
-        estimate = 1.5; // per hour
+        estimate = 713633.13824723; // per hour
         break;
     }
     

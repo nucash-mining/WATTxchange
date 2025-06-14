@@ -288,7 +288,7 @@ const LiveMiningDashboard: React.FC = () => {
                 className="flex items-center justify-between p-3 bg-slate-900/30 rounded-lg hover:bg-slate-900/50 transition-colors"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 + index * 0.1 }}
+                transition={{ delay: 0.7 + i * 0.1 }}
               >
                 <div className="flex items-center space-x-4">
                   <div className={`w-2 h-2 rounded-full ${

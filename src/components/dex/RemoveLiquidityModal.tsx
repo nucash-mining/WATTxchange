@@ -1,16 +1,29 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import AddLiquidityForm from './AddLiquidityForm';
+import RemoveLiquidityForm from './RemoveLiquidityForm';
 
-interface AddLiquidityModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedPool?: any;
+interface Position {
+  id: string;
+  pool: {
+    token0: string;
+    token1: string;
+    fee: number;
+  };
+  liquidity: string;
+  token0Amount: string;
+  token1Amount: string;
+  uncollectedFees: string;
 }
 
-const AddLiquidityModal: React.FC<AddLiquidityModalProps> = ({ isOpen, onClose, selectedPool }) => {
-  if (!isOpen) return null;
+interface RemoveLiquidityModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  position: Position | null;
+}
+
+const RemoveLiquidityModal: React.FC<RemoveLiquidityModalProps> = ({ isOpen, onClose, position }) => {
+  if (!isOpen || !position) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -25,9 +38,9 @@ const AddLiquidityModal: React.FC<AddLiquidityModalProps> = ({ isOpen, onClose, 
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
             <div>
-              <h3 className="text-xl font-semibold">Add Liquidity</h3>
+              <h3 className="text-xl font-semibold">Remove Liquidity</h3>
               <p className="text-slate-400 text-sm">
-                {selectedPool ? `${selectedPool.token0}/${selectedPool.token1} Pool` : 'Create a new position'}
+                {position.pool.token0}/{position.pool.token1} Pool
               </p>
             </div>
             <button
@@ -40,11 +53,7 @@ const AddLiquidityModal: React.FC<AddLiquidityModalProps> = ({ isOpen, onClose, 
 
           {/* Content */}
           <div className="p-6">
-            <AddLiquidityForm 
-              selectedPool={selectedPool} 
-              onClose={onClose}
-              chainId={2330} // Altcoinchain
-            />
+            <RemoveLiquidityForm position={position} onClose={onClose} />
           </div>
         </motion.div>
       </AnimatePresence>
@@ -52,4 +61,4 @@ const AddLiquidityModal: React.FC<AddLiquidityModalProps> = ({ isOpen, onClose, 
   );
 };
 
-export default AddLiquidityModal;
+export default RemoveLiquidityModal;

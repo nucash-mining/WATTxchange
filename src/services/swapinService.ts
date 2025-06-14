@@ -234,11 +234,30 @@ class SwapinService {
       });
       return true;
     } catch (error: any) {
-      if (error.code === 4902) {
-        return await this.addNetworkToWallet(chainId);
-      }
       console.error('Failed to switch network:', error);
-      return false;
+      
+      // If the error is because the chain is not added (code 4902) or any other error,
+      // try to add the network first, then switch to it
+      if (error.code === 4902 || error.message?.includes('Unrecognized chain ID')) {
+        const addResult = await this.addNetworkToWallet(chainId);
+        if (addResult) {
+          // Try switching again after adding the network
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: `0x${chainId.toString(16)}` }]
+            });
+            return true;
+          } catch (switchError) {
+            console.error('Failed to switch after adding network:', switchError);
+            return false;
+          }
+        }
+        return false;
+      }
+      
+      // For any other error, try adding the network as a fallback
+      return await this.addNetworkToWallet(chainId);
     }
   }
 

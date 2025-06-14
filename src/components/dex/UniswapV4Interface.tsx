@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpDown, Settings, Zap, TrendingUp, Info, Plus, Minus } from 'lucide-react';
+import { ArrowUpDown, Settings, Zap, TrendingUp, Info, Plus, Minus, ArrowRight } from 'lucide-react';
 import { swapinService } from '../../services/swapinService';
 import { tokenService } from '../../services/tokenService';
 import toast from 'react-hot-toast';
@@ -47,7 +47,6 @@ const UniswapV4Interface: React.FC = () => {
 
   useEffect(() => {
     loadPools();
-    loadPositions();
   }, [selectedNetwork]);
 
   useEffect(() => {
@@ -91,24 +90,30 @@ const UniswapV4Interface: React.FC = () => {
       }
     ];
     setPools(mockPools);
+    // Load positions after pools are set
+    loadPositions(mockPools);
   };
 
-  const loadPositions = async () => {
-    // Mock user positions
-    const mockPositions: Position[] = [
-      {
-        id: 'pos-1',
-        pool: pools[0] || {} as Pool,
-        liquidity: '12,345',
-        token0Amount: '1,000',
-        token1Amount: '1,500',
-        uncollectedFees: '$23.45',
-        inRange: true,
-        tickLower: -887220,
-        tickUpper: 887220
-      }
-    ];
-    setPositions(mockPositions);
+  const loadPositions = async (poolsData: Pool[]) => {
+    // Mock user positions - use the provided pools data to ensure we have valid pool references
+    if (poolsData.length > 0) {
+      const mockPositions: Position[] = [
+        {
+          id: 'pos-1',
+          pool: poolsData[0], // Use the first pool from the provided data
+          liquidity: '12,345',
+          token0Amount: '1,000',
+          token1Amount: '1,500',
+          uncollectedFees: '$23.45',
+          inRange: true,
+          tickLower: -887220,
+          tickUpper: 887220
+        }
+      ];
+      setPositions(mockPositions);
+    } else {
+      setPositions([]);
+    }
   };
 
   const calculateSwapAmount = async () => {
@@ -457,10 +462,10 @@ const UniswapV4Interface: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <div className="flex items-center">
                         <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold">
-                          {pool.token0.charAt(0)}
+                          {pool.token0?.charAt(0) || 'T'}
                         </div>
                         <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold -ml-2">
-                          {pool.token1.charAt(0)}
+                          {pool.token1?.charAt(0) || 'T'}
                         </div>
                       </div>
                       <h4 className="font-semibold">{pool.token0}/{pool.token1}</h4>
@@ -561,15 +566,15 @@ const UniswapV4Interface: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center">
                           <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold">
-                            {position.pool.token0.charAt(0)}
+                            {position.pool?.token0?.charAt(0) || 'T'}
                           </div>
                           <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold -ml-2">
-                            {position.pool.token1.charAt(0)}
+                            {position.pool?.token1?.charAt(0) || 'T'}
                           </div>
                         </div>
-                        <h4 className="font-semibold">{position.pool.token0}/{position.pool.token1}</h4>
+                        <h4 className="font-semibold">{position.pool?.token0 || 'TOKEN0'}/{position.pool?.token1 || 'TOKEN1'}</h4>
                         <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">
-                          {position.pool.fee}%
+                          {position.pool?.fee || 0}%
                         </span>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded ${
@@ -591,11 +596,11 @@ const UniswapV4Interface: React.FC = () => {
                         <p className="font-bold text-emerald-400">{position.uncollectedFees}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 text-sm">{position.pool.token0}</p>
+                        <p className="text-slate-400 text-sm">{position.pool?.token0 || 'TOKEN0'}</p>
                         <p className="font-bold">{position.token0Amount}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 text-sm">{position.pool.token1}</p>
+                        <p className="text-slate-400 text-sm">{position.pool?.token1 || 'TOKEN1'}</p>
                         <p className="font-bold">{position.token1Amount}</p>
                       </div>
                     </div>

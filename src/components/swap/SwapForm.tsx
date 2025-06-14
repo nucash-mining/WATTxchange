@@ -57,6 +57,12 @@ const SwapForm: React.FC = () => {
       name: 'Trollcoin', 
       balance: '15,420.69',
       icon: () => <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />
+    },
+    { 
+      symbol: 'HTH', 
+      name: 'Help The Homeless', 
+      balance: '25,000.00',
+      icon: () => <img src="/HTH logo.webp" alt="HTH" className="w-6 h-6 object-contain" />
     }
   ];
 
@@ -192,6 +198,12 @@ const SwapForm: React.FC = () => {
                 <span className="text-orange-400">Proof-of-Work</span>
               </div>
             )}
+            {(sendToken === 'HTH' || receiveToken === 'HTH') && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">HTH Type</span>
+                <span className="text-blue-400">PoW/Masternode</span>
+              </div>
+            )}
           </div>
 
           {/* Create Swap Button */}
@@ -234,6 +246,11 @@ const SwapForm: React.FC = () => {
                       {token.symbol === 'TROLL' && (
                         <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-1 rounded">
                           PoW
+                        </span>
+                      )}
+                      {token.symbol === 'HTH' && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                          PoW/MN
                         </span>
                       )}
                     </div>
@@ -314,6 +331,21 @@ const SwapForm: React.FC = () => {
               <p className="text-sm text-slate-300 mt-1">
                 Trollcoin uses PoW consensus with Scrypt algorithm. Mining-based validation 
                 provides strong security for atomic swap transactions.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* HTH PoW/MN Notice */}
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+          <div className="flex items-start space-x-2">
+            <img src="/HTH logo.webp" alt="HTH" className="w-5 h-5 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-400">Help The Homeless PoW/Masternode</p>
+              <p className="text-sm text-slate-300 mt-1">
+                HTH uses a hybrid PoW/Masternode consensus with x25x algorithm. 
+                Masternode network provides additional security and faster transaction validation
+                for atomic swaps.
               </p>
             </div>
           </div>

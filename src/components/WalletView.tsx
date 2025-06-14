@@ -19,7 +19,7 @@ const WalletView: React.FC = () => {
   const [showTradingBot, setShowTradingBot] = useState(false);
   const { isConnected, address, chainId, altBalance, wattBalance, refreshBalances } = useWallet();
   
-  // Fetch prices for all supported cryptocurrencies including GHOST and TROLL
+  // Fetch prices for all supported cryptocurrencies including GHOST, TROLL and HTH
   const { 
     prices, 
     loading: pricesLoading, 
@@ -30,7 +30,7 @@ const WalletView: React.FC = () => {
     lastUpdated,
     apiConnected,
     getTotalValue
-  } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL']);
+  } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL', 'HTH']);
 
   useEffect(() => {
     // Check if wallet service is already initialized
@@ -121,6 +121,15 @@ const WalletView: React.FC = () => {
       balance: '0.000000',
       icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-8 h-8 object-contain" />,
       color: 'from-gray-600 to-gray-700',
+      nodeType: 'rpc' as const,
+      syncStatus: 'disconnected' as const
+    },
+    {
+      name: 'Help The Homeless',
+      symbol: 'HTH',
+      balance: '0.000000',
+      icon: () => <img src="/HTH logo.webp" alt="HTH" className="w-8 h-8 object-contain" />,
+      color: 'from-green-600 to-yellow-500',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
     }
@@ -275,7 +284,7 @@ const WalletView: React.FC = () => {
         <div className="flex items-center space-x-2">
           <Server className="w-5 h-5 text-blue-400" />
           <p className="text-blue-400 font-medium">
-            UTXO chains (BTC, LTC, XMR, GHOST, TROLL) require RPC node connections for balance and transaction management
+            UTXO chains (BTC, LTC, XMR, GHOST, TROLL, HTH) require RPC node connections for balance and transaction management
           </p>
         </div>
       </motion.div>
@@ -336,8 +345,8 @@ const WalletView: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
-          {chainsWithPrices.slice(0, 7).map((chain) => {
+        <div className="grid grid-cols-2 md:grid-cols-8 gap-4">
+          {chainsWithPrices.slice(0, 8).map((chain) => {
             const change = formatChange(chain.symbol);
             const IconComponent = chain.icon;
             return (

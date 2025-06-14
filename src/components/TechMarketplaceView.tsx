@@ -7,7 +7,7 @@ const TechMarketplaceView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const categories = [
-    { name: 'All', count: 45 },
+    { name: 'All', count: 46 },
     { name: 'My Apps', count: 0 },
     { name: 'AI Audio Creation', count: 5 },
     { name: 'AI Image Creation', count: 9 },
@@ -15,7 +15,7 @@ const TechMarketplaceView: React.FC = () => {
     { name: 'Cybersecurity', count: 1 },
     { name: 'Desktop and Gaming', count: 2 },
     { name: 'Machine Learning', count: 2 },
-    { name: 'Mining', count: 16 },
+    { name: 'Mining', count: 17 },
     { name: 'Operation System', count: 4 },
     { name: 'Speech Recognition', count: 1 }
   ];
@@ -29,7 +29,7 @@ const TechMarketplaceView: React.FC = () => {
       rating: 4.8,
       price: '0.05 WATT/hour',
       icon: Cpu,
-      coins: ['XMR', 'ALT', 'ETI', 'EGAZ'],
+      coins: ['XMR', 'ALT', 'ETI', 'EGAZ', 'HTH'],
       specs: 'RTX 4090, 24GB VRAM'
     },
     {
@@ -40,7 +40,7 @@ const TechMarketplaceView: React.FC = () => {
       rating: 4.7,
       price: '0.04 WATT/hour',
       icon: Monitor,
-      coins: ['BTCZ', 'OCTA', 'ETHO', 'EGEM'],
+      coins: ['BTCZ', 'OCTA', 'ETHO', 'EGEM', 'HTH'],
       specs: 'RTX 3080, 12GB VRAM'
     },
     {
@@ -73,8 +73,19 @@ const TechMarketplaceView: React.FC = () => {
       rating: 4.8,
       price: '0.08 WATT/hour',
       icon: Zap,
-      coins: ['ALT', 'ETI', 'EGAZ', 'BTCZ', 'OCTA', 'ETHO', 'EGEM'],
+      coins: ['ALT', 'ETI', 'EGAZ', 'BTCZ', 'OCTA', 'ETHO', 'EGEM', 'HTH'],
       specs: 'Mixed GPU Farm'
+    },
+    {
+      id: 6,
+      name: 'HTH x25x Miner',
+      description: 'Specialized miner for Help The Homeless coin',
+      category: 'Mining',
+      rating: 4.9,
+      price: '0.04 WATT/hour',
+      icon: Cpu,
+      coins: ['HTH'],
+      specs: 'NVIDIA RTX 3090, 24GB VRAM'
     }
   ];
 
@@ -192,7 +203,9 @@ const TechMarketplaceView: React.FC = () => {
                         {app.coins.map(coin => (
                           <span
                             key={coin}
-                            className="px-2 py-1 bg-gray-800 rounded text-xs font-medium"
+                            className={`px-2 py-1 bg-gray-800 rounded text-xs font-medium ${
+                              coin === 'HTH' ? 'bg-blue-500/20 text-blue-400' : ''
+                            }`}
                           >
                             {coin}
                           </span>

@@ -49,13 +49,17 @@ export const usePrices = (symbols: string[], refreshInterval: number = 30000) =>
                    symbol === 'LTC' ? 120 :
                    symbol === 'XMR' ? 180 :
                    symbol === 'DOGE' ? 0.08 :
-                   symbol === 'GHOST' ? 2.25 : 0,
+                   symbol === 'GHOST' ? 2.25 : 
+                   symbol === 'TROLL' ? 0.000045 :
+                   symbol === 'HTH' ? 0.00012 : 0,
             change24h: 0,
             changePercent24h: 0,
             high24h: 0,
             low24h: 0,
             volume24h: 0,
-            lastUpdated: new Date()
+            marketCap: 0,
+            lastUpdated: new Date(),
+            source: 'Fallback'
           });
         });
         setPrices(fallbackPrices);

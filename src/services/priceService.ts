@@ -72,7 +72,8 @@ class PriceService {
         'XMR': 'XMR',
         'DOGE': 'DOGE',
         'GHOST': 'GHOST',
-        'TROLL': 'TROLL'
+        'TROLL': 'TROLL',
+        'HTH': 'HTH'
       }
     },
     coinGecko: {
@@ -85,7 +86,8 @@ class PriceService {
         'XMR': 'monero',
         'DOGE': 'dogecoin',
         'GHOST': 'ghost',
-        'TROLL': 'trollcoin'
+        'TROLL': 'trollcoin',
+        'HTH': 'help-the-homeless'
       }
     },
     coinPaprika: {
@@ -98,7 +100,8 @@ class PriceService {
         'XMR': 'xmr-monero',
         'DOGE': 'doge-dogecoin',
         'GHOST': 'ghost-ghost',
-        'TROLL': 'troll-trollcoin'
+        'TROLL': 'troll-trollcoin',
+        'HTH': 'hth-help-the-homeless'
       }
     },
     xeggex: {
@@ -120,7 +123,8 @@ class PriceService {
     XMR: { symbol: 'XMR', price: 180, changePercent24h: -2.7, volume24h: 300, marketCap: 3300000000 },
     DOGE: { symbol: 'DOGE', price: 0.08, changePercent24h: 6.7, volume24h: 50000, marketCap: 11000000000 },
     GHOST: { symbol: 'GHOST', price: 2.25, changePercent24h: 7.1, volume24h: 125000, marketCap: 45000000 },
-    TROLL: { symbol: 'TROLL', price: 0.000045, changePercent24h: 7.1, volume24h: 2500000, marketCap: 900000 }
+    TROLL: { symbol: 'TROLL', price: 0.000045, changePercent24h: 7.1, volume24h: 2500000, marketCap: 900000 },
+    HTH: { symbol: 'HTH', price: 0.00012, changePercent24h: 3.5, volume24h: 150000, marketCap: 1200000 }
   };
 
   async getPrice(symbol: string): Promise<PriceData | null> {
@@ -280,6 +284,7 @@ class PriceService {
       const tradingPair = symbol === 'ALT' ? 'ALT_USDT' : 
                          symbol === 'GHOST' ? 'GHOST_USDT' :
                          symbol === 'TROLL' ? 'TROLL_USDT' :
+                         symbol === 'HTH' ? 'HTH_USDT' :
                          `${symbol}_USDT`;
       
       const response = await fetch(

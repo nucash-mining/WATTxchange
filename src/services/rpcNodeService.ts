@@ -52,6 +52,11 @@ class RPCNodeService {
       name: 'Trollcoin Core',
       symbol: 'TROLL',
       port: 9666,
+    },
+    HTH: {
+      name: 'Help The Homeless Core',
+      symbol: 'HTH',
+      port: 13777, // Default RPC port for HTH
     }
   };
 
@@ -180,6 +185,7 @@ class RPCNodeService {
           method = 'get_balance';
           params = [];
           break;
+        case 'HTH':
         case 'BTC':
         case 'LTC':
         case 'GHOST':
@@ -221,6 +227,7 @@ class RPCNodeService {
           method = 'get_address';
           params = [];
           break;
+        case 'HTH':
         case 'BTC':
         case 'LTC':
         case 'GHOST':
@@ -263,6 +270,7 @@ class RPCNodeService {
             destinations: [{ address: toAddress, amount: amount * 1e12 }] // Convert to atomic units
           }];
           break;
+        case 'HTH':
         case 'BTC':
         case 'LTC':
         case 'GHOST':
@@ -312,6 +320,83 @@ class RPCNodeService {
     } catch (error) {
       console.error(`Failed to get blockchain info for ${nodeId}:`, error);
       return null;
+    }
+  }
+
+  // HTH specific methods
+  async getHTHMasternodeStatus(nodeId: string): Promise<any> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'HTH') return null;
+
+    try {
+      const response = await this.makeRPCCall(node, 'masternode', ['status']);
+      
+      if (response.error) {
+        console.error(`Masternode status request failed:`, response.error);
+        return null;
+      }
+
+      return response.result;
+    } catch (error) {
+      console.error(`Failed to get masternode status for ${nodeId}:`, error);
+      return null;
+    }
+  }
+
+  async getHTHMiningInfo(nodeId: string): Promise<any> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'HTH') return null;
+
+    try {
+      const response = await this.makeRPCCall(node, 'getmininginfo', []);
+      
+      if (response.error) {
+        console.error(`Mining info request failed:`, response.error);
+        return null;
+      }
+
+      return response.result;
+    } catch (error) {
+      console.error(`Failed to get mining info for ${nodeId}:`, error);
+      return null;
+    }
+  }
+
+  async startHTHMining(nodeId: string, threads: number = 1): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'HTH') return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'setgenerate', [true, threads]);
+      
+      if (response.error) {
+        console.error(`Start mining request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to start mining for ${nodeId}:`, error);
+      return false;
+    }
+  }
+
+  async stopHTHMining(nodeId: string): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'HTH') return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'setgenerate', [false]);
+      
+      if (response.error) {
+        console.error(`Stop mining request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to stop mining for ${nodeId}:`, error);
+      return false;
     }
   }
 

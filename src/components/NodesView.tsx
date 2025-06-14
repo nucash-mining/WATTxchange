@@ -21,7 +21,7 @@ interface NodeConfig {
   logo: string | (() => JSX.Element);
   enodes?: string[];
   walletFile?: string;
-  consensusType: 'PoW' | 'PoS';
+  consensusType: 'PoW' | 'PoS' | 'PoW/MN';
   installInstructions?: string[];
 }
 
@@ -182,13 +182,52 @@ const NodesView: React.FC = () => {
         'echo "daemon=1" >> ~/.ghost/ghost.conf',
         'echo "staking=1" >> ~/.ghost/ghost.conf'
       ]
+    },
+    {
+      id: 'hth',
+      name: 'Help The Homeless',
+      symbol: 'HTH',
+      rpcPort: 13777,
+      p2pPort: 13778,
+      dataDir: './data/hth',
+      executable: 'helpthehomelessd',
+      startCommand: 'helpthehomelessd -daemon -datadir=./data/hth -rpcport=13777 -port=13778',
+      status: 'stopped',
+      syncProgress: 0,
+      peers: 0,
+      blockHeight: 0,
+      diskUsage: '0 GB',
+      logo: () => <img src="/HTH logo.webp" alt="HTH" className="w-8 h-8 object-contain" />,
+      consensusType: 'PoW/MN',
+      installInstructions: [
+        'wget https://github.com/HTHcoin/helpthehomelesscoin/releases/download/0.14.1/helpthehomeless-cli',
+        'wget https://github.com/HTHcoin/helpthehomelesscoin/releases/download/0.14.1/helpthehomelessd',
+        'chmod +x helpthehomeless-cli helpthehomelessd',
+        'sudo mv helpthehomeless-cli helpthehomelessd /usr/local/bin/',
+        'mkdir -p ~/.helpthehomeless',
+        'echo "rpcuser=hthrpc" >> ~/.helpthehomeless/helpthehomeless.conf',
+        'echo "rpcpassword=$(openssl rand -hex 32)" >> ~/.helpthehomeless/helpthehomeless.conf',
+        'echo "rpcallowip=127.0.0.1" >> ~/.helpthehomeless/helpthehomeless.conf',
+        'echo "server=1" >> ~/.helpthehomeless/helpthehomeless.conf',
+        'echo "daemon=1" >> ~/.helpthehomeless/helpthehomeless.conf',
+        'echo "listen=1" >> ~/.helpthehomeless/helpthehomeless.conf',
+        'echo "masternode=0" >> ~/.helpthehomeless/helpthehomeless.conf'
+      ]
     }
   ]);
 
-  const [selectedNode, setSelectedNode] = useState<string>('trollcoin');
+  const [selectedNode, setSelectedNode] = useState<string>('hth');
   const [showConsole, setShowConsole] = useState(false);
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
+  const [showMasternodeSetup, setShowMasternodeSetup] = useState(false);
+  const [masternodeConfig, setMasternodeConfig] = useState({
+    alias: '',
+    ip: '',
+    privateKey: '',
+    txHash: '',
+    outputIndex: '0'
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -242,6 +281,13 @@ const NodesView: React.FC = () => {
       addConsoleOutput('Connecting to Trollcoin network peers...');
     }
 
+    if (node.id === 'hth') {
+      addConsoleOutput('Help The Homeless is a PoW/Masternode cryptocurrency');
+      addConsoleOutput('Starting HTH daemon with RPC enabled...');
+      addConsoleOutput('Connecting to HTH network peers...');
+      addConsoleOutput('x25x algorithm mining available...');
+    }
+
     try {
       // Simulate node startup
       setTimeout(() => {
@@ -271,6 +317,14 @@ const NodesView: React.FC = () => {
           addConsoleOutput('P2P network listening on port 9667');
           addConsoleOutput('Synchronizing with Trollcoin blockchain...');
         }
+
+        if (nodeId === 'hth') {
+          addConsoleOutput('Help The Homeless daemon started successfully');
+          addConsoleOutput('RPC server listening on port 13777');
+          addConsoleOutput('P2P network listening on port 13778');
+          addConsoleOutput('Synchronizing with HTH blockchain...');
+          addConsoleOutput('Checking masternode status...');
+        }
       }, 2000);
 
       // Simulate sync progress
@@ -298,6 +352,12 @@ const NodesView: React.FC = () => {
           if (nodeId === 'trollcoin') {
             addConsoleOutput('Trollcoin node fully synchronized');
             addConsoleOutput('Ready for mining and transactions');
+          }
+
+          if (nodeId === 'hth') {
+            addConsoleOutput('HTH node fully synchronized');
+            addConsoleOutput('Ready for mining and transactions');
+            addConsoleOutput('Masternode status: Not configured');
           }
         } else {
           setNodes(prev => prev.map(n => 
@@ -342,6 +402,10 @@ const NodesView: React.FC = () => {
     if (nodeId === 'trollcoin') {
       addConsoleOutput('Trollcoin daemon stopped');
     }
+    if (nodeId === 'hth') {
+      addConsoleOutput('Help The Homeless daemon stopped');
+      addConsoleOutput('Masternode service stopped');
+    }
     toast.success(`${node.name} stopped`);
   };
 
@@ -360,12 +424,71 @@ const NodesView: React.FC = () => {
       addConsoleOutput('trollcoind loadwallet "default"');
       addConsoleOutput('Wallet loaded successfully');
       addConsoleOutput('Ready for Trollcoin transactions');
+    } else if (nodeId === 'hth') {
+      addConsoleOutput('helpthehomeless-cli loadwallet "default"');
+      addConsoleOutput('Wallet loaded successfully');
+      addConsoleOutput('Ready for HTH transactions');
+      addConsoleOutput('Masternode status: Not configured');
     } else {
       addConsoleOutput(`${node.executable} loadwallet "default"`);
       addConsoleOutput('Wallet loaded successfully');
     }
 
     toast.success(`Wallet loaded for ${node.name}`);
+  };
+
+  const startMining = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Simulate mining start
+    addConsoleOutput(`Starting mining for ${node.name}...`);
+    
+    if (nodeId === 'trollcoin') {
+      addConsoleOutput('trollcoind setgenerate true 1');
+      addConsoleOutput('Mining started with 1 thread');
+      addConsoleOutput('Mining algorithm: Scrypt');
+    } else if (nodeId === 'hth') {
+      addConsoleOutput('helpthehomeless-cli setgenerate true 4');
+      addConsoleOutput('Mining started with 4 threads');
+      addConsoleOutput('Mining algorithm: x25x');
+      addConsoleOutput('Block reward: 2500 HTH');
+      addConsoleOutput('PoW reward: 64.75% of block reward');
+    } else {
+      addConsoleOutput(`${node.executable} setgenerate true 1`);
+      addConsoleOutput('Mining started');
+    }
+
+    toast.success(`Mining started for ${node.name}`);
+  };
+
+  const setupMasternode = () => {
+    const node = nodes.find(n => n.id === 'hth');
+    if (!node) return;
+
+    if (!masternodeConfig.alias || !masternodeConfig.ip || !masternodeConfig.privateKey || !masternodeConfig.txHash) {
+      toast.error('Please fill in all masternode configuration fields');
+      return;
+    }
+
+    // Simulate masternode setup
+    addConsoleOutput('Setting up HTH masternode...');
+    addConsoleOutput(`Masternode alias: ${masternodeConfig.alias}`);
+    addConsoleOutput(`Masternode IP: ${masternodeConfig.ip}`);
+    addConsoleOutput(`Transaction hash: ${masternodeConfig.txHash}`);
+    addConsoleOutput(`Output index: ${masternodeConfig.outputIndex}`);
+    
+    addConsoleOutput('Adding masternode configuration to helpthehomeless.conf...');
+    addConsoleOutput(`masternode=1`);
+    addConsoleOutput(`masternodeprivkey=${masternodeConfig.privateKey}`);
+    addConsoleOutput(`externalip=${masternodeConfig.ip}`);
+    
+    addConsoleOutput('Restarting HTH daemon...');
+    addConsoleOutput('Masternode setup complete!');
+    addConsoleOutput('Run "helpthehomeless-cli masternode status" to check status');
+    
+    toast.success('Masternode configuration saved');
+    setShowMasternodeSetup(false);
   };
 
   const addConsoleOutput = (message: string) => {
@@ -436,7 +559,9 @@ const NodesView: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <p className="text-sm text-slate-400">{node.symbol}</p>
                       <span className={`text-xs px-2 py-1 rounded ${
-                        node.consensusType === 'PoS' ? 'bg-purple-500/20 text-purple-400' : 'bg-orange-500/20 text-orange-400'
+                        node.consensusType === 'PoS' ? 'bg-purple-500/20 text-purple-400' : 
+                        node.consensusType === 'PoW/MN' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-orange-500/20 text-orange-400'
                       }`}>
                         {node.consensusType}
                       </span>
@@ -480,8 +605,10 @@ const NodesView: React.FC = () => {
                         <p className="text-slate-400">{selectedNodeData.symbol} Full Node</p>
                         <span className={`text-sm px-3 py-1 rounded-full ${
                           selectedNodeData.consensusType === 'PoS' 
-                            ? 'bg-purple-500/20 text-purple-400' 
-                            : 'bg-orange-500/20 text-orange-400'
+                            ? 'bg-purple-500/20 text-purple-400' : 
+                          selectedNodeData.consensusType === 'PoW/MN'
+                            ? 'bg-blue-500/20 text-blue-400' :
+                            'bg-orange-500/20 text-orange-400'
                         }`}>
                           {selectedNodeData.consensusType}
                         </span>
@@ -535,12 +662,14 @@ const NodesView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Installation Instructions for GHOST and Trollcoin */}
-              {(selectedNodeData.id === 'ghost' || selectedNodeData.id === 'trollcoin') && selectedNodeData.installInstructions && (
+              {/* Installation Instructions for GHOST, Trollcoin, and HTH */}
+              {(selectedNodeData.id === 'ghost' || selectedNodeData.id === 'trollcoin' || selectedNodeData.id === 'hth') && selectedNodeData.installInstructions && (
                 <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-semibold">
-                      {selectedNodeData.id === 'ghost' ? 'GHOST Core Installation' : 'Trollcoin Installation'}
+                      {selectedNodeData.id === 'ghost' ? 'GHOST Core Installation' : 
+                       selectedNodeData.id === 'trollcoin' ? 'Trollcoin Installation' :
+                       'Help The Homeless Installation'}
                     </h4>
                     <motion.button
                       onClick={() => setShowInstallInstructions(!showInstallInstructions)}
@@ -560,7 +689,9 @@ const NodesView: React.FC = () => {
                       <p className="text-slate-400 text-sm mb-4">
                         {selectedNodeData.id === 'ghost' 
                           ? 'Follow these steps to compile and install GHOST Core from source:'
-                          : 'Follow these steps to compile and install Trollcoin from source:'
+                          : selectedNodeData.id === 'trollcoin'
+                          ? 'Follow these steps to compile and install Trollcoin from source:'
+                          : 'Follow these steps to install Help The Homeless from binaries:'
                         }
                       </p>
                       <div className="bg-black/50 rounded-lg p-4 font-mono text-sm">
@@ -590,6 +721,20 @@ const NodesView: React.FC = () => {
                             <li>• Mining rewards are earned by solving blocks</li>
                             <li>• Compatible with CPU and GPU mining</li>
                             <li>• RPC interface for mining pool integration</li>
+                          </ul>
+                        </div>
+                      )}
+                      {selectedNodeData.id === 'hth' && (
+                        <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                          <p className="text-blue-400 font-medium mb-2">HTH Mining & Masternode Information:</p>
+                          <ul className="text-sm text-slate-300 space-y-1">
+                            <li>• HTH uses x25x algorithm for Proof-of-Work</li>
+                            <li>• Block reward: 2500 HTH (halving every year)</li>
+                            <li>• PoW reward: 64.75% of block reward</li>
+                            <li>• Masternode reward: 25% of block reward</li>
+                            <li>• Masternode collateral: 1,000,000 HTH</li>
+                            <li>• Dev funds: 10% of block reward</li>
+                            <li>• Donations: 2.5% of block reward</li>
                           </ul>
                         </div>
                       )}
@@ -755,9 +900,173 @@ const NodesView: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                    <div className="mt-4 flex justify-end">
+                      <motion.button
+                        onClick={() => startMining(selectedNodeData.id)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Cpu className="w-4 h-4" />
+                        <span>Start Mining</span>
+                      </motion.button>
+                    </div>
+                  </div>
+                )}
+
+                {/* HTH Specific Configuration */}
+                {selectedNodeData.id === 'hth' && (
+                  <div className="mt-6">
+                    <h5 className="text-md font-semibold mb-3">Help The Homeless Configuration</h5>
+                    <div className="bg-slate-900/50 rounded p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-400">Mining Status:</p>
+                          <p className="text-orange-400 font-medium">Ready</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Consensus:</p>
+                          <p className="text-blue-400 font-medium">PoW + Masternode</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Algorithm:</p>
+                          <p className="text-yellow-400 font-medium">x25x</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Block Reward:</p>
+                          <p className="text-blue-400 font-medium">2500 HTH</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Masternode Status:</p>
+                          <p className="text-purple-400 font-medium">Not Configured</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Collateral:</p>
+                          <p className="text-yellow-400 font-medium">1,000,000 HTH</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end space-x-3">
+                      <motion.button
+                        onClick={() => startMining(selectedNodeData.id)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Cpu className="w-4 h-4" />
+                        <span>Start Mining</span>
+                      </motion.button>
+                      <motion.button
+                        onClick={() => setShowMasternodeSetup(true)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Server className="w-4 h-4" />
+                        <span>Setup Masternode</span>
+                      </motion.button>
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* HTH Masternode Setup Modal */}
+              {showMasternodeSetup && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+                  <motion.div 
+                    className="bg-slate-800/95 rounded-xl p-6 border border-slate-700/50 max-w-2xl w-full"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    <h3 className="text-xl font-bold mb-4">HTH Masternode Setup</h3>
+                    <p className="text-slate-400 mb-4">
+                      Configure your Help The Homeless masternode. You need 1,000,000 HTH collateral in a single transaction.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Masternode Alias</label>
+                        <input
+                          type="text"
+                          value={masternodeConfig.alias}
+                          onChange={(e) => setMasternodeConfig({...masternodeConfig, alias: e.target.value})}
+                          placeholder="mn1"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Server IP Address</label>
+                        <input
+                          type="text"
+                          value={masternodeConfig.ip}
+                          onChange={(e) => setMasternodeConfig({...masternodeConfig, ip: e.target.value})}
+                          placeholder="123.456.789.012:13778"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Masternode Private Key</label>
+                        <input
+                          type="text"
+                          value={masternodeConfig.privateKey}
+                          onChange={(e) => setMasternodeConfig({...masternodeConfig, privateKey: e.target.value})}
+                          placeholder="87xPHYs1ik2rPZJ6LsVG7QmFSqAk7BVpCJQiJsBY8MQwNAdZRpH"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Collateral Transaction Hash</label>
+                        <input
+                          type="text"
+                          value={masternodeConfig.txHash}
+                          onChange={(e) => setMasternodeConfig({...masternodeConfig, txHash: e.target.value})}
+                          placeholder="7603c20a05258c208b58b0a0d77603b9fc93d47cfa403035f87f3ce0af814566"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Transaction Output Index</label>
+                        <input
+                          type="text"
+                          value={masternodeConfig.outputIndex}
+                          onChange={(e) => setMasternodeConfig({...masternodeConfig, outputIndex: e.target.value})}
+                          placeholder="0"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <p className="text-sm text-blue-400">
+                        <strong>Note:</strong> Make sure your collateral transaction has at least 15 confirmations before starting the masternode.
+                      </p>
+                    </div>
+                    
+                    <div className="flex justify-end space-x-3 mt-6">
+                      <motion.button
+                        onClick={() => setShowMasternodeSetup(false)}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Cancel
+                      </motion.button>
+                      <motion.button
+                        onClick={setupMasternode}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Save Configuration
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
             </div>
           )}
         </motion.div>

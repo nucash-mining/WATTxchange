@@ -4,6 +4,7 @@ import { X, Send, AlertTriangle, Zap, Clock, TrendingUp, Server } from 'lucide-r
 import { walletService } from '../../services/walletService';
 import { rpcNodeService } from '../../services/rpcNodeService';
 import { priceService, GasFees } from '../../services/priceService';
+import { useDeviceDetect } from '../../hooks/useDeviceDetect';
 import toast from 'react-hot-toast';
 
 interface SendModalProps {
@@ -21,6 +22,7 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
   const [gasFees, setGasFees] = useState<GasFees | null>(null);
   const [loading, setLoading] = useState(false);
   const [estimatedFee, setEstimatedFee] = useState('0');
+  const { isMobile } = useDeviceDetect();
 
   const chainConfig = walletService.getChainConfig(chainSymbol);
   const isEVMChain = chainConfig !== null;
@@ -200,7 +202,7 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
               <label className="block text-sm font-medium mb-2">From</label>
               <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
                 {isEVMChain ? (
-                  <p className="font-mono text-sm text-slate-300">
+                  <p className={`font-mono ${isMobile ? 'text-xs' : 'text-sm'} text-slate-300`}>
                     {currentAddress?.address || 'No address available'}
                   </p>
                 ) : (
@@ -263,7 +265,7 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
             </div>
 
             {/* Gas Fees (EVM only) */}
-            {gasFees && isEVMChain && (
+            {gasFees && isEVMChain && !isMobile && (
               <div>
                 <label className="block text-sm font-medium mb-3">Network Fee</label>
                 <div className="grid grid-cols-3 gap-2 mb-3">
@@ -305,6 +307,23 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
                       className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded px-2 py-1 text-sm focus:outline-none focus:border-yellow-500/50"
                     />
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Simplified Gas Fees for Mobile */}
+            {gasFees && isEVMChain && isMobile && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Network Fee</label>
+                <div className="flex justify-between items-center bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm">Standard</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm">{gasFees.normal.gasPrice}</p>
+                    <p className="text-xs text-slate-400">{gasFees.normal.estimatedTime}</p>
+                  </div>
                 </div>
               </div>
             )}

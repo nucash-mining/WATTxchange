@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap } from 'lucide-react';
+import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 interface SidebarProps {
   currentView: string;
@@ -8,6 +9,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
+  const { isMobile } = useDeviceDetect();
+  
   const menuItems = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'nodes', label: 'Nodes', icon: Server },
@@ -20,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   ];
 
   return (
-    <aside className="w-64 bg-black/50 backdrop-blur-xl border-r border-gray-800 p-4">
+    <aside className={`${isMobile ? 'w-64 bg-black/95' : 'w-64 bg-black/50'} backdrop-blur-xl border-r border-gray-800 p-4 h-full`}>
       <nav className="space-y-2">
         {menuItems.map((item, index) => {
           const Icon = item.icon;

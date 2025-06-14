@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
@@ -11,11 +11,32 @@ import TechMarketplaceView from './components/TechMarketplaceView';
 import AtomicSwapView from './components/AtomicSwapView';
 import SettingsView from './components/SettingsView';
 import NuChainView from './components/NuChainView';
+import MobileNavbar from './components/mobile/MobileNavbar';
 
 type ViewType = 'wallet' | 'nodes' | 'dex' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('wallet');
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Detect mobile devices and wallet browsers
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = window.innerWidth < 768;
+      const isMobileWallet = window.ethereum?.isMetaMask && (window.innerWidth < 768 || isMobileDevice);
+      
+      setIsMobile(isMobileDevice || isSmallScreen || !!isMobileWallet);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   const renderView = () => {
     switch (currentView) {
@@ -42,10 +63,46 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Header />
+      <Header isMobile={isMobile} onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
       <div className="flex">
-        <Sidebar currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1 p-6">
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+        )}
+        
+        {/* Mobile Sidebar with overlay */}
+        {isMobile && (
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <>
+                <motion.div 
+                  className="fixed inset-0 bg-black/70 z-40"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+                <motion.div
+                  className="fixed left-0 top-0 bottom-0 w-64 z-50"
+                  initial={{ x: -320 }}
+                  animate={{ x: 0 }}
+                  exit={{ x: -320 }}
+                  transition={{ type: 'spring', damping: 25 }}
+                >
+                  <Sidebar 
+                    currentView={currentView} 
+                    onViewChange={(view) => {
+                      setCurrentView(view);
+                      setIsSidebarOpen(false);
+                    }} 
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        )}
+        
+        <main className={`flex-1 p-6 ${isMobile ? 'pb-20' : ''}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}
@@ -60,6 +117,12 @@ function App() {
           </AnimatePresence>
         </main>
       </div>
+      
+      {/* Mobile Navigation Bar */}
+      {isMobile && (
+        <MobileNavbar currentView={currentView} onViewChange={setCurrentView} />
+      )}
+      
       <Toaster 
         position="top-right"
         toastOptions={{

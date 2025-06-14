@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, QrCode, Plus, RefreshCw, Server, ChevronDown } from 'lucide-react';
+import { X, Copy, QrCode, Plus, RefreshCw, Server, ChevronDown, Check } from 'lucide-react';
 import { walletService, WalletAddress } from '../../services/walletService';
 import { rpcNodeService } from '../../services/rpcNodeService';
 import { generateQRCode } from '../../utils/qrCodeGenerator';
 import { tokenService } from '../../services/tokenService';
+import { useDeviceDetect } from '../../hooks/useDeviceDetect';
 import toast from 'react-hot-toast';
 
 interface ReceiveModalProps {
@@ -33,6 +34,8 @@ const ReceiveModal: React.FC<ReceiveModalProps> = ({ isOpen, onClose, chainSymbo
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [customTokenAddress, setCustomTokenAddress] = useState('');
   const [showAddToken, setShowAddToken] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { isMobile } = useDeviceDetect();
 
   const chainConfig = walletService.getChainConfig(chainSymbol);
   const isEVMChain = chainConfig !== null;
@@ -136,9 +139,22 @@ const ReceiveModal: React.FC<ReceiveModalProps> = ({ isOpen, onClose, chainSymbo
     }
   };
 
-  const copyAddress = (address: string) => {
-    navigator.clipboard.writeText(address);
-    toast.success('Address copied to clipboard!');
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success('Address copied to clipboard');
+    
+    setTimeout(() => {
+      setCopied(false);
+    }, 3000);
+  };
+
+  const handleTokenChange = (tokenSymbol: string) => {
+    const token = availableTokens.find(t => t.symbol === tokenSymbol);
+    if (token) {
+      setSelectedToken(token);
+      generateQRCodeForAddress();
+    }
   };
 
   const addCustomToken = async () => {
@@ -304,7 +320,7 @@ const ReceiveModal: React.FC<ReceiveModalProps> = ({ isOpen, onClose, chainSymbo
                     <img 
                       src={qrCodeDataUrl} 
                       alt="QR Code" 
-                      className="w-48 h-48"
+                      className={`${isMobile ? 'w-40 h-40' : 'w-48 h-48'}`}
                     />
                   </div>
                 )}
@@ -314,12 +330,12 @@ const ReceiveModal: React.FC<ReceiveModalProps> = ({ isOpen, onClose, chainSymbo
                     {selectedToken && !selectedToken.isNative ? `${selectedToken.symbol} Token Address` : 'Receive Address'}
                   </p>
                   <div className="flex items-center space-x-2">
-                    <p className="font-mono text-sm flex-1 break-all">{displayAddress}</p>
+                    <p className={`font-mono text-sm flex-1 break-all ${isMobile ? 'text-xs' : ''}`}>{displayAddress}</p>
                     <button
-                      onClick={() => copyAddress(displayAddress)}
+                      onClick={() => copyToClipboard(displayAddress)}
                       className="p-2 hover:bg-slate-700/50 rounded transition-colors"
                     >
-                      <Copy className="w-4 h-4" />
+                      {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
                   {selectedToken && !selectedToken.isNative && (
@@ -373,34 +389,6 @@ const ReceiveModal: React.FC<ReceiveModalProps> = ({ isOpen, onClose, chainSymbo
                 <p className="text-slate-500 text-sm">
                   Configure an RPC node for {chainSymbol} to receive addresses
                 </p>
-              </div>
-            </div>
-          )}
-
-          {/* Address History for EVM chains */}
-          {isEVMChain && addresses.length > 1 && (
-            <div className="px-6 pb-6">
-              <h4 className="font-semibold mb-3">Previous Addresses</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {addresses.slice(0, -1).reverse().map((addr, index) => (
-                  <div
-                    key={index}
-                    className="bg-slate-900/30 rounded-lg p-3 border border-slate-700/30"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-mono text-xs text-slate-300 flex-1 truncate">
-                        {addr.address}
-                      </p>
-                      <button
-                        onClick={() => copyAddress(addr.address)}
-                        className="p-1 hover:bg-slate-700/50 rounded transition-colors ml-2"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">{addr.derivationPath}</p>
-                  </div>
-                ))}
               </div>
             </div>
           )}

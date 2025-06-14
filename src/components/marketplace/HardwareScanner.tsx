@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, Memory, HardDrive, Wifi, Monitor, RefreshCw, Check, AlertTriangle, Zap } from 'lucide-react';
+import { Cpu, MemoryStick as Memory, HardDrive, Wifi, Monitor, RefreshCw, Check, AlertTriangle, Zap } from 'lucide-react';
 import { hardwareRentalService, HardwareSpecs } from '../../services/hardwareRentalService';
 import toast from 'react-hot-toast';
 

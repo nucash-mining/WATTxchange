@@ -266,7 +266,90 @@ class SwapinService {
     const network = this.getNetwork(chainId);
     if (!network) return [];
 
-    // Mock data for now - in production, this would query the factory contract
+    // For Altcoinchain, return the custom pairs
+    if (chainId === 2330) {
+      return [
+        {
+          token0: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          token1: '0x6645143e49B3a15d8F205658903a55E520444698', // WATT
+          symbol0: 'wALT',
+          symbol1: 'WATT',
+          reserve0: '1000000',
+          reserve1: '1500000',
+          totalSupply: '1225000',
+          price0: 1.5,
+          price1: 0.667
+        },
+        {
+          token0: '0xd350ecd60912913cc15d312ef38adeca909ecdd5', // AltPEPE
+          token1: '0xbb1f8b3a73a0b5084af9a95e748f9d84ddba6e88', // AltPEPI
+          symbol0: 'AltPEPE',
+          symbol1: 'AltPEPI',
+          reserve0: '500000',
+          reserve1: '750000',
+          totalSupply: '612500',
+          price0: 1.5,
+          price1: 0.667
+        },
+        {
+          token0: '0xd350ecd60912913cc15d312ef38adeca909ecdd5', // AltPEPE
+          token1: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          symbol0: 'AltPEPE',
+          symbol1: 'wALT',
+          reserve0: '800000',
+          reserve1: '400000',
+          totalSupply: '565685',
+          price0: 0.5,
+          price1: 2.0
+        },
+        {
+          token0: '0x75b37574c2317ccba905e2c628d949710627c20a', // SCAM
+          token1: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          symbol0: 'SCAM',
+          symbol1: 'wALT',
+          reserve0: '1200000',
+          reserve1: '300000',
+          totalSupply: '600000',
+          price0: 0.25,
+          price1: 4.0
+        },
+        {
+          token0: '0x67e7ebda5cba73f5830538b03e678a1b45517dd7', // SWAPD
+          token1: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          symbol0: 'SWAPD',
+          symbol1: 'wALT',
+          reserve0: '600000',
+          reserve1: '450000',
+          totalSupply: '520000',
+          price0: 0.75,
+          price1: 1.333
+        },
+        {
+          token0: '0xaf5d066eb3e4147325d3ed23f94bc925fbf3b9ef', // MALT
+          token1: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          symbol0: 'MALT',
+          symbol1: 'wALT',
+          reserve0: '400000',
+          reserve1: '320000',
+          totalSupply: '358000',
+          price0: 0.8,
+          price1: 1.25
+        },
+        {
+          token0: '0xd350ecd60912913cc15d312ef38adeca909ecdd5', // AltPEPE
+          token1: '0x6645143e49B3a15d8F205658903a55E520444698', // WATT
+          symbol0: 'AltPEPE',
+          symbol1: 'WATT',
+          reserve0: '350000',
+          reserve1: '525000',
+          totalSupply: '428000',
+          price0: 1.5,
+          price1: 0.667
+        }
+      ];
+    }
+
+    // Mock data for other networks
     return [
       {
         token0: network.contracts.wToken,
@@ -324,6 +407,32 @@ class SwapinService {
     return [
       'function aggregate(tuple(address target, bytes callData)[] calls) external returns (uint256 blockNumber, bytes[] returnData)'
     ];
+  }
+
+  // Get token addresses for Altcoinchain
+  getAltcoinchainTokens() {
+    return {
+      wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
+      WATT: '0x6645143e49B3a15d8F205658903a55E520444698',
+      AltPEPE: '0xd350ecd60912913cc15d312ef38adeca909ecdd5',
+      AltPEPI: '0xbb1f8b3a73a0b5084af9a95e748f9d84ddba6e88',
+      SCAM: '0x75b37574c2317ccba905e2c628d949710627c20a',
+      SWAPD: '0x67e7ebda5cba73f5830538b03e678a1b45517dd7',
+      MALT: '0xaf5d066eb3e4147325d3ed23f94bc925fbf3b9ef'
+    };
+  }
+
+  // Get pool addresses for Altcoinchain
+  getAltcoinchainPools() {
+    return {
+      'AltPEPE/AltPEPI': '0x284F01A8AB6542e8E257f289A2c4E851C7ebc82E',
+      'AltPEPE/wALT': '0xB1297e255933E6c11bc72D6De2c911e4a05A18d8',
+      'SCAM/wALT': '0x4d40fa6da5495f74f61af89008035062a0f66730',
+      'SWAPD/wALT': '0x044e22b6276424d0b6e014Fd9E259D03C7b031bb',
+      'MALT/wALT': '0xb9707EBc943AD698852dca99dAB8C973e1CD6BD8',
+      'WATT/wALT': '0xb2F8e147d6a2570b19d1731401DDD5A4F62e2C33',
+      'AltPEPE/WATT': '0xdC1f931aeFba25d1ad442c7235D9AEbAf51C9D01'
+    };
   }
 }
 

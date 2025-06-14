@@ -11,11 +11,13 @@ import UniswapV4Interface from './dex/UniswapV4Interface';
 import CrossChainBridge from './dex/CrossChainBridge';
 import PerpetualTrading from './dex/PerpetualTrading';
 import ExchangeApiManager from './dex/ExchangeApiManager';
+import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 const DEXView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps'>('uniswap');
   const { getPrice } = usePrices(['ALT', 'BTC', 'ETH']);
   const [showApiManager, setShowApiManager] = useState(false);
+  const { isMobile } = useDeviceDetect();
 
   const altPrice = getPrice('ALT');
   const volume24h = altPrice ? altPrice.volume24h * altPrice.price : 0;
@@ -60,7 +62,7 @@ const DEXView: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div>
-          <h2 className="text-3xl font-bold">Decentralized Exchange</h2>
+          <h2 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold`}>Decentralized Exchange</h2>
           <p className="text-slate-400 mt-1">Multi-chain trading powered by Swapin.co</p>
         </div>
         
@@ -72,10 +74,10 @@ const DEXView: React.FC = () => {
             whileTap={{ scale: 0.95 }}
           >
             <Key className="w-4 h-4" />
-            <span>API Keys</span>
+            <span className={isMobile ? 'hidden' : 'inline'}>API Keys</span>
           </motion.button>
           
-          <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
+          <div className={`flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1 ${isMobile ? 'overflow-x-auto' : ''}`}>
             <button
               onClick={() => setActiveTab('uniswap')}
               className={`px-4 py-2 rounded-md transition-colors ${
@@ -84,7 +86,7 @@ const DEXView: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Uniswap V4
+              {isMobile ? 'V4' : 'Uniswap V4'}
             </button>
             <button
               onClick={() => setActiveTab('multichain')}
@@ -94,7 +96,7 @@ const DEXView: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Multi-Chain
+              {isMobile ? 'Multi' : 'Multi-Chain'}
             </button>
             <button
               onClick={() => setActiveTab('spot')}
@@ -114,7 +116,7 @@ const DEXView: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Perpetuals
+              {isMobile ? 'Perp' : 'Perpetuals'}
             </button>
             <button
               onClick={() => setActiveTab('pools')}
@@ -141,29 +143,56 @@ const DEXView: React.FC = () => {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div
-              key={stat.label}
-              className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className={`text-sm ${stat.color}`}>{stat.change}</p>
+      {!isMobile && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {stats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-slate-400 text-sm">{stat.label}</p>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className={`text-sm ${stat.color}`}>{stat.change}</p>
+                  </div>
+                  <Icon className={`w-8 h-8 ${stat.color}`} />
                 </div>
-                <Icon className={`w-8 h-8 ${stat.color}`} />
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Mobile Stats */}
+      {isMobile && (
+        <div className="flex overflow-x-auto space-x-4 pb-2">
+          {stats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-4 border border-slate-700/50 min-w-[150px]"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-slate-400 text-xs">{stat.label}</p>
+                  <Icon className={`w-4 h-4 ${stat.color}`} />
+                </div>
+                <p className="text-lg font-bold">{stat.value}</p>
+                <p className={`text-xs ${stat.color}`}>{stat.change}</p>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Tab Content */}
       <motion.div

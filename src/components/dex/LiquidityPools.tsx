@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Droplets, TrendingUp, Network } from 'lucide-react';
+import { Plus, Droplets, TrendingUp, Network, ChevronDown, ChevronUp } from 'lucide-react';
 import { swapinService } from '../../services/swapinService';
+import AddLiquidityModal from './AddLiquidityModal';
+import toast from 'react-hot-toast';
 
 const LiquidityPools: React.FC = () => {
   const [selectedNetwork, setSelectedNetwork] = useState('all');
+  const [showAddLiquidityModal, setShowAddLiquidityModal] = useState(false);
+  const [selectedPool, setSelectedPool] = useState<any>(null);
+  const [expandedPool, setExpandedPool] = useState<string | null>(null);
   const networks = swapinService.getAllNetworks();
 
   const pools = [
@@ -20,7 +25,8 @@ const LiquidityPools: React.FC = () => {
       token1: 'ALT',
       token2: 'WATT',
       token1Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
-      token2Icon: () => <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />
+      token2Icon: () => <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />,
+      address: '0xb2F8e147d6a2570b19d1731401DDD5A4F62e2C33'
     },
     {
       pair: 'ALT/USDT',
@@ -100,7 +106,7 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'OCTA',
       token2: 'USDT',
-      token1Icon: () => <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-xs font-bold">🐙</div>,
+      token1Icon: () => <img src="/OCTA logo.png" alt="OCTA" className="w-6 h-6 object-contain rounded-full" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
     },
     // Fantom pools
@@ -114,7 +120,7 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'FTM',
       token2: 'USDT',
-      token1Icon: () => <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold">👻</div>,
+      token1Icon: () => <img src="/Fantom logo.png" alt="FTM" className="w-6 h-6 object-contain rounded-full" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
     },
     // GHOST pools
@@ -130,6 +136,91 @@ const LiquidityPools: React.FC = () => {
       token2: 'USDT',
       token1Icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
+    },
+    // Altcoinchain custom pools
+    {
+      pair: 'AltPEPE/AltPEPI',
+      network: 'Altcoinchain',
+      chainId: 2330,
+      tvl: '$1.2M',
+      apr: '38.5%',
+      volume24h: '$450K',
+      myLiquidity: '$0',
+      token1: 'AltPEPE',
+      token2: 'AltPEPI',
+      token1Icon: () => <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>,
+      token2Icon: () => <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>,
+      address: '0x284F01A8AB6542e8E257f289A2c4E851C7ebc82E'
+    },
+    {
+      pair: 'AltPEPE/wALT',
+      network: 'Altcoinchain',
+      chainId: 2330,
+      tvl: '$980K',
+      apr: '32.7%',
+      volume24h: '$320K',
+      myLiquidity: '$0',
+      token1: 'AltPEPE',
+      token2: 'wALT',
+      token1Icon: () => <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>,
+      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      address: '0xB1297e255933E6c11bc72D6De2c911e4a05A18d8'
+    },
+    {
+      pair: 'SCAM/wALT',
+      network: 'Altcoinchain',
+      chainId: 2330,
+      tvl: '$750K',
+      apr: '45.2%',
+      volume24h: '$280K',
+      myLiquidity: '$0',
+      token1: 'SCAM',
+      token2: 'wALT',
+      token1Icon: () => <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">S</div>,
+      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      address: '0x4d40fa6da5495f74f61af89008035062a0f66730'
+    },
+    {
+      pair: 'SWAPD/wALT',
+      network: 'Altcoinchain',
+      chainId: 2330,
+      tvl: '$680K',
+      apr: '29.8%',
+      volume24h: '$210K',
+      myLiquidity: '$0',
+      token1: 'SWAPD',
+      token2: 'wALT',
+      token1Icon: () => <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-xs font-bold">S</div>,
+      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      address: '0x044e22b6276424d0b6e014Fd9E259D03C7b031bb'
+    },
+    {
+      pair: 'MALT/wALT',
+      network: 'Altcoinchain',
+      chainId: 2330,
+      tvl: '$520K',
+      apr: '36.4%',
+      volume24h: '$180K',
+      myLiquidity: '$0',
+      token1: 'MALT',
+      token2: 'wALT',
+      token1Icon: () => <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold">M</div>,
+      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      address: '0xb9707EBc943AD698852dca99dAB8C973e1CD6BD8'
+    },
+    {
+      pair: 'AltPEPE/WATT',
+      network: 'Altcoinchain',
+      chainId: 2330,
+      tvl: '$480K',
+      apr: '42.1%',
+      volume24h: '$160K',
+      myLiquidity: '$0',
+      token1: 'AltPEPE',
+      token2: 'WATT',
+      token1Icon: () => <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>,
+      token2Icon: () => <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />,
+      address: '0xdC1f931aeFba25d1ad442c7235D9AEbAf51C9D01'
     }
   ];
 
@@ -153,12 +244,84 @@ const LiquidityPools: React.FC = () => {
     return iconMap[network] || '🔗';
   };
 
+  const handleAddLiquidity = (pool: any) => {
+    setSelectedPool(pool);
+    setShowAddLiquidityModal(true);
+  };
+
+  const togglePoolDetails = (poolPair: string) => {
+    if (expandedPool === poolPair) {
+      setExpandedPool(null);
+    } else {
+      setExpandedPool(poolPair);
+    }
+  };
+
+  const getTokenAddresses = (pool: any) => {
+    // Return token addresses for Altcoinchain pools
+    if (pool.network === 'Altcoinchain') {
+      if (pool.pair === 'ALT/WATT') {
+        return {
+          token1: 'Native ALT',
+          token2: '0x6645143e49B3a15d8F205658903a55E520444698', // WATT
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      } else if (pool.pair === 'AltPEPE/AltPEPI') {
+        return {
+          token1: '0xd350ecd60912913cc15d312ef38adeca909ecdd5', // PEPE
+          token2: '0xbb1f8b3a73a0b5084af9a95e748f9d84ddba6e88', // PEPI
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      } else if (pool.pair === 'AltPEPE/wALT') {
+        return {
+          token1: '0xd350ecd60912913cc15d312ef38adeca909ecdd5', // PEPE
+          token2: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      } else if (pool.pair === 'SCAM/wALT') {
+        return {
+          token1: '0x75b37574c2317ccba905e2c628d949710627c20a', // SCAM
+          token2: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      } else if (pool.pair === 'SWAPD/wALT') {
+        return {
+          token1: '0x67e7ebda5cba73f5830538b03e678a1b45517dd7', // SWAPD
+          token2: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      } else if (pool.pair === 'MALT/wALT') {
+        return {
+          token1: '0xaf5d066eb3e4147325d3ed23f94bc925fbf3b9ef', // MALT
+          token2: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6', // wALT
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      } else if (pool.pair === 'AltPEPE/WATT') {
+        return {
+          token1: '0xd350ecd60912913cc15d312ef38adeca909ecdd5', // PEPE
+          token2: '0x6645143e49B3a15d8F205658903a55E520444698', // WATT
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6'
+        };
+      }
+    }
+    
+    return {
+      token1: '',
+      token2: '',
+      wALT: ''
+    };
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-2xl font-bold">Multi-Chain Liquidity Pools</h3>
         <motion.button
+          onClick={() => {
+            setSelectedPool(null);
+            setShowAddLiquidityModal(true);
+          }}
           className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -254,22 +417,76 @@ const LiquidityPools: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex space-x-2 mt-4">
-                <motion.button
-                  className="flex-1 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg text-sm font-medium transition-colors border border-blue-500/30"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  onClick={() => togglePoolDetails(`${pool.pair}-${pool.network}`)}
+                  className="flex items-center space-x-1 text-sm text-slate-400 hover:text-white"
                 >
-                  Add
-                </motion.button>
-                <motion.button
-                  className="flex-1 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-sm font-medium transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Remove
-                </motion.button>
+                  <span>Details</span>
+                  {expandedPool === `${pool.pair}-${pool.network}` ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </button>
+                
+                <div className="flex space-x-2">
+                  <motion.button
+                    onClick={() => handleAddLiquidity(pool)}
+                    className="flex-1 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg text-sm font-medium transition-colors border border-blue-500/30"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Add
+                  </motion.button>
+                  <motion.button
+                    className="flex-1 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-sm font-medium transition-colors"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Remove
+                  </motion.button>
+                </div>
               </div>
+
+              {/* Expanded Pool Details */}
+              {expandedPool === `${pool.pair}-${pool.network}` && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 pt-4 border-t border-slate-700/30"
+                >
+                  <div className="space-y-2 text-sm">
+                    {pool.address && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Pool Address:</span>
+                        <span className="font-mono text-xs">{pool.address}</span>
+                      </div>
+                    )}
+                    {pool.network === 'Altcoinchain' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">{pool.token1} Address:</span>
+                          <span className="font-mono text-xs">{getTokenAddresses(pool).token1}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">{pool.token2} Address:</span>
+                          <span className="font-mono text-xs">{getTokenAddresses(pool).token2}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Fee Tier:</span>
+                      <span>0.3%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Created:</span>
+                      <span>2 months ago</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           );
         })}
@@ -329,6 +546,13 @@ const LiquidityPools: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Add Liquidity Modal */}
+      <AddLiquidityModal 
+        isOpen={showAddLiquidityModal} 
+        onClose={() => setShowAddLiquidityModal(false)} 
+        selectedPool={selectedPool}
+      />
     </div>
   );
 };

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpDown, Settings, Info } from 'lucide-react';
+import { ArrowUpDown, Settings, Info, AlertTriangle } from 'lucide-react';
 import { swapinService, SwapinNetwork } from '../../services/swapinService';
 import { useWallet } from '../../hooks/useWallet';
+import { useDeviceDetect } from '../../hooks/useDeviceDetect';
 import NetworkSelector from './NetworkSelector';
+import TokenSelector from './TokenSelector';
 import toast from 'react-hot-toast';
 
 const SwapInterface: React.FC = () => {
-  const { isConnected, chainId } = useWallet();
+  const { isConnected, address, chainId, signTransaction } = useWallet();
+  const { isMobile } = useDeviceDetect();
   const [selectedNetwork, setSelectedNetwork] = useState<SwapinNetwork | null>(null);
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
@@ -15,6 +18,7 @@ const SwapInterface: React.FC = () => {
   const [toToken, setToToken] = useState('USDT');
   const [slippage, setSlippage] = useState('0.5');
   const [showSettings, setShowSettings] = useState(false);
+  const [isSwapping, setIsSwapping] = useState(false);
 
   useEffect(() => {
     if (chainId) {
@@ -60,11 +64,68 @@ const SwapInterface: React.FC = () => {
       }
     }
 
-    toast.success('Swap initiated! (Demo mode)');
+    setIsSwapping(true);
+
+    try {
+      // Request permission to sign the transaction
+      const transactionDetails = {
+        type: 'swap',
+        fromToken,
+        toToken,
+        fromAmount,
+        toAmount,
+        slippage,
+        network: selectedNetwork.name
+      };
+
+      const signed = await signTransaction(transactionDetails);
+      
+      if (signed) {
+        toast.success('Swap completed successfully!');
+        // Reset form
+        setFromAmount('');
+        setToAmount('');
+      } else {
+        toast.error('Swap cancelled or failed');
+      }
+    } catch (error) {
+      console.error('Swap failed:', error);
+      toast.error('Swap failed. Please try again.');
+    } finally {
+      setIsSwapping(false);
+    }
   };
+
+  useEffect(() => {
+    if (fromAmount && fromToken && toToken) {
+      // Calculate the output amount based on the input
+      const rate = fromToken === 'ALT' && toToken === 'WATT' ? 1.5 : 
+                  fromToken === 'WATT' && toToken === 'ALT' ? 0.67 : 1;
+      
+      const calculatedAmount = parseFloat(fromAmount) * rate;
+      if (!isNaN(calculatedAmount)) {
+        setToAmount(calculatedAmount.toFixed(6));
+      }
+    }
+  }, [fromAmount, fromToken, toToken]);
 
   const getTokenOptions = () => {
     if (!selectedNetwork) return ['ETH', 'USDT'];
+    
+    // For Altcoinchain, include custom tokens
+    if (selectedNetwork.chainId === 2330) {
+      return [
+        'ALT',
+        'wALT',
+        'WATT',
+        'AltPEPE',
+        'AltPEPI',
+        'SCAM',
+        'SWAPD',
+        'MALT',
+        'USDT'
+      ];
+    }
     
     const baseTokens = [
       selectedNetwork.nativeCurrency.symbol,
@@ -137,7 +198,7 @@ const SwapInterface: React.FC = () => {
           >
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Slippage Tolerance</label>
+                <label className="block text-sm font-medium mb-2">Slippage Tolerance</label>
                 <div className="flex space-x-2">
                   {['0.1', '0.5', '1.0'].map((value) => (
                     <button
@@ -182,15 +243,13 @@ const SwapInterface: React.FC = () => {
                 placeholder="0.0"
                 className="flex-1 bg-transparent text-2xl font-bold outline-none"
               />
-              <select
-                value={fromToken}
-                onChange={(e) => setFromToken(e.target.value)}
-                className="bg-slate-800 rounded px-3 py-2 outline-none"
-              >
-                {getTokenOptions().map(token => (
-                  <option key={token} value={token}>{token}</option>
-                ))}
-              </select>
+              
+              <TokenSelector
+                selectedToken={fromToken}
+                onSelectToken={setFromToken}
+                excludeToken={toToken}
+                chainId={selectedNetwork?.chainId || 2330}
+              />
             </div>
           </div>
 
@@ -219,16 +278,15 @@ const SwapInterface: React.FC = () => {
                 onChange={(e) => setToAmount(e.target.value)}
                 placeholder="0.0"
                 className="flex-1 bg-transparent text-2xl font-bold outline-none"
+                readOnly
               />
-              <select
-                value={toToken}
-                onChange={(e) => setToToken(e.target.value)}
-                className="bg-slate-800 rounded px-3 py-2 outline-none"
-              >
-                {getTokenOptions().map(token => (
-                  <option key={token} value={token}>{token}</option>
-                ))}
-              </select>
+              
+              <TokenSelector
+                selectedToken={toToken}
+                onSelectToken={setToToken}
+                excludeToken={fromToken}
+                chainId={selectedNetwork?.chainId || 2330}
+              />
             </div>
           </div>
 
@@ -237,7 +295,7 @@ const SwapInterface: React.FC = () => {
             <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">Rate</span>
-                <span>1 {fromToken} = 1.00 {toToken}</span>
+                <span>1 {fromToken} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)} {toToken}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">Slippage</span>
@@ -253,17 +311,18 @@ const SwapInterface: React.FC = () => {
           {/* Swap Button */}
           <motion.button
             onClick={handleSwap}
-            disabled={!selectedNetwork || !isConnected}
+            disabled={isSwapping || !fromAmount || parseFloat(fromAmount) <= 0}
             className={`w-full py-4 rounded-lg font-semibold transition-colors ${
-              selectedNetwork && isConnected
+              !isSwapping && fromAmount && parseFloat(fromAmount) > 0
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
                 : 'bg-slate-700 text-slate-400 cursor-not-allowed'
             }`}
-            whileHover={selectedNetwork && isConnected ? { scale: 1.02 } : {}}
-            whileTap={selectedNetwork && isConnected ? { scale: 0.98 } : {}}
+            whileHover={!isSwapping && fromAmount && parseFloat(fromAmount) > 0 ? { scale: 1.02 } : {}}
+            whileTap={!isSwapping && fromAmount && parseFloat(fromAmount) > 0 ? { scale: 0.98 } : {}}
           >
             {!isConnected ? 'Connect Wallet' : 
              !selectedNetwork ? 'Select Network' : 
+             isSwapping ? 'Signing Transaction...' :
              'Swap Tokens'}
           </motion.button>
         </div>
@@ -281,17 +340,38 @@ const SwapInterface: React.FC = () => {
             <div>
               <p className="font-medium text-blue-400">Multi-Chain DEX</p>
               <p className="text-sm text-slate-300 mt-1">
-                You're trading on {selectedNetwork.name} using Swapin.co's Uniswap V2 compatible contracts. 
+                You're trading on {selectedNetwork.name} using Swapin.co's Uniswap V4 compatible contracts. 
                 All trades are executed on-chain with full decentralization.
               </p>
-              <div className="mt-2 text-xs text-slate-400">
-                <p>• Factory: {selectedNetwork.contracts.factory}</p>
-                <p>• Router: {selectedNetwork.contracts.router}</p>
-              </div>
+              {!isMobile && (
+                <div className="mt-2 text-xs text-slate-400">
+                  <p>• Factory: {selectedNetwork.contracts.factory}</p>
+                  <p>• Router: {selectedNetwork.contracts.router}</p>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
       )}
+
+      {/* Transaction Signing Notice */}
+      <motion.div
+        className="bg-yellow-600/10 border border-yellow-500/30 rounded-xl p-4 relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="flex items-start space-x-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
+          <div>
+            <p className="font-medium text-yellow-400">Transaction Signing Required</p>
+            <p className="text-sm text-slate-300 mt-1">
+              When you swap tokens or add/remove liquidity, you'll need to sign a transaction with your wallet. 
+              This confirms your permission to execute the operation on the blockchain.
+            </p>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

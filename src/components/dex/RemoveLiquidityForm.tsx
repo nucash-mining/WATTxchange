@@ -26,7 +26,7 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
   const [removeAmount, setRemoveAmount] = useState(50); // percentage
   const [isLoading, setIsLoading] = useState(false);
   const [collectFees, setCollectFees] = useState(true);
-  const { isConnected, switchToAltcoinchain } = useWallet();
+  const { isConnected, switchToAltcoinchain, signTransaction } = useWallet();
 
   const getTokenIcon = (symbol: string) => {
     switch (symbol) {
@@ -62,14 +62,28 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
     setIsLoading(true);
     
     try {
-      // Simulate removing liquidity
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create transaction details for signing
+      const transactionDetails = {
+        type: 'removeLiquidity',
+        positionId: position.id,
+        token0: position.pool.token0,
+        token1: position.pool.token1,
+        removePercentage: removeAmount,
+        collectFees
+      };
+
+      // Request permission to sign the transaction
+      const signed = await signTransaction(transactionDetails);
       
-      toast.success(`Removed ${removeAmount}% of your liquidity`);
-      if (collectFees) {
-        toast.success(`Collected ${position.uncollectedFees} in fees`);
+      if (signed) {
+        toast.success(`Removed ${removeAmount}% of your liquidity`);
+        if (collectFees) {
+          toast.success(`Collected ${position.uncollectedFees} in fees`);
+        }
+        onClose();
+      } else {
+        toast.error('Transaction cancelled or failed');
       }
-      onClose();
     } catch (error) {
       console.error('Failed to remove liquidity:', error);
       toast.error('Failed to remove liquidity');
@@ -191,15 +205,15 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
         </div>
       </div>
 
-      {/* Warning */}
+      {/* Transaction Signing Notice */}
       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
         <div className="flex items-start space-x-2">
           <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
           <div>
-            <p className="text-yellow-400 font-medium">Price Impact Warning</p>
+            <p className="text-yellow-400 font-medium">Transaction Signing Required</p>
             <p className="text-sm text-slate-300 mt-1">
-              Removing a large percentage of liquidity from a pool with low liquidity may result in significant price impact.
-              Consider removing in smaller increments to minimize slippage.
+              Removing liquidity requires signing a transaction with your wallet. You'll need to confirm the transaction
+              to withdraw your tokens. Make sure to review all details before signing.
             </p>
           </div>
         </div>

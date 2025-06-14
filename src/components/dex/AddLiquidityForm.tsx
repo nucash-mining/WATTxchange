@@ -21,7 +21,7 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
   const [token2Balance, setToken2Balance] = useState('0');
   const [isLoading, setIsLoading] = useState(false);
   const [feeTier, setFeeTier] = useState(selectedPool ? selectedPool.fee : 0.3);
-  const { isConnected, address, switchToAltcoinchain } = useWallet();
+  const { isConnected, address, switchToAltcoinchain, signTransaction } = useWallet();
 
   // Initialize with selected pool or default values
   useEffect(() => {
@@ -96,11 +96,26 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
     setIsLoading(true);
     
     try {
-      // Simulate adding liquidity
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create transaction details for signing
+      const transactionDetails = {
+        type: 'addLiquidity',
+        token1,
+        token2,
+        token1Amount,
+        token2Amount,
+        feeTier,
+        pool: selectedPool?.address || 'new pool'
+      };
+
+      // Request permission to sign the transaction
+      const signed = await signTransaction(transactionDetails);
       
-      toast.success('Liquidity added successfully!');
-      onClose();
+      if (signed) {
+        toast.success('Liquidity added successfully!');
+        onClose();
+      } else {
+        toast.error('Transaction cancelled or failed');
+      }
     } catch (error) {
       console.error('Failed to add liquidity:', error);
       toast.error('Failed to add liquidity');
@@ -297,15 +312,15 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
         </div>
       </div>
 
-      {/* Warning */}
+      {/* Transaction Signing Notice */}
       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
         <div className="flex items-start space-x-2">
           <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
           <div>
-            <p className="text-yellow-400 font-medium">Price Impact Warning</p>
+            <p className="text-yellow-400 font-medium">Transaction Signing Required</p>
             <p className="text-sm text-slate-300 mt-1">
-              When you add liquidity, you will receive pool tokens representing your position.
-              These tokens automatically earn fees proportional to your share of the pool and can be redeemed at any time.
+              Adding liquidity requires signing a transaction with your wallet. You'll need to approve both token transfers
+              and confirm the liquidity addition. Make sure to review all details before signing.
             </p>
           </div>
         </div>

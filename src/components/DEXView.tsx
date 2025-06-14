@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, ArrowUpDown, BarChart3, DollarSign, Network } from 'lucide-react';
+import { TrendingUp, ArrowUpDown, BarChart3, DollarSign, Network, ArrowLeftRight } from 'lucide-react';
 import { usePrices } from '../hooks/usePrices';
 import OrderBook from './dex/OrderBook';
 import TradingChart from './dex/TradingChart';
 import TradeForm from './dex/TradeForm';
 import LiquidityPools from './dex/LiquidityPools';
 import SwapInterface from './dex/SwapInterface';
+import UniswapV4Interface from './dex/UniswapV4Interface';
+import CrossChainBridge from './dex/CrossChainBridge';
 
 const DEXView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'spot' | 'pools' | 'multichain'>('multichain');
+  const [activeTab, setActiveTab] = useState<'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge'>('uniswap');
   const { getPrice } = usePrices(['ALT', 'BTC', 'ETH']);
 
   const altPrice = getPrice('ALT');
@@ -61,6 +63,16 @@ const DEXView: React.FC = () => {
         
         <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
           <button
+            onClick={() => setActiveTab('uniswap')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'uniswap'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Uniswap V4
+          </button>
+          <button
             onClick={() => setActiveTab('multichain')}
             className={`px-4 py-2 rounded-md transition-colors ${
               activeTab === 'multichain'
@@ -89,6 +101,16 @@ const DEXView: React.FC = () => {
             }`}
           >
             Liquidity Pools
+          </button>
+          <button
+            onClick={() => setActiveTab('bridge')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'bridge'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Bridge
           </button>
         </div>
       </motion.div>
@@ -125,6 +147,7 @@ const DEXView: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
+        {activeTab === 'uniswap' && <UniswapV4Interface />}
         {activeTab === 'multichain' && <SwapInterface />}
         {activeTab === 'spot' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -138,6 +161,7 @@ const DEXView: React.FC = () => {
           </div>
         )}
         {activeTab === 'pools' && <LiquidityPools />}
+        {activeTab === 'bridge' && <CrossChainBridge />}
       </motion.div>
 
       {/* Swapin.co Info */}
@@ -154,7 +178,7 @@ const DEXView: React.FC = () => {
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-blue-400 mb-2">Multi-Chain DEX Integration</h3>
             <p className="text-slate-300 mb-3">
-              Powered by Swapin.co's Uniswap V2 compatible contracts deployed across 10 different blockchains. 
+              Powered by Swapin.co's Uniswap V4 compatible contracts deployed across 10 different blockchains. 
               Trade seamlessly between networks with consistent contract addresses and familiar interfaces.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">

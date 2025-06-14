@@ -6,8 +6,8 @@ A comprehensive multi-chain DeFi platform featuring blockchain node management, 
 
 ## 🌟 Features
 
-- **Multi-Chain Wallet** - Support for 8+ blockchains with real-time price feeds
-- **Blockchain Node Management** - Full and light nodes for Bitcoin, Ethereum, Litecoin, Monero, Altcoinchain, GHOST, and Trollcoin
+- **Multi-Chain Wallet** - Support for 11+ blockchains with real-time price feeds
+- **Blockchain Node Management** - Full and light nodes for Bitcoin, Ethereum, Litecoin, Monero, Altcoinchain, GHOST, Trollcoin, and Help The Homeless Coin
 - **Decentralized Exchange** - Powered by Swapin.co across 10 networks
 - **NFT Mining Game** - Virtual mining with real hardware component NFTs
 - **Atomic Swaps** - Trustless P2P cryptocurrency trading

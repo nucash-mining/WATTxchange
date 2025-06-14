@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, ArrowUpDown, BarChart3, DollarSign, Network, ArrowLeftRight, Zap, Key } from 'lucide-react';
+import { TrendingUp, ArrowUpDown, BarChart3, DollarSign, Network, ArrowLeftRight, Zap, Key, AlertTriangle } from 'lucide-react';
 import { usePrices } from '../hooks/usePrices';
 import { useWallet } from '../hooks/useWallet';
 import OrderBook from './dex/OrderBook';

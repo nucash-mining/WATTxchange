@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bitcoin, Zap, DollarSign, Hash, Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff, Server } from 'lucide-react';
+import { Bitcoin, Zap, DollarSign, Hash, Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff, Server, BarChart2 } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { usePrices } from '../hooks/usePrices';
 import { walletService } from '../services/walletService';
@@ -9,12 +9,14 @@ import BalanceCard from './wallet/BalanceCard';
 import TransactionHistory from './wallet/TransactionHistory';
 import WalletAuth from './wallet/WalletAuth';
 import RPCNodeManager from './wallet/RPCNodeManager';
+import TradingBotManager from './wallet/TradingBotManager';
 
 const WalletView: React.FC = () => {
   const [showBalances, setShowBalances] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showRPCManager, setShowRPCManager] = useState(false);
+  const [showTradingBot, setShowTradingBot] = useState(false);
   const { isConnected, address, chainId, altBalance, wattBalance, refreshBalances } = useWallet();
   
   // Fetch prices for all supported cryptocurrencies including GHOST and TROLL
@@ -222,6 +224,15 @@ const WalletView: React.FC = () => {
             <span className="text-sm">RPC Nodes</span>
           </motion.button>
           <motion.button
+            onClick={() => setShowTradingBot(true)}
+            className="flex items-center space-x-2 p-2 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <BarChart2 className="w-5 h-5" />
+            <span className="text-sm">Trading Bot</span>
+          </motion.button>
+          <motion.button
             onClick={() => setShowBalances(!showBalances)}
             className="p-2 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors"
             whileHover={{ scale: 1.05 }}
@@ -376,6 +387,12 @@ const WalletView: React.FC = () => {
       <RPCNodeManager
         isOpen={showRPCManager}
         onClose={() => setShowRPCManager(false)}
+      />
+
+      {/* Trading Bot Manager Modal */}
+      <TradingBotManager
+        isOpen={showTradingBot}
+        onClose={() => setShowTradingBot(false)}
       />
     </div>
   );

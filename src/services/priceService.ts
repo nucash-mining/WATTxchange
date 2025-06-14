@@ -63,7 +63,7 @@ class PriceService {
   private apis = {
     coinMarketCap: {
       baseUrl: 'https://pro-api.coinmarketcap.com/v1',
-      key: process.env.VITE_CMC_API_KEY || '',
+      key: import.meta.env.VITE_CMC_API_KEY || '',
       symbolMap: {
         'ALT': 'ALT',
         'BTC': 'BTC',

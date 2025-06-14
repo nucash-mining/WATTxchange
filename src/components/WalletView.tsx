@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bitcoin, Zap, DollarSign, Hash, Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { usePrices } from '../hooks/usePrices';
+import { walletService } from '../services/walletService';
 import NodeStatus from './wallet/NodeStatus';
 import BalanceCard from './wallet/BalanceCard';
 import TransactionHistory from './wallet/TransactionHistory';
+import WalletAuth from './wallet/WalletAuth';
 
 const WalletView: React.FC = () => {
   const [showBalances, setShowBalances] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { isConnected, address, chainId, altBalance, wattBalance, refreshBalances } = useWallet();
   
   // Fetch prices for all supported cryptocurrencies including GHOST and TROLL
@@ -24,6 +27,13 @@ const WalletView: React.FC = () => {
     apiConnected,
     getTotalValue
   } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL']);
+
+  useEffect(() => {
+    // Check if wallet service is already initialized
+    if (walletService.isInitialized()) {
+      setIsAuthenticated(true);
+    }
+  }, []);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -150,6 +160,11 @@ const WalletView: React.FC = () => {
   });
   const totalUsdValue = getTotalValue(balances);
 
+  // Show authentication screen if not authenticated
+  if (!isAuthenticated) {
+    return <WalletAuth onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -188,7 +203,7 @@ const WalletView: React.FC = () => {
                 <WifiOff className="w-3 h-3 text-red-400" />
               ) : null}
               <span className="text-xs text-slate-500">
-                {apiConnected === true ? 'XeggeX API' : 
+                {apiConnected === true ? 'Multi-API Connected' : 
                  apiConnected === false ? 'Fallback Data' : 'Connecting...'}
               </span>
             </div>
@@ -273,9 +288,9 @@ const WalletView: React.FC = () => {
           {pricesLoading && (
             <p className="text-sm text-slate-500 mt-2">Updating prices...</p>
           )}
-          {isConnected && chainId === 2330 && (
+          {isAuthenticated && (
             <p className="text-sm text-emerald-400 mt-2">
-              ✅ Live balances from Altcoinchain
+              ✅ Universal wallet authenticated
             </p>
           )}
         </div>
@@ -292,7 +307,7 @@ const WalletView: React.FC = () => {
           <h3 className="text-lg font-semibold">Market Prices</h3>
           <div className="flex items-center space-x-2 text-sm">
             {apiConnected === true ? (
-              <span className="text-emerald-400">XeggeX API</span>
+              <span className="text-emerald-400">Multi-API Average</span>
             ) : (
               <span className="text-yellow-400">Fallback Data</span>
             )}

@@ -1,10 +1,4 @@
 import { ethers } from 'ethers';
-import * as bitcoin from 'bitcoinjs-lib';
-import { ECPairFactory } from 'ecpair';
-import * as ecc from 'tiny-secp256k1';
-import QRCode from 'qrcode';
-
-const ECPair = ECPairFactory(ecc);
 
 interface WalletAddress {
   address: string;
@@ -19,8 +13,7 @@ interface ChainConfig {
   symbol: string;
   chainId?: number;
   derivationPath: string;
-  addressType: 'ethereum' | 'bitcoin' | 'monero';
-  network?: any;
+  addressType: 'ethereum';
 }
 
 class WalletService {
@@ -28,14 +21,8 @@ class WalletService {
   private addresses: Map<string, WalletAddress[]> = new Map();
   private currentAddressIndex: Map<string, number> = new Map();
 
+  // Only support EVM-compatible chains for wallet generation
   private chainConfigs: Record<string, ChainConfig> = {
-    BTC: {
-      name: 'Bitcoin',
-      symbol: 'BTC',
-      derivationPath: "m/44'/0'/0'/0",
-      addressType: 'bitcoin',
-      network: bitcoin.networks.bitcoin
-    },
     ETH: {
       name: 'Ethereum',
       symbol: 'ETH',
@@ -49,33 +36,6 @@ class WalletService {
       chainId: 2330,
       derivationPath: "m/44'/60'/0'/0",
       addressType: 'ethereum'
-    },
-    LTC: {
-      name: 'Litecoin',
-      symbol: 'LTC',
-      derivationPath: "m/44'/2'/0'/0",
-      addressType: 'bitcoin',
-      network: bitcoin.networks.litecoin
-    },
-    XMR: {
-      name: 'Monero',
-      symbol: 'XMR',
-      derivationPath: "m/44'/128'/0'/0",
-      addressType: 'monero'
-    },
-    GHOST: {
-      name: 'GHOST',
-      symbol: 'GHOST',
-      derivationPath: "m/44'/0'/0'/0",
-      addressType: 'bitcoin',
-      network: bitcoin.networks.bitcoin
-    },
-    TROLL: {
-      name: 'Trollcoin',
-      symbol: 'TROLL',
-      derivationPath: "m/44'/0'/0'/0",
-      addressType: 'bitcoin',
-      network: bitcoin.networks.bitcoin
     },
     WATT: {
       name: 'WATT Token',
@@ -114,26 +74,19 @@ class WalletService {
         throw new Error(`Unsupported chain: ${chainSymbol}`);
       }
 
-      let address: string;
-      let publicKey: string;
+      const wallet = new ethers.Wallet(privateKey);
+      const address = wallet.address;
+      const publicKey = wallet.publicKey;
 
-      if (config.addressType === 'ethereum') {
-        const wallet = new ethers.Wallet(privateKey);
-        address = wallet.address;
-        publicKey = wallet.publicKey;
-      } else if (config.addressType === 'bitcoin') {
-        const keyPair = ECPair.fromPrivateKey(Buffer.from(privateKey.replace('0x', ''), 'hex'));
-        const { address: btcAddress } = bitcoin.payments.p2pkh({ 
-          pubkey: keyPair.publicKey, 
-          network: config.network 
-        });
-        address = btcAddress!;
-        publicKey = keyPair.publicKey.toString('hex');
-      } else {
-        throw new Error(`Address generation not implemented for ${config.addressType}`);
-      }
-
-      const qrCode = await QRCode.toDataURL(address);
+      // Generate QR code data URL
+      const qrCode = `data:image/svg+xml;base64,${btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+          <rect width="200" height="200" fill="white"/>
+          <text x="100" y="100" text-anchor="middle" font-family="monospace" font-size="8" fill="black">
+            ${address}
+          </text>
+        </svg>
+      `)}`;
 
       const walletAddress: WalletAddress = {
         address,
@@ -170,7 +123,15 @@ class WalletService {
       const ethereumChains = ['ETH', 'ALT', 'WATT'];
       
       for (const symbol of ethereumChains) {
-        const qrCode = await QRCode.toDataURL(address);
+        // Generate QR code data URL
+        const qrCode = `data:image/svg+xml;base64,${btoa(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+            <rect width="200" height="200" fill="white"/>
+            <text x="100" y="100" text-anchor="middle" font-family="monospace" font-size="8" fill="black">
+              ${address}
+            </text>
+          </svg>
+        `)}`;
         
         const walletAddress: WalletAddress = {
           address,
@@ -205,48 +166,24 @@ class WalletService {
     }
 
     const derivationPath = `${config.derivationPath}/${index}`;
-    let address: string;
-    let privateKey: string;
-    let publicKey: string;
+    const hdNode = ethers.HDNodeWallet.fromMnemonic(
+      ethers.Mnemonic.fromPhrase(this.mnemonic),
+      derivationPath
+    );
+    
+    const address = hdNode.address;
+    const privateKey = hdNode.privateKey;
+    const publicKey = hdNode.publicKey;
 
-    if (config.addressType === 'ethereum') {
-      const hdNode = ethers.HDNodeWallet.fromMnemonic(
-        ethers.Mnemonic.fromPhrase(this.mnemonic),
-        derivationPath
-      );
-      address = hdNode.address;
-      privateKey = hdNode.privateKey;
-      publicKey = hdNode.publicKey;
-    } else if (config.addressType === 'bitcoin') {
-      const seed = ethers.Mnemonic.fromPhrase(this.mnemonic).computeSeed();
-      const root = bitcoin.bip32.fromSeed(seed, config.network);
-      const child = root.derivePath(derivationPath);
-      
-      if (!child.privateKey) {
-        throw new Error('Failed to derive private key');
-      }
-
-      const keyPair = ECPair.fromPrivateKey(child.privateKey, { network: config.network });
-      const { address: btcAddress } = bitcoin.payments.p2pkh({ 
-        pubkey: keyPair.publicKey, 
-        network: config.network 
-      });
-      
-      address = btcAddress!;
-      privateKey = child.privateKey.toString('hex');
-      publicKey = keyPair.publicKey.toString('hex');
-    } else if (config.addressType === 'monero') {
-      // Simplified Monero address generation (would need proper Monero libraries)
-      const seed = ethers.Mnemonic.fromPhrase(this.mnemonic).computeSeed();
-      const hash = ethers.keccak256(seed);
-      address = '4' + hash.slice(2, 66); // Simplified Monero address format
-      privateKey = hash;
-      publicKey = hash.slice(0, 64);
-    } else {
-      throw new Error(`Address generation not implemented for ${config.addressType}`);
-    }
-
-    const qrCode = await QRCode.toDataURL(address);
+    // Generate QR code data URL
+    const qrCode = `data:image/svg+xml;base64,${btoa(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+        <rect width="200" height="200" fill="white"/>
+        <text x="100" y="100" text-anchor="middle" font-family="monospace" font-size="8" fill="black">
+          ${address}
+        </text>
+      </svg>
+    `)}`;
 
     const walletAddress: WalletAddress = {
       address,

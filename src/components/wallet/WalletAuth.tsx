@@ -83,19 +83,17 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
   };
 
   const generateMnemonic = () => {
-    const entropy = crypto.getRandomValues(new Uint8Array(16));
-    const entropyHex = Array.from(entropy).map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    // This is a simplified mnemonic generation - in production, use proper BIP39 library
+    // Generate a simple 12-word mnemonic for demo purposes
     const words = [
       'abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract',
-      'absurd', 'abuse', 'access', 'accident', 'account', 'accuse', 'achieve', 'acid'
+      'absurd', 'abuse', 'access', 'accident', 'account', 'accuse', 'achieve', 'acid',
+      'acoustic', 'acquire', 'across', 'act', 'action', 'actor', 'actress', 'actual'
     ];
     
     const mnemonicWords = [];
     for (let i = 0; i < 12; i++) {
-      const index = parseInt(entropyHex.slice(i * 2, i * 2 + 2), 16) % words.length;
-      mnemonicWords.push(words[index]);
+      const randomIndex = Math.floor(Math.random() * words.length);
+      mnemonicWords.push(words[randomIndex]);
     }
     
     setMnemonic(mnemonicWords.join(' '));
@@ -117,6 +115,7 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
             WATTxchange
           </h2>
           <p className="text-slate-400 mt-2">Connect your wallet to continue</p>
+          <p className="text-slate-500 text-sm mt-1">EVM chains only (ETH, ALT, WATT)</p>
         </div>
 
         {/* Authentication Method Selection */}
@@ -269,8 +268,15 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
           </motion.div>
         )}
 
+        {/* UTXO Chain Notice */}
+        <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+          <p className="text-blue-400 text-sm">
+            <strong>UTXO Chains:</strong> Bitcoin, Litecoin, Monero, GHOST, and Trollcoin require RPC node connections for balance and transaction management. Configure these in the RPC Node Manager after authentication.
+          </p>
+        </div>
+
         {/* Security Notice */}
-        <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+        <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
           <p className="text-yellow-400 text-sm">
             <strong>Security Notice:</strong> Your private keys and mnemonic phrases are stored locally and never transmitted to our servers.
           </p>

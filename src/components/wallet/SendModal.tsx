@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, AlertTriangle, Zap, Clock, TrendingUp } from 'lucide-react';
+import { X, Send, AlertTriangle, Zap, Clock, TrendingUp, Server } from 'lucide-react';
 import { walletService } from '../../services/walletService';
+import { rpcNodeService } from '../../services/rpcNodeService';
 import { priceService, GasFees } from '../../services/priceService';
 import toast from 'react-hot-toast';
 
@@ -22,19 +23,22 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
   const [estimatedFee, setEstimatedFee] = useState('0');
 
   const chainConfig = walletService.getChainConfig(chainSymbol);
+  const isEVMChain = chainConfig !== null;
   const currentAddress = walletService.getCurrentAddress(chainSymbol);
+  const rpcNodes = rpcNodeService.getNodesBySymbol(chainSymbol);
+  const connectedRpcNode = rpcNodes.find(node => node.isConnected);
 
   useEffect(() => {
-    if (isOpen && chainConfig?.chainId) {
+    if (isOpen && isEVMChain && chainConfig?.chainId) {
       loadGasFees();
     }
-  }, [isOpen, chainConfig]);
+  }, [isOpen, chainConfig, isEVMChain]);
 
   useEffect(() => {
-    if (gasFees && amount) {
+    if (gasFees && amount && isEVMChain) {
       calculateEstimatedFee();
     }
-  }, [gasFees, amount, gasOption, customGasPrice]);
+  }, [gasFees, amount, gasOption, customGasPrice, isEVMChain]);
 
   const loadGasFees = async () => {
     if (!chainConfig?.chainId) return;
@@ -65,8 +69,7 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
         gasPrice = gasFees.normal.gasPrice;
     }
 
-    // Estimate gas limit based on transaction type
-    const gasLimit = chainSymbol === 'ETH' || chainSymbol === 'ALT' || chainSymbol === 'WATT' ? 21000 : 250000;
+    const gasLimit = 21000; // Standard ETH transfer
     const gasPriceGwei = parseFloat(gasPrice.replace(' gwei', ''));
     const feeEth = (gasLimit * gasPriceGwei) / 1e9;
     
@@ -90,13 +93,14 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
     }
 
     // Basic address validation
-    if (chainConfig?.addressType === 'ethereum') {
+    if (isEVMChain) {
       if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
         return 'Invalid Ethereum address format';
       }
-    } else if (chainConfig?.addressType === 'bitcoin') {
-      if (recipient.length < 26 || recipient.length > 35) {
-        return 'Invalid Bitcoin address format';
+    } else {
+      // Basic validation for UTXO chains
+      if (recipient.length < 26 || recipient.length > 62) {
+        return 'Invalid address format';
       }
     }
 
@@ -110,14 +114,27 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
       return;
     }
 
+    if (!isEVMChain && !connectedRpcNode) {
+      toast.error('No RPC node connected');
+      return;
+    }
+
     setLoading(true);
     try {
-      // In a real implementation, this would broadcast the transaction
-      // For now, we'll simulate the transaction
+      if (isEVMChain) {
+        // EVM transaction (would use Web3 provider in real implementation)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        toast.success(`Transaction sent! ${amount} ${chainSymbol} to ${recipient.slice(0, 6)}...${recipient.slice(-4)}`);
+      } else {
+        // RPC transaction
+        const txHash = await rpcNodeService.sendTransaction(connectedRpcNode!.id, recipient, parseFloat(amount));
+        if (txHash) {
+          toast.success(`Transaction sent! Hash: ${txHash.slice(0, 8)}...`);
+        } else {
+          throw new Error('Transaction failed');
+        }
+      }
       
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
-      
-      toast.success(`Transaction sent! ${amount} ${chainSymbol} to ${recipient.slice(0, 6)}...${recipient.slice(-4)}`);
       onClose();
       
       // Reset form
@@ -135,7 +152,7 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
 
   const setMaxAmount = () => {
     const balanceNum = parseFloat(balance.replace(/,/g, ''));
-    const feeNum = parseFloat(estimatedFee);
+    const feeNum = isEVMChain ? parseFloat(estimatedFee) : 0.001; // Estimate fee for UTXO chains
     const maxAmount = Math.max(0, balanceNum - feeNum);
     setAmount(maxAmount.toString());
   };
@@ -182,11 +199,33 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
             <div>
               <label className="block text-sm font-medium mb-2">From</label>
               <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-                <p className="font-mono text-sm text-slate-300">
-                  {currentAddress?.address || 'No address available'}
-                </p>
+                {isEVMChain ? (
+                  <p className="font-mono text-sm text-slate-300">
+                    {currentAddress?.address || 'No address available'}
+                  </p>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Server className="w-4 h-4 text-slate-400" />
+                    <p className="text-sm text-slate-300">
+                      {connectedRpcNode ? connectedRpcNode.name : 'No RPC node connected'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* RPC Node Status */}
+            {!isEVMChain && !connectedRpcNode && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <p className="text-red-400 font-medium">No RPC node connected</p>
+                </div>
+                <p className="text-slate-300 text-sm mt-1">
+                  Configure an RPC node for {chainSymbol} to send transactions
+                </p>
+              </div>
+            )}
 
             {/* Recipient Address */}
             <div>
@@ -223,8 +262,8 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
               </div>
             </div>
 
-            {/* Gas Fees */}
-            {gasFees && (chainConfig?.addressType === 'ethereum') && (
+            {/* Gas Fees (EVM only) */}
+            {gasFees && isEVMChain && (
               <div>
                 <label className="block text-sm font-medium mb-3">Network Fee</label>
                 <div className="grid grid-cols-3 gap-2 mb-3">
@@ -280,11 +319,18 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Network Fee:</span>
-                  <span>{estimatedFee} {chainConfig?.addressType === 'ethereum' ? 'ETH' : chainSymbol}</span>
+                  <span>
+                    {isEVMChain ? `${estimatedFee} ETH` : '~0.001 ' + chainSymbol}
+                  </span>
                 </div>
                 <div className="flex justify-between font-medium pt-2 border-t border-slate-700/30">
                   <span>Total:</span>
-                  <span>{(parseFloat(amount || '0') + parseFloat(estimatedFee)).toFixed(6)} {chainSymbol}</span>
+                  <span>
+                    {isEVMChain 
+                      ? `${(parseFloat(amount || '0') + parseFloat(estimatedFee)).toFixed(6)} ${chainSymbol}`
+                      : `${(parseFloat(amount || '0') + 0.001).toFixed(6)} ${chainSymbol}`
+                    }
+                  </span>
                 </div>
               </div>
             </div>
@@ -292,7 +338,7 @@ const SendModal: React.FC<SendModalProps> = ({ isOpen, onClose, chainSymbol, bal
             {/* Send Button */}
             <motion.button
               onClick={handleSend}
-              disabled={loading || !recipient || !amount}
+              disabled={loading || !recipient || !amount || (!isEVMChain && !connectedRpcNode)}
               className="w-full flex items-center justify-center space-x-2 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition-colors disabled:opacity-50"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bitcoin, Zap, DollarSign, Hash, Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Bitcoin, Zap, DollarSign, Hash, Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff, Server } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { usePrices } from '../hooks/usePrices';
 import { walletService } from '../services/walletService';
@@ -8,11 +8,13 @@ import NodeStatus from './wallet/NodeStatus';
 import BalanceCard from './wallet/BalanceCard';
 import TransactionHistory from './wallet/TransactionHistory';
 import WalletAuth from './wallet/WalletAuth';
+import RPCNodeManager from './wallet/RPCNodeManager';
 
 const WalletView: React.FC = () => {
   const [showBalances, setShowBalances] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showRPCManager, setShowRPCManager] = useState(false);
   const { isConnected, address, chainId, altBalance, wattBalance, refreshBalances } = useWallet();
   
   // Fetch prices for all supported cryptocurrencies including GHOST and TROLL
@@ -69,16 +71,16 @@ const WalletView: React.FC = () => {
     {
       name: 'Bitcoin',
       symbol: 'BTC',
-      balance: '0.05432',
+      balance: '0.00000',
       icon: () => <img src="/BTC logo.png" alt="BTC" className="w-8 h-8 object-contain" />,
       color: 'from-orange-500 to-orange-600',
-      nodeType: 'light' as const,
+      nodeType: 'rpc' as const,
       syncStatus: 'connected' as const
     },
     {
       name: 'Ethereum',
       symbol: 'ETH',
-      balance: '2.1847',
+      balance: '0.0000',
       icon: () => <img src="/ETH logo.png" alt="ETH" className="w-8 h-8 object-contain" />,
       color: 'from-purple-500 to-purple-600',
       nodeType: 'light' as const,
@@ -87,38 +89,38 @@ const WalletView: React.FC = () => {
     {
       name: 'Litecoin',
       symbol: 'LTC',
-      balance: '12.67',
+      balance: '0.00000',
       icon: () => <img src="/LTC logo.png" alt="LTC" className="w-8 h-8 object-contain" />,
       color: 'from-gray-400 to-gray-500',
-      nodeType: 'light' as const,
-      syncStatus: 'connected' as const
+      nodeType: 'rpc' as const,
+      syncStatus: 'disconnected' as const
     },
     {
       name: 'Monero',
       symbol: 'XMR',
-      balance: '5.234',
+      balance: '0.000000',
       icon: () => <img src="/XMR logo.png" alt="XMR" className="w-8 h-8 object-contain" />,
       color: 'from-orange-600 to-red-600',
-      nodeType: 'light' as const,
-      syncStatus: 'connected' as const
+      nodeType: 'rpc' as const,
+      syncStatus: 'disconnected' as const
     },
     {
       name: 'Trollcoin',
       symbol: 'TROLL',
-      balance: '15,420.69',
+      balance: '0.00000',
       icon: () => <img src="/TROLL logo.png" alt="TROLL" className="w-8 h-8 object-contain" />,
       color: 'from-red-500 to-orange-500',
-      nodeType: 'full' as const,
-      syncStatus: 'synced' as const
+      nodeType: 'rpc' as const,
+      syncStatus: 'disconnected' as const
     },
     {
       name: 'GHOST',
       symbol: 'GHOST',
-      balance: '1,250.75',
+      balance: '0.000000',
       icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-8 h-8 object-contain" />,
       color: 'from-gray-600 to-gray-700',
-      nodeType: 'full' as const,
-      syncStatus: 'synced' as const
+      nodeType: 'rpc' as const,
+      syncStatus: 'disconnected' as const
     }
   ];
 
@@ -174,7 +176,7 @@ const WalletView: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div>
-          <h2 className="text-3xl font-bold">Wallet</h2>
+          <h2 className="text-3xl font-bold">Universal Wallet</h2>
           <p className="text-slate-400 mt-1">Manage your multi-chain assets</p>
           {isConnected && (
             <div className="mt-2 space-y-1">
@@ -211,6 +213,15 @@ const WalletView: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           <motion.button
+            onClick={() => setShowRPCManager(true)}
+            className="flex items-center space-x-2 p-2 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Server className="w-5 h-5" />
+            <span className="text-sm">RPC Nodes</span>
+          </motion.button>
+          <motion.button
             onClick={() => setShowBalances(!showBalances)}
             className="p-2 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors"
             whileHover={{ scale: 1.05 }}
@@ -239,23 +250,24 @@ const WalletView: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
         >
           <p className="text-orange-400 font-medium">
-            Connect your wallet to view live balances and interact with dApps
+            Connect your wallet to view live balances for EVM-compatible chains (ETH, ALT, WATT)
           </p>
         </motion.div>
       )}
 
-      {/* Altcoinchain Connection Prompt */}
-      {isConnected && chainId !== 2330 && (
-        <motion.div
-          className="bg-yellow-600/20 border border-yellow-500/30 rounded-xl p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <p className="text-yellow-400 font-medium">
-            Switch to Altcoinchain network to view your ALT and WATT token balances
+      {/* RPC Node Notice */}
+      <motion.div
+        className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex items-center space-x-2">
+          <Server className="w-5 h-5 text-blue-400" />
+          <p className="text-blue-400 font-medium">
+            UTXO chains (BTC, LTC, XMR, GHOST, TROLL) require RPC node connections for balance and transaction management
           </p>
-        </motion.div>
-      )}
+        </div>
+      </motion.div>
 
       {/* Price Error Warning */}
       {pricesError && (
@@ -359,6 +371,12 @@ const WalletView: React.FC = () => {
 
       {/* Transaction History */}
       <TransactionHistory />
+
+      {/* RPC Node Manager Modal */}
+      <RPCNodeManager
+        isOpen={showRPCManager}
+        onClose={() => setShowRPCManager(false)}
+      />
     </div>
   );
 };

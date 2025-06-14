@@ -10,21 +10,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@wagmi/core": "^1.4.13",
+    "@web3modal/wagmi": "^3.5.7",
+    "ethers": "^6.8.1",
+    "framer-motion": "^10.16.16",
     "lucide-react": "^0.344.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "framer-motion": "^10.16.16",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.20.1",
-    "zustand": "^4.4.7",
-    "web3": "^4.2.2",
-    "ethers": "^6.8.1",
-    "@web3modal/wagmi": "^3.5.7",
-    "@wagmi/core": "^1.4.13",
-    "wagmi": "^1.4.13",
     "viem": "^1.19.11",
-    "qrcode": "^1.5.3",
-    "@types/qrcode": "^1.5.5"
+    "wagmi": "^1.4.13",
+    "web3": "^4.2.2",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

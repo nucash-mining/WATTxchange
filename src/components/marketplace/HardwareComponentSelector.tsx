@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, Memory, HardDrive, Wifi, Monitor } from 'lucide-react';
+import { Cpu, MemoryStick as Memory, HardDrive, Wifi, Monitor } from 'lucide-react';
 
 interface HardwareComponent {
   id: string;

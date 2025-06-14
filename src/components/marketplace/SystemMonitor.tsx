@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, Memory, HardDrive, Wifi, Activity, Thermometer } from 'lucide-react';
+import { Cpu, MemoryStick as Memory, HardDrive, Wifi, Activity, Thermometer } from 'lucide-react';
 
 interface SystemMonitorProps {
   isActive?: boolean;

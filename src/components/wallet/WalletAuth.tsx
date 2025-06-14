@@ -109,13 +109,13 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
       >
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <img src="/WATTxchange logo.png" alt="WATTxchange" className="w-12 h-12" />
+            <img src="/WATTxchange logo.png" alt="WATTxchange" className="w-48 h-48" />
           </div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent">
+          <h2 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent">
             WATTxchange
           </h2>
-          <p className="text-slate-400 mt-2">Connect your wallet to continue</p>
-          <p className="text-slate-500 text-sm mt-1">EVM chains only (ETH, ALT, WATT)</p>
+          <p className="text-slate-400 mt-2 text-xl">Connect your wallet to continue</p>
+          <p className="text-slate-500 text-lg mt-1">EVM chains only (ETH, ALT, WATT)</p>
         </div>
 
         {/* Authentication Method Selection */}

@@ -1,21 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpDown, Settings, Zap, TrendingUp, Info, Plus, Minus, ArrowRight, RefreshCw, Wallet, AlertTriangle } from 'lucide-react';
+import { ArrowUpDown, Settings, Zap, TrendingUp, Info, Plus, Minus, ArrowRight, AlertTriangle } from 'lucide-react';
 import { swapinService } from '../../services/swapinService';
 import { tokenService } from '../../services/tokenService';
 import { useWallet } from '../../hooks/useWallet';
-import { useDeviceDetect } from '../../hooks/useDeviceDetect';
-import TokenSelector from './TokenSelector';
 import PriceChart from './PriceChart';
-import PoolCard from './PoolCard';
-import PositionCard from './PositionCard';
-import AddLiquidityModal from './AddLiquidityModal';
-import RemoveLiquidityModal from './RemoveLiquidityModal';
 import toast from 'react-hot-toast';
 
+interface Pool {
+  id: string;
+  token0: string;
+  token1: string;
+  fee: number;
+  liquidity: string;
+  volume24h: string;
+  apr: number;
+  hooks: string[];
+}
+
+interface Position {
+  id: string;
+  pool: Pool;
+  liquidity: string;
+  token0Amount: string;
+  token1Amount: string;
+  uncollectedFees: string;
+  inRange: boolean;
+  tickLower: number;
+  tickUpper: number;
+}
+
 const SwapinV2Interface: React.FC = () => {
-  const { isConnected, address, chainId, switchToAltcoinchain, signTransaction } = useWallet();
-  const { isMobile } = useDeviceDetect();
+  const { isConnected, address, chainId, connectWallet } = useWallet();
   const [activeTab, setActiveTab] = useState<'swap' | 'pools' | 'positions'>('swap');
   const [selectedNetwork, setSelectedNetwork] = useState(2330); // Altcoinchain
   const [fromToken, setFromToken] = useState('ALT');
@@ -24,18 +40,62 @@ const SwapinV2Interface: React.FC = () => {
   const [toAmount, setToAmount] = useState('');
   const [slippage, setSlippage] = useState('0.5');
   const [showSettings, setShowSettings] = useState(false);
-  const [pools, setPools] = useState<any[]>([]);
-  const [positions, setPositions] = useState<any[]>([]);
+  const [pools, setPools] = useState<Pool[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddLiquidityModal, setShowAddLiquidityModal] = useState(false);
-  const [showRemoveLiquidityModal, setShowRemoveLiquidityModal] = useState(false);
-  const [selectedPool, setSelectedPool] = useState<any>(null);
-  const [selectedPosition, setSelectedPosition] = useState<any>(null);
-  const [isSwapping, setIsSwapping] = useState(false);
+  const [liquidityToken0, setLiquidityToken0] = useState('ALT');
+  const [liquidityToken1, setLiquidityToken1] = useState('WATT');
+  const [liquidityAmount0, setLiquidityAmount0] = useState('');
+  const [liquidityAmount1, setLiquidityAmount1] = useState('');
+  const [liquidityFee, setLiquidityFee] = useState(0.3);
+  const [selectedPair, setSelectedPair] = useState<string | null>(null);
 
   const networks = swapinService.getAllNetworks();
   const currentNetwork = networks.find(n => n.chainId === selectedNetwork);
-  const availableTokens = tokenService.getTokensForChain(currentNetwork?.name || 'ALT');
+  
+  // Token contracts from user input
+  const tokenContracts = {
+    ALT: 'Native',
+    wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
+    WATT: '0x6645143e49B3a15d8F205658903a55E520444698',
+    PEPE: '0xd350ecd60912913cc15d312ef38adeca909ecdd5',
+    PEPI: '0xbb1f8b3a73a0b5084af9a95e748f9d84ddba6e88',
+    MALT: '0xaf5d066eb3e4147325d3ed23f94bc925fbf3b9ef',
+    SWAPD: '0x67e7ebda5cba73f5830538b03e678a1b45517dd7',
+    SCAM: '0x75b37574c2317ccba905e2c628d949710627c20a'
+  };
+
+  // Token logos
+  const tokenLogos = {
+    ALT: '/Altcoinchain logo.png',
+    wALT: '/Altcoinchain logo.png',
+    WATT: '/WATT logo.png',
+    PEPE: 'https://cryptologos.cc/logos/pepe-pepe-logo.png',
+    PEPI: 'https://cryptologos.cc/logos/pepe-pepe-logo.png',
+    MALT: '/Altcoinchain logo.png',
+    SWAPD: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+    SCAM: 'https://cryptologos.cc/logos/scam-scam-logo.png',
+    USDT: '/USDT logo.png',
+    ETH: '/ETH logo.png',
+    BTC: '/BTC logo.png'
+  };
+
+  // Get available tokens for the chain
+  const getAvailableTokens = () => {
+    if (selectedNetwork === 2330) {
+      return Object.keys(tokenContracts).map(symbol => ({
+        symbol,
+        name: symbol,
+        address: tokenContracts[symbol as keyof typeof tokenContracts],
+        logo: tokenLogos[symbol as keyof typeof tokenLogos] || `https://via.placeholder.com/32/6366f1/FFFFFF?text=${symbol.charAt(0)}`
+      }));
+    }
+    
+    return tokenService.getTokensForChain(currentNetwork?.name || 'ALT');
+  };
+
+  const availableTokens = getAvailableTokens();
 
   useEffect(() => {
     loadPools();
@@ -48,8 +108,8 @@ const SwapinV2Interface: React.FC = () => {
   }, [fromAmount, fromToken, toToken]);
 
   const loadPools = async () => {
-    // Mock V4 pools with hooks
-    const mockPools = [
+    // Mock V2 pools with fees
+    const mockPools: Pool[] = [
       {
         id: 'alt-watt-0.3',
         token0: 'ALT',
@@ -61,19 +121,19 @@ const SwapinV2Interface: React.FC = () => {
         hooks: ['Dynamic Fee', 'MEV Protection']
       },
       {
-        id: 'alt-usdt-0.05',
+        id: 'alt-pepe-0.3',
         token0: 'ALT',
-        token1: 'USDT',
-        fee: 0.05,
+        token1: 'PEPE',
+        fee: 0.3,
         liquidity: '2,345,678',
         volume24h: '$123,456',
         apr: 18.2,
         hooks: ['TWAMM', 'Limit Orders']
       },
       {
-        id: 'watt-usdt-0.3',
+        id: 'watt-pepe-0.3',
         token0: 'WATT',
-        token1: 'USDT',
+        token1: 'PEPE',
         fee: 0.3,
         liquidity: '987,654',
         volume24h: '$67,890',
@@ -81,34 +141,44 @@ const SwapinV2Interface: React.FC = () => {
         hooks: ['Volatility Oracle', 'Auto-Compound']
       },
       {
-        id: 'altpepe-altpepi-0.3',
-        token0: 'AltPEPE',
-        token1: 'AltPEPI',
-        fee: 0.3,
+        id: 'pepe-pepi-1.0',
+        token0: 'PEPE',
+        token1: 'PEPI',
+        fee: 1.0,
         liquidity: '456,789',
         volume24h: '$34,567',
-        apr: 38.5,
-        hooks: ['Dynamic Fee', 'MEV Protection']
+        apr: 42.3,
+        hooks: ['Exotic Pair', 'High Volatility']
       },
       {
-        id: 'altpepe-walt-0.3',
-        token0: 'AltPEPE',
-        token1: 'wALT',
+        id: 'alt-malt-0.3',
+        token0: 'ALT',
+        token1: 'MALT',
         fee: 0.3,
         liquidity: '345,678',
         volume24h: '$23,456',
-        apr: 32.7,
-        hooks: ['TWAMM', 'Limit Orders']
+        apr: 19.8,
+        hooks: ['Mining Rewards', 'Staking']
       },
       {
-        id: 'scam-walt-0.3',
-        token0: 'SCAM',
-        token1: 'wALT',
-        fee: 0.3,
-        liquidity: '234,567',
+        id: 'alt-swapd-0.1',
+        token0: 'ALT',
+        token1: 'SWAPD',
+        fee: 0.1,
+        liquidity: '789,012',
+        volume24h: '$56,789',
+        apr: 15.4,
+        hooks: ['Governance', 'Low Volatility']
+      },
+      {
+        id: 'alt-scam-1.0',
+        token0: 'ALT',
+        token1: 'SCAM',
+        fee: 1.0,
+        liquidity: '123,456',
         volume24h: '$12,345',
-        apr: 45.2,
-        hooks: ['Volatility Oracle', 'Auto-Compound']
+        apr: 56.7,
+        hooks: ['High Risk', 'Exotic Pair']
       }
     ];
     setPools(mockPools);
@@ -117,10 +187,15 @@ const SwapinV2Interface: React.FC = () => {
     loadPositions(mockPools);
   };
 
-  const loadPositions = async (poolsData: any[]) => {
-    // Mock user positions - use the provided pools data to ensure we have valid pool references
+  const loadPositions = async (poolsData: Pool[]) => {
+    if (!isConnected || !address) {
+      setPositions([]);
+      return;
+    }
+    
+    // Mock user positions based on connected wallet
     if (poolsData.length > 0) {
-      const mockPositions = [
+      const mockPositions: Position[] = [
         {
           id: 'pos-1',
           pool: poolsData[0], // ALT-WATT pool
@@ -134,11 +209,11 @@ const SwapinV2Interface: React.FC = () => {
         },
         {
           id: 'pos-2',
-          pool: poolsData[1], // ALT-USDT pool
-          liquidity: '34,567',
-          token0Amount: '2,500',
-          token1Amount: '432.50',
-          uncollectedFees: '$45.67',
+          pool: poolsData[1], // ALT-PEPE pool
+          liquidity: '45,678',
+          token0Amount: '5,000',
+          token1Amount: '10,000,000',
+          uncollectedFees: '$67.89',
           inRange: true,
           tickLower: -887220,
           tickUpper: 887220
@@ -151,16 +226,46 @@ const SwapinV2Interface: React.FC = () => {
   };
 
   const calculateSwapAmount = async () => {
-    // Simulate price calculation
-    const rate = fromToken === 'ALT' && toToken === 'WATT' ? 1.5 : 
-                 fromToken === 'WATT' && toToken === 'ALT' ? 0.67 : 1;
+    if (!fromAmount || parseFloat(fromAmount) <= 0) {
+      setToAmount('');
+      return;
+    }
+    
+    // Simulate price calculation based on token pairs
+    let rate = 1.0;
+    
+    if (fromToken === 'ALT' && toToken === 'WATT') {
+      rate = 2.0; // 1 ALT = 2 WATT
+    } else if (fromToken === 'WATT' && toToken === 'ALT') {
+      rate = 0.5; // 1 WATT = 0.5 ALT
+    } else if (fromToken === 'ALT' && toToken === 'PEPE') {
+      rate = 10000000; // 1 ALT = 10M PEPE
+    } else if (fromToken === 'PEPE' && toToken === 'ALT') {
+      rate = 0.0000001; // 10M PEPE = 1 ALT
+    } else if (fromToken === 'WATT' && toToken === 'PEPE') {
+      rate = 5000000; // 1 WATT = 5M PEPE
+    } else if (fromToken === 'PEPE' && toToken === 'WATT') {
+      rate = 0.0000002; // 5M PEPE = 1 WATT
+    } else if (fromToken === 'PEPE' && toToken === 'PEPI') {
+      rate = 1.5; // 1 PEPE = 1.5 PEPI
+    } else if (fromToken === 'PEPI' && toToken === 'PEPE') {
+      rate = 0.67; // 1 PEPI = 0.67 PEPE
+    } else if (fromToken === 'ALT' && toToken === 'MALT') {
+      rate = 20; // 1 ALT = 20 MALT
+    } else if (fromToken === 'MALT' && toToken === 'ALT') {
+      rate = 0.05; // 1 MALT = 0.05 ALT
+    } else if (fromToken === 'ALT' && toToken === 'SWAPD') {
+      rate = 10; // 1 ALT = 10 SWAPD
+    } else if (fromToken === 'SWAPD' && toToken === 'ALT') {
+      rate = 0.1; // 1 SWAPD = 0.1 ALT
+    } else if (fromToken === 'ALT' && toToken === 'SCAM') {
+      rate = 100000; // 1 ALT = 100K SCAM
+    } else if (fromToken === 'SCAM' && toToken === 'ALT') {
+      rate = 0.00001; // 100K SCAM = 1 ALT
+    }
     
     const calculatedAmount = parseFloat(fromAmount) * rate;
-    if (!isNaN(calculatedAmount)) {
-      setToAmount(calculatedAmount.toFixed(6));
-    } else {
-      setToAmount('');
-    }
+    setToAmount(calculatedAmount.toFixed(6));
   };
 
   const handleSwapTokens = () => {
@@ -174,7 +279,7 @@ const SwapinV2Interface: React.FC = () => {
 
   const handleSwap = async () => {
     if (!isConnected) {
-      toast.error('Please connect your wallet');
+      connectWallet();
       return;
     }
 
@@ -183,120 +288,79 @@ const SwapinV2Interface: React.FC = () => {
       return;
     }
 
-    // Check if user is on the correct network
-    if (chainId !== selectedNetwork) {
-      try {
-        const switched = await switchToAltcoinchain();
-        if (!switched) {
-          toast.error('Please switch to Altcoinchain network');
-          return;
-        }
-      } catch (error) {
-        toast.error('Failed to switch network');
-        return;
-      }
-    }
-
-    setIsSwapping(true);
-    
+    setLoading(true);
     try {
-      // Create transaction details for signing
-      const transactionDetails = {
-        type: 'swap',
-        fromToken,
-        toToken,
-        fromAmount,
-        toAmount,
-        slippage
-      };
-
-      // Request permission to sign the transaction
-      const signed = await signTransaction(transactionDetails);
-      
-      if (signed) {
-        toast.success('Swap completed successfully!');
-        setFromAmount('');
-        setToAmount('');
-      } else {
-        toast.error('Transaction cancelled or failed');
-      }
+      // Simulate swap
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success(`Swapped ${fromAmount} ${fromToken} for ${toAmount} ${toToken}`);
+      setFromAmount('');
+      setToAmount('');
     } catch (error) {
       console.error('Swap failed:', error);
       toast.error('Swap failed');
-    } finally {
-      setIsSwapping(false);
-    }
-  };
-
-  const handleAddLiquidity = (pool?: any) => {
-    setSelectedPool(pool);
-    setShowAddLiquidityModal(true);
-  };
-
-  const handleRemoveLiquidity = (position: any) => {
-    setSelectedPosition(position);
-    setShowRemoveLiquidityModal(true);
-  };
-
-  const handleCollectFees = async (position: any) => {
-    if (!isConnected) {
-      toast.error('Please connect your wallet');
-      return;
-    }
-
-    // Check if user is on the correct network
-    if (chainId !== selectedNetwork) {
-      try {
-        const switched = await switchToAltcoinchain();
-        if (!switched) {
-          toast.error('Please switch to Altcoinchain network');
-          return;
-        }
-      } catch (error) {
-        toast.error('Failed to switch network');
-        return;
-      }
-    }
-
-    setLoading(true);
-    
-    try {
-      // Create transaction details for signing
-      const transactionDetails = {
-        type: 'collectFees',
-        positionId: position.id,
-        token0: position.pool.token0,
-        token1: position.pool.token1,
-        fees: position.uncollectedFees
-      };
-
-      // Request permission to sign the transaction
-      const signed = await signTransaction(transactionDetails);
-      
-      if (signed) {
-        toast.success(`Collected ${position.uncollectedFees} in fees`);
-        
-        // Update positions to show fees as collected
-        setPositions(positions.map(p => 
-          p.id === position.id ? { ...p, uncollectedFees: '$0.00' } : p
-        ));
-      } else {
-        toast.error('Transaction cancelled or failed');
-      }
-    } catch (error) {
-      console.error('Failed to collect fees:', error);
-      toast.error('Failed to collect fees');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTrade = (token0: string, token1: string) => {
-    setActiveTab('swap');
-    setFromToken(token0);
-    setToToken(token1);
-    setFromAmount('');
-    setToAmount('');
+  const handleAddLiquidity = () => {
+    if (!isConnected) {
+      connectWallet();
+      return;
+    }
+    setShowAddLiquidityModal(true);
+  };
+
+  const handleSubmitLiquidity = async () => {
+    if (!isConnected) {
+      connectWallet();
+      return;
+    }
+
+    if (!liquidityAmount0 || !liquidityAmount1) {
+      toast.error('Please enter valid amounts for both tokens');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Simulate adding liquidity
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success(`Added liquidity: ${liquidityAmount0} ${liquidityToken0} and ${liquidityAmount1} ${liquidityToken1}`);
+      setShowAddLiquidityModal(false);
+      setLiquidityAmount0('');
+      setLiquidityAmount1('');
+      
+      // Refresh pools and positions
+      await loadPools();
+    } catch (error) {
+      console.error('Failed to add liquidity:', error);
+      toast.error('Failed to add liquidity');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveLiquidity = (positionId: string) => {
+    if (!isConnected) {
+      connectWallet();
+      return;
+    }
+    toast.success(`Remove liquidity interface opened for position ${positionId}`);
+  };
+
+  const handleCollectFees = (positionId: string) => {
+    if (!isConnected) {
+      connectWallet();
+      return;
+    }
+    toast.success(`Collected fees for position ${positionId}`);
+  };
+
+  const getTokenLogo = (symbol: string) => {
+    const logo = tokenLogos[symbol as keyof typeof tokenLogos];
+    if (logo) return logo;
+    return `https://via.placeholder.com/32/6366f1/FFFFFF?text=${symbol.charAt(0)}`;
   };
 
   return (
@@ -373,6 +437,11 @@ const SwapinV2Interface: React.FC = () => {
         </button>
       </div>
 
+      {/* Price Chart */}
+      {activeTab === 'swap' && (
+        <PriceChart symbol={`${fromToken}/${toToken}`} />
+      )}
+
       {/* Tab Content */}
       <motion.div
         key={activeTab}
@@ -382,222 +451,221 @@ const SwapinV2Interface: React.FC = () => {
       >
         {/* Swap Interface */}
         {activeTab === 'swap' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Swap Form */}
-            <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Swap Tokens</h3>
+          <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Swap Tokens</h3>
+              <motion.button
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Settings className="w-4 h-4" />
+              </motion.button>
+            </div>
+
+            {showSettings && (
+              <motion.div
+                className="mb-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700/30"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Slippage Tolerance</label>
+                    <div className="flex space-x-2">
+                      {['0.1', '0.5', '1.0', '3.0'].map((value) => (
+                        <button
+                          key={value}
+                          onClick={() => setSlippage(value)}
+                          className={`px-3 py-1 rounded text-sm transition-colors ${
+                            slippage === value
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-700 hover:bg-slate-600'
+                          }`}
+                        >
+                          {value}%
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        value={slippage}
+                        onChange={(e) => setSlippage(e.target.value)}
+                        className="px-2 py-1 bg-slate-700 rounded text-sm w-16"
+                        step="0.1"
+                        min="0.1"
+                        max="50"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Transaction Deadline</label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        defaultValue="30"
+                        className="px-2 py-1 bg-slate-700 rounded text-sm w-16"
+                        min="1"
+                      />
+                      <span className="text-sm text-slate-400">minutes</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Interface Settings</label>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Expert Mode</span>
+                      <input type="checkbox" className="toggle" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="space-y-4">
+              {/* From Token */}
+              <div className="bg-slate-900/50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-400">From</span>
+                  <span className="text-sm text-slate-400">Balance: 0.00</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="number"
+                    value={fromAmount}
+                    onChange={(e) => setFromAmount(e.target.value)}
+                    placeholder="0.0"
+                    className="flex-1 bg-transparent text-2xl font-bold outline-none"
+                  />
+                  <div className="relative">
+                    <select
+                      value={fromToken}
+                      onChange={(e) => setFromToken(e.target.value)}
+                      className="appearance-none bg-slate-800 rounded px-10 py-2 pr-8 outline-none"
+                      style={{ paddingLeft: '40px' }}
+                    >
+                      {availableTokens.map(token => (
+                        <option key={token.symbol} value={token.symbol}>{token.symbol}</option>
+                      ))}
+                    </select>
+                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-6 h-6 rounded-full overflow-hidden">
+                      <img 
+                        src={getTokenLogo(fromToken)} 
+                        alt={fromToken} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${fromToken.charAt(0)}`;
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Swap Button */}
+              <div className="flex justify-center">
                 <motion.button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  onClick={handleSwapTokens}
+                  className="p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-full transition-colors"
+                  whileHover={{ scale: 1.1, rotate: 180 }}
+                  whileTap={{ scale: 0.9 }}
                 >
-                  <Settings className="w-4 h-4" />
+                  <ArrowUpDown className="w-5 h-5" />
                 </motion.button>
               </div>
 
-              {showSettings && (
-                <motion.div
-                  className="mb-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700/30"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                >
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Slippage Tolerance</label>
-                      <div className="flex space-x-2">
-                        {['0.1', '0.5', '1.0'].map((value) => (
-                          <button
-                            key={value}
-                            onClick={() => setSlippage(value)}
-                            className={`px-3 py-1 rounded text-sm transition-colors ${
-                              slippage === value
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-700 hover:bg-slate-600'
-                            }`}
-                          >
-                            {value}%
-                          </button>
-                        ))}
-                        <input
-                          type="number"
-                          value={slippage}
-                          onChange={(e) => setSlippage(e.target.value)}
-                          className="px-2 py-1 bg-slate-700 rounded text-sm w-16"
-                          step="0.1"
-                          min="0.1"
-                          max="50"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Transaction Deadline</label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          defaultValue="30"
-                          className="px-2 py-1 bg-slate-700 rounded text-sm w-16"
-                          min="1"
-                        />
-                        <span className="text-sm text-slate-400">minutes</span>
-                      </div>
+              {/* To Token */}
+              <div className="bg-slate-900/50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-400">To</span>
+                  <span className="text-sm text-slate-400">Balance: 0.00</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="number"
+                    value={toAmount}
+                    onChange={(e) => setToAmount(e.target.value)}
+                    placeholder="0.0"
+                    className="flex-1 bg-transparent text-2xl font-bold outline-none"
+                    readOnly
+                  />
+                  <div className="relative">
+                    <select
+                      value={toToken}
+                      onChange={(e) => setToToken(e.target.value)}
+                      className="appearance-none bg-slate-800 rounded px-10 py-2 pr-8 outline-none"
+                      style={{ paddingLeft: '40px' }}
+                    >
+                      {availableTokens.filter(t => t.symbol !== fromToken).map(token => (
+                        <option key={token.symbol} value={token.symbol}>{token.symbol}</option>
+                      ))}
+                    </select>
+                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-6 h-6 rounded-full overflow-hidden">
+                      <img 
+                        src={getTokenLogo(toToken)} 
+                        alt={toToken} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${toToken.charAt(0)}`;
+                        }}
+                      />
                     </div>
                   </div>
-                </motion.div>
+                </div>
+              </div>
+
+              {/* Swap Details */}
+              {fromAmount && toAmount && (
+                <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Rate</span>
+                    <span>1 {fromToken} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)} {toToken}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Slippage</span>
+                    <span>{slippage}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Network Fee</span>
+                    <span>~$0.50</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Route</span>
+                    <div className="flex items-center space-x-1">
+                      <span>{fromToken}</span>
+                      <ArrowRight className="w-3 h-3" />
+                      <span>{toToken}</span>
+                    </div>
+                  </div>
+                </div>
               )}
 
-              <div className="space-y-4">
-                {/* From Token */}
-                <div className="bg-slate-900/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-400">From</span>
-                    <span className="text-sm text-slate-400">Balance: 0.00</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="number"
-                      value={fromAmount}
-                      onChange={(e) => setFromAmount(e.target.value)}
-                      placeholder="0.0"
-                      className="flex-1 bg-transparent text-2xl font-bold outline-none"
-                    />
-                    
-                    <TokenSelector
-                      selectedToken={fromToken}
-                      onSelectToken={setFromToken}
-                      excludeToken={toToken}
-                      chainId={selectedNetwork}
-                    />
-                  </div>
-                </div>
-
-                {/* Swap Button */}
-                <div className="flex justify-center">
-                  <motion.button
-                    onClick={handleSwapTokens}
-                    className="p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-full transition-colors"
-                    whileHover={{ scale: 1.1, rotate: 180 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <ArrowUpDown className="w-5 h-5" />
-                  </motion.button>
-                </div>
-
-                {/* To Token */}
-                <div className="bg-slate-900/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-400">To</span>
-                    <span className="text-sm text-slate-400">Balance: 0.00</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="number"
-                      value={toAmount}
-                      onChange={(e) => setToAmount(e.target.value)}
-                      placeholder="0.0"
-                      className="flex-1 bg-transparent text-2xl font-bold outline-none"
-                      readOnly
-                    />
-                    
-                    <TokenSelector
-                      selectedToken={toToken}
-                      onSelectToken={setToToken}
-                      excludeToken={fromToken}
-                      chainId={selectedNetwork}
-                    />
-                  </div>
-                </div>
-
-                {/* Swap Details */}
-                {fromAmount && toAmount && (
-                  <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Rate</span>
-                      <span>1 {fromToken} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)} {toToken}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Slippage</span>
-                      <span>{slippage}%</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Network Fee</span>
-                      <span>~$0.50</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Route</span>
-                      <div className="flex items-center space-x-1">
-                        <span>{fromToken}</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span>{toToken}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Transaction Signing Notice */}
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
-                    <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5" />
-                    <p className="text-xs text-yellow-400">
-                      Swapping tokens requires signing a transaction with your wallet. Please review all details before confirming.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Swap Button */}
+              {/* Swap Button */}
+              {!isConnected ? (
+                <motion.button
+                  onClick={connectWallet}
+                  className="w-full py-4 rounded-lg font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Connect Wallet
+                </motion.button>
+              ) : (
                 <motion.button
                   onClick={handleSwap}
-                  disabled={isSwapping || !fromAmount || parseFloat(fromAmount) <= 0}
+                  disabled={loading || !fromAmount || parseFloat(fromAmount) <= 0}
                   className={`w-full py-4 rounded-lg font-semibold transition-colors ${
-                    !isSwapping && fromAmount && parseFloat(fromAmount) > 0
+                    !loading && fromAmount && parseFloat(fromAmount) > 0
                       ? 'bg-blue-600 hover:bg-blue-700 text-white'
                       : 'bg-slate-700 text-slate-400 cursor-not-allowed'
                   }`}
-                  whileHover={!isSwapping && fromAmount && parseFloat(fromAmount) > 0 ? { scale: 1.02 } : {}}
-                  whileTap={!isSwapping && fromAmount && parseFloat(fromAmount) > 0 ? { scale: 0.98 } : {}}
+                  whileHover={!loading && fromAmount && parseFloat(fromAmount) > 0 ? { scale: 1.02 } : {}}
+                  whileTap={!loading && fromAmount && parseFloat(fromAmount) > 0 ? { scale: 0.98 } : {}}
                 >
-                  {!isConnected ? (
-                    <>
-                      <Wallet className="w-5 h-5 inline mr-2" />
-                      Connect Wallet
-                    </>
-                  ) : isSwapping ? (
-                    <>
-                      <RefreshCw className="w-5 h-5 inline mr-2 animate-spin" />
-                      Signing Transaction...
-                    </>
-                  ) : (
-                    'Swap Tokens'
-                  )}
+                  {loading ? 'Swapping...' : 'Swap Tokens'}
                 </motion.button>
-              </div>
-            </div>
-
-            {/* Price Chart */}
-            <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
-              <h3 className="text-lg font-semibold mb-4">Price Chart</h3>
-              <div className="flex space-x-2 mb-4">
-                {['15m', '1H', '4H', '1D', '1W'].map((timeframe) => (
-                  <button
-                    key={timeframe}
-                    className={`px-3 py-1 text-sm rounded transition-colors ${
-                      timeframe === '1D'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                    }`}
-                  >
-                    {timeframe}
-                  </button>
-                ))}
-              </div>
-              
-              <PriceChart 
-                symbol={`${fromToken}/${toToken}`} 
-                timeframe="1D"
-                height={isMobile ? 200 : 300}
-              />
+              )}
             </div>
           </div>
         )}
@@ -607,25 +675,139 @@ const SwapinV2Interface: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold">Liquidity Pools</h3>
-              <motion.button
-                onClick={() => handleAddLiquidity()}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Liquidity</span>
-              </motion.button>
+              {isConnected ? (
+                <motion.button
+                  onClick={handleAddLiquidity}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Liquidity</span>
+                </motion.button>
+              ) : (
+                <motion.button
+                  onClick={connectWallet}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>Connect Wallet</span>
+                </motion.button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pools.map((pool, index) => (
-                <PoolCard
+                <motion.div
                   key={pool.id}
-                  pool={pool}
-                  onAddLiquidity={() => handleAddLiquidity(pool)}
-                  onTrade={(token0, token1) => handleTrade(token0, token1)}
-                />
+                  className={`bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border transition-all duration-300 ${
+                    selectedPair === pool.id
+                      ? 'border-blue-500/50 bg-blue-500/5'
+                      : 'border-slate-700/50 hover:border-slate-600/50'
+                  }`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -2 }}
+                  onClick={() => setSelectedPair(pool.id)}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 rounded-full overflow-hidden">
+                          <img 
+                            src={getTokenLogo(pool.token0)} 
+                            alt={pool.token0}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${pool.token0.charAt(0)}`;
+                            }}
+                          />
+                        </div>
+                        <div className="w-6 h-6 rounded-full overflow-hidden -ml-2">
+                          <img 
+                            src={getTokenLogo(pool.token1)} 
+                            alt={pool.token1}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${pool.token1.charAt(0)}`;
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <h4 className="font-semibold">{pool.token0}/{pool.token1}</h4>
+                      <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">
+                        {pool.fee}%
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-emerald-400">
+                      <TrendingUp className="w-4 h-4" />
+                      <span className="text-sm font-medium">{pool.apr}%</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Liquidity</span>
+                      <span className="font-medium">{pool.liquidity}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">24h Volume</span>
+                      <span className="font-medium">{pool.volume24h}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Hooks</span>
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {pool.hooks.map((hook, i) => (
+                          <span key={i} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                            {hook}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2 mt-4">
+                    {isConnected ? (
+                      <>
+                        <motion.button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLiquidityToken0(pool.token0);
+                            setLiquidityToken1(pool.token1);
+                            setLiquidityFee(pool.fee);
+                            handleAddLiquidity();
+                          }}
+                          className="flex-1 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg text-sm font-medium transition-colors border border-blue-500/30"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          Add
+                        </motion.button>
+                        <motion.button
+                          className="flex-1 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-sm font-medium transition-colors"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          Details
+                        </motion.button>
+                      </>
+                    ) : (
+                      <motion.button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          connectWallet();
+                        }}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        Connect Wallet
+                      </motion.button>
+                    )}
+                  </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -636,31 +818,35 @@ const SwapinV2Interface: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold">Your Positions</h3>
-              <motion.button
-                onClick={() => handleAddLiquidity()}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Position</span>
-              </motion.button>
+              {isConnected ? (
+                <motion.button
+                  onClick={handleAddLiquidity}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Position</span>
+                </motion.button>
+              ) : (
+                <motion.button
+                  onClick={connectWallet}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>Connect Wallet</span>
+                </motion.button>
+              )}
             </div>
 
             {!isConnected ? (
               <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-12 border border-slate-700/50 text-center">
-                <Wallet className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <h4 className="text-lg font-semibold mb-2">Connect Wallet</h4>
-                <p className="text-slate-400 mb-6">Connect your wallet to view your liquidity positions</p>
+                <Info className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold mb-2">Connect Wallet to View Positions</h4>
+                <p className="text-slate-400 mb-6">Connect your wallet to see your liquidity positions</p>
                 <motion.button
-                  onClick={() => {
-                    // This will trigger the wallet connect flow
-                    if (window.ethereum) {
-                      window.ethereum.request({ method: 'eth_requestAccounts' });
-                    } else {
-                      toast.error('No wallet detected. Please install MetaMask or another Web3 wallet.');
-                    }
-                  }}
+                  onClick={connectWallet}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -674,7 +860,7 @@ const SwapinV2Interface: React.FC = () => {
                 <h4 className="text-lg font-semibold mb-2">No active positions</h4>
                 <p className="text-slate-400 mb-6">Add liquidity to get started</p>
                 <motion.button
-                  onClick={() => handleAddLiquidity()}
+                  onClick={handleAddLiquidity}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -683,32 +869,107 @@ const SwapinV2Interface: React.FC = () => {
                 </motion.button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {positions.map((position) => (
-                  <PositionCard
+              <div className="space-y-6">
+                {positions.map((position, index) => (
+                  <motion.div
                     key={position.id}
-                    position={position}
-                    onCollectFees={handleCollectFees}
-                    onAddLiquidity={(pool) => handleAddLiquidity(pool)}
-                    onRemoveLiquidity={handleRemoveLiquidity}
-                  />
-                ))}
-              </div>
-            )}
+                    className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center">
+                          <div className="w-6 h-6 rounded-full overflow-hidden">
+                            <img 
+                              src={getTokenLogo(position.pool.token0)} 
+                              alt={position.pool.token0}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${position.pool.token0.charAt(0)}`;
+                              }}
+                            />
+                          </div>
+                          <div className="w-6 h-6 rounded-full overflow-hidden -ml-2">
+                            <img 
+                              src={getTokenLogo(position.pool.token1)} 
+                              alt={position.pool.token1}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${position.pool.token1.charAt(0)}`;
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <h4 className="font-semibold">{position.pool.token0}/{position.pool.token1}</h4>
+                        <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">
+                          {position.pool.fee}%
+                        </span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        position.inRange 
+                          ? 'bg-emerald-500/20 text-emerald-400' 
+                          : 'bg-red-500/20 text-red-400'
+                      }`}>
+                        {position.inRange ? 'In Range' : 'Out of Range'}
+                      </span>
+                    </div>
 
-            {/* Transaction Signing Notice */}
-            {positions.length > 0 && (
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <div>
-                    <p className="text-yellow-400 font-medium">Transaction Signing Required</p>
-                    <p className="text-sm text-slate-300 mt-1">
-                      Managing liquidity positions requires signing transactions with your wallet. You'll need to confirm
-                      transactions when adding liquidity, removing liquidity, or collecting fees.
-                    </p>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-slate-400 text-sm">Liquidity</p>
+                        <p className="font-bold">{position.liquidity}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-sm">Uncollected Fees</p>
+                        <p className="font-bold text-emerald-400">{position.uncollectedFees}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-sm">{position.pool.token0}</p>
+                        <p className="font-bold">{position.token0Amount}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-sm">{position.pool.token1}</p>
+                        <p className="font-bold">{position.token1Amount}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <motion.button
+                        onClick={() => handleCollectFees(position.id)}
+                        className="flex-1 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 rounded-lg text-sm font-medium transition-colors border border-emerald-500/30"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        Collect Fees
+                      </motion.button>
+                      <motion.button
+                        onClick={() => {
+                          setLiquidityToken0(position.pool.token0);
+                          setLiquidityToken1(position.pool.token1);
+                          setLiquidityFee(position.pool.fee);
+                          handleAddLiquidity();
+                        }}
+                        className="flex-1 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg text-sm font-medium transition-colors border border-blue-500/30"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Plus className="w-4 h-4 inline mr-1" />
+                        Add
+                      </motion.button>
+                      <motion.button
+                        onClick={() => handleRemoveLiquidity(position.id)}
+                        className="flex-1 py-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Minus className="w-4 h-4 inline mr-1" />
+                        Remove
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             )}
           </div>
@@ -757,30 +1018,202 @@ const SwapinV2Interface: React.FC = () => {
                 </ul>
               </div>
             </div>
-            {!isMobile && (
-              <div className="mt-4 text-xs text-slate-400">
-                <p>• Powered by Swapin.co's Uniswap V4 compatible contracts</p>
-                <p>• Factory: {currentNetwork?.contracts.factory}</p>
-                <p>• Router: {currentNetwork?.contracts.router}</p>
-              </div>
-            )}
+            <div className="mt-4 text-xs text-slate-400">
+              <p>• Powered by Swapin.co's Uniswap V2 compatible contracts</p>
+              <p>• Factory: {currentNetwork?.contracts.factory}</p>
+              <p>• Router: {currentNetwork?.contracts.router}</p>
+            </div>
           </div>
         </div>
       </motion.div>
 
       {/* Add Liquidity Modal */}
-      <AddLiquidityModal
-        isOpen={showAddLiquidityModal}
-        onClose={() => setShowAddLiquidityModal(false)}
-        selectedPool={selectedPool}
-      />
+      {showAddLiquidityModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            className="bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-slate-700/50 max-w-md w-full"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+              <h3 className="text-xl font-semibold">Add Liquidity</h3>
+              <button
+                onClick={() => setShowAddLiquidityModal(false)}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-      {/* Remove Liquidity Modal */}
-      <RemoveLiquidityModal
-        isOpen={showRemoveLiquidityModal}
-        onClose={() => setShowRemoveLiquidityModal(false)}
-        position={selectedPosition}
-      />
+            <div className="p-6 space-y-6">
+              {/* Fee Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Fee Tier</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[0.1, 0.3, 1.0].map((fee) => (
+                    <button
+                      key={fee}
+                      onClick={() => setLiquidityFee(fee)}
+                      className={`p-3 rounded-lg border transition-colors ${
+                        liquidityFee === fee
+                          ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                          : 'border-slate-700/50 hover:border-slate-600/50'
+                      }`}
+                    >
+                      <p className="text-center font-medium">{fee}%</p>
+                      <p className="text-xs text-center text-slate-400">
+                        {fee === 0.1 ? 'Stable Pairs' : 
+                         fee === 0.3 ? 'Most Pairs' : 
+                         'Exotic Pairs'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Token 0 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">First Token</label>
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="relative flex-1">
+                      <select
+                        value={liquidityToken0}
+                        onChange={(e) => setLiquidityToken0(e.target.value)}
+                        className="w-full appearance-none bg-slate-800 rounded px-10 py-2 pr-8 outline-none"
+                        style={{ paddingLeft: '40px' }}
+                      >
+                        {availableTokens.map(token => (
+                          <option key={token.symbol} value={token.symbol}>{token.symbol}</option>
+                        ))}
+                      </select>
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-6 h-6 rounded-full overflow-hidden">
+                        <img 
+                          src={getTokenLogo(liquidityToken0)} 
+                          alt={liquidityToken0} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${liquidityToken0.charAt(0)}`;
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      type="number"
+                      value={liquidityAmount0}
+                      onChange={(e) => setLiquidityAmount0(e.target.value)}
+                      placeholder="0.0"
+                      className="w-full bg-transparent text-xl font-bold outline-none"
+                    />
+                    <div className="flex justify-between mt-1">
+                      <span className="text-xs text-slate-400">Balance: 0.00</span>
+                      <button 
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        Max
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Token 1 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Second Token</label>
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="relative flex-1">
+                      <select
+                        value={liquidityToken1}
+                        onChange={(e) => setLiquidityToken1(e.target.value)}
+                        className="w-full appearance-none bg-slate-800 rounded px-10 py-2 pr-8 outline-none"
+                        style={{ paddingLeft: '40px' }}
+                      >
+                        {availableTokens.filter(t => t.symbol !== liquidityToken0).map(token => (
+                          <option key={token.symbol} value={token.symbol}>{token.symbol}</option>
+                        ))}
+                      </select>
+                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-6 h-6 rounded-full overflow-hidden">
+                        <img 
+                          src={getTokenLogo(liquidityToken1)} 
+                          alt={liquidityToken1} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://via.placeholder.com/32/6366f1/FFFFFF?text=${liquidityToken1.charAt(0)}`;
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      type="number"
+                      value={liquidityAmount1}
+                      onChange={(e) => setLiquidityAmount1(e.target.value)}
+                      placeholder="0.0"
+                      className="w-full bg-transparent text-xl font-bold outline-none"
+                    />
+                    <div className="flex justify-between mt-1">
+                      <span className="text-xs text-slate-400">Balance: 0.00</span>
+                      <button 
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        Max
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pool Information */}
+              {liquidityAmount0 && liquidityAmount1 && (
+                <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Pool Fee</span>
+                    <span>{liquidityFee}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Share of Pool</span>
+                    <span>0.00%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Warning */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <p className="text-yellow-400 font-medium">Price Impact Warning</p>
+                    <p className="text-sm text-slate-300 mt-1">
+                      Adding liquidity to a new pool can result in high price impact. Make sure you understand the risks before proceeding.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <motion.button
+                onClick={handleSubmitLiquidity}
+                disabled={loading || !liquidityAmount0 || !liquidityAmount1}
+                className={`w-full py-3 rounded-lg font-semibold transition-colors ${
+                  !loading && liquidityAmount0 && liquidityAmount1
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                }`}
+                whileHover={!loading && liquidityAmount0 && liquidityAmount1 ? { scale: 1.02 } : {}}
+                whileTap={!loading && liquidityAmount0 && liquidityAmount1 ? { scale: 0.98 } : {}}
+              >
+                {loading ? 'Adding Liquidity...' : 'Add Liquidity'}
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

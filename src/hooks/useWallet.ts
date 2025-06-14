@@ -48,17 +48,6 @@ export const useWallet = () => {
     wattBalance: '0',
   });
 
-  // Check if wallet is already connected on component mount
-  useEffect(() => {
-    const checkConnection = async () => {
-      if (window.ethereum && window.ethereum.selectedAddress) {
-        connectWallet();
-      }
-    };
-    
-    checkConnection();
-  }, []);
-
   const updateBalances = async (provider: ethers.BrowserProvider, address: string, chainId: number) => {
     try {
       // Get native token balance (ETH or ALT)
@@ -101,7 +90,7 @@ export const useWallet = () => {
     try {
       if (!window.ethereum) {
         toast.error('Please install MetaMask or another Web3 wallet');
-        return false;
+        return;
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -123,11 +112,9 @@ export const useWallet = () => {
       await updateBalances(provider, accounts[0], chainId);
 
       toast.success('Wallet connected successfully!');
-      return true;
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       toast.error('Failed to connect wallet');
-      return false;
     }
   };
 
@@ -135,7 +122,7 @@ export const useWallet = () => {
     try {
       if (!window.ethereum) {
         toast.error('Please install MetaMask or another Web3 wallet');
-        return false;
+        return;
       }
 
       try {
@@ -155,11 +142,9 @@ export const useWallet = () => {
       }
 
       toast.success('Switched to Altcoinchain!');
-      return true;
     } catch (error) {
       console.error('Failed to switch network:', error);
       toast.error('Failed to switch to Altcoinchain');
-      return false;
     }
   };
 
@@ -181,47 +166,6 @@ export const useWallet = () => {
       wattBalance: '0',
     });
     toast.success('Wallet disconnected');
-  };
-
-  // Sign a message to verify wallet ownership
-  const signMessage = async (message: string): Promise<string | null> => {
-    if (!wallet.signer) {
-      toast.error('Wallet not connected');
-      return null;
-    }
-
-    try {
-      const signature = await wallet.signer.signMessage(message);
-      return signature;
-    } catch (error) {
-      console.error('Failed to sign message:', error);
-      toast.error('Failed to sign message');
-      return null;
-    }
-  };
-
-  // Sign a transaction
-  const signTransaction = async (transaction: any): Promise<boolean> => {
-    if (!wallet.signer) {
-      toast.error('Wallet not connected');
-      return false;
-    }
-
-    try {
-      // Request permission to sign the transaction
-      toast.loading('Please confirm the transaction in your wallet...', { id: 'tx-signing' });
-      
-      // In a real implementation, this would sign and send the transaction
-      // For demo purposes, we'll simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success('Transaction signed successfully!', { id: 'tx-signing' });
-      return true;
-    } catch (error) {
-      console.error('Failed to sign transaction:', error);
-      toast.error('Transaction signing failed or was rejected', { id: 'tx-signing' });
-      return false;
-    }
   };
 
   useEffect(() => {
@@ -253,7 +197,5 @@ export const useWallet = () => {
     disconnectWallet,
     switchToAltcoinchain,
     refreshBalances,
-    signMessage,
-    signTransaction
   };
 };

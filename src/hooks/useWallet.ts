@@ -28,31 +28,20 @@ export const useWallet = () => {
     signer: null,
   });
 
-  const [isMetaMaskAvailable, setIsMetaMaskAvailable] = useState(false);
+  const [isWalletAvailable, setIsWalletAvailable] = useState(false);
 
-  const checkMetaMaskAvailability = useCallback(() => {
+  const checkWalletAvailability = useCallback(() => {
     if (typeof window === 'undefined') {
       return false;
     }
     
-    // Wait for MetaMask to be fully loaded
-    const ethereum = (window as any).ethereum;
+    // Check if any wallet provider is available
+    const ethereum = window.ethereum;
     
-    // Check if MetaMask is installed
     if (!ethereum) {
       setWallet(prev => ({
         ...prev,
-        error: 'MetaMask is not installed. Please install MetaMask browser extension to continue.',
-        isConnecting: false,
-      }));
-      return false;
-    }
-
-    // Check if it's specifically MetaMask (not another wallet)
-    if (!ethereum.isMetaMask) {
-      setWallet(prev => ({
-        ...prev,
-        error: 'MetaMask is not detected. Please make sure MetaMask is enabled and refresh the page.',
+        error: 'No Web3 wallet detected. Please install MetaMask or Rabby browser extension to continue.',
         isConnecting: false,
       }));
       return false;
@@ -83,20 +72,24 @@ export const useWallet = () => {
   }, []);
 
   const connectWallet = useCallback(async () => {
-    if (!checkMetaMaskAvailability()) {
+    if (!checkWalletAvailability()) {
       return;
     }
 
     setWallet(prev => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      const ethereum = (window as any).ethereum;
+      const ethereum = window.ethereum;
+      if (!ethereum) {
+        throw new Error('No wallet provider found');
+      }
+
       const accounts = await ethereum.request({
         method: 'eth_requestAccounts',
       });
 
       if (accounts.length === 0) {
-        throw new Error('No accounts found. Please unlock MetaMask.');
+        throw new Error('No accounts found. Please unlock your wallet.');
       }
 
       const provider = new ethers.BrowserProvider(ethereum);
@@ -122,12 +115,12 @@ export const useWallet = () => {
       // Refresh balances after connection
       await refreshBalances(provider, address);
     } catch (error: any) {
-      let errorMessage = 'Failed to connect to MetaMask';
+      let errorMessage = 'Failed to connect to wallet';
       
       if (error.code === 4001) {
         errorMessage = 'Connection rejected by user';
       } else if (error.code === -32002) {
-        errorMessage = 'MetaMask is already processing a request. Please check MetaMask.';
+        errorMessage = 'Wallet is already processing a request. Please check your wallet extension.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -138,7 +131,7 @@ export const useWallet = () => {
         error: errorMessage,
       }));
     }
-  }, [checkMetaMaskAvailability, refreshBalances]);
+  }, [checkWalletAvailability, refreshBalances]);
 
   const disconnectWallet = useCallback(() => {
     setWallet({
@@ -155,41 +148,87 @@ export const useWallet = () => {
     });
   }, []);
 
-  const switchNetwork = useCallback(async (chainId: string) => {
-    if (!checkMetaMaskAvailability()) {
-      return;
+  const switchToAltcoinchain = useCallback(async () => {
+    if (!checkWalletAvailability()) {
+      return false;
     }
 
     try {
-      const ethereum = (window as any).ethereum;
-      await ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId }],
-      });
-    } catch (error: any) {
-      if (error.code === 4902) {
-        // Network not added to MetaMask
-        setWallet(prev => ({
-          ...prev,
-          error: 'Network not found in MetaMask. Please add the network manually.',
-        }));
-      } else {
-        setWallet(prev => ({
-          ...prev,
-          error: error.message || 'Failed to switch network',
-        }));
+      const ALTCOINCHAIN_CONFIG = {
+        chainId: '0x91A', // 2330 in hex
+        chainName: 'Altcoinchain',
+        nativeCurrency: {
+          name: 'ALT',
+          symbol: 'ALT',
+          decimals: 18,
+        },
+        rpcUrls: ['https://99.248.100.186:8645/'],
+        blockExplorerUrls: ['https://alt-exp.outsidethebox.top/'],
+      };
+
+      const ethereum = window.ethereum;
+      if (!ethereum) return false;
+
+      try {
+        await ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: ALTCOINCHAIN_CONFIG.chainId }],
+        });
+      } catch (switchError: any) {
+        if (switchError.code === 4902) {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [ALTCOINCHAIN_CONFIG],
+          });
+        } else {
+          throw switchError;
+        }
       }
+
+      return true;
+    } catch (error: any) {
+      console.error('Failed to switch network:', error);
+      setWallet(prev => ({
+        ...prev,
+        error: error.message || 'Failed to switch network',
+      }));
+      return false;
     }
-  }, [checkMetaMaskAvailability]);
+  }, [checkWalletAvailability]);
+
+  const signTransaction = async (transactionDetails: any): Promise<boolean> => {
+    try {
+      if (!wallet.signer) {
+        setWallet(prev => ({
+          ...prev,
+          error: 'Please connect your wallet',
+        }));
+        return false;
+      }
+
+      // This is a simplified mock implementation
+      console.log('Signing transaction:', transactionDetails);
+      
+      // Simulate successful signing
+      return true;
+    } catch (error: any) {
+      console.error('Transaction signing failed:', error);
+      setWallet(prev => ({
+        ...prev,
+        error: error.message || 'Transaction signing failed',
+      }));
+      return false;
+    }
+  };
 
   useEffect(() => {
-    // Wait for the page to load and MetaMask to initialize
+    // Wait for the page to load and wallet to initialize
     const initializeWallet = async () => {
-      // Wait a bit for MetaMask to load
+      // Wait a bit for wallet to load
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const isAvailable = checkMetaMaskAvailability();
-      setIsMetaMaskAvailable(isAvailable);
+      const isAvailable = checkWalletAvailability();
+      setIsWalletAvailable(isAvailable);
       
       if (!isAvailable) {
         return;
@@ -197,7 +236,9 @@ export const useWallet = () => {
 
       // Check if already connected
       try {
-        const ethereum = (window as any).ethereum;
+        const ethereum = window.ethereum;
+        if (!ethereum) return;
+
         const accounts = await ethereum.request({
           method: 'eth_accounts',
         });
@@ -239,9 +280,9 @@ export const useWallet = () => {
       }
     }
 
-    // Listen for MetaMask events only if it's available
+    // Listen for wallet events only if it's available
     const setupEventListeners = () => {
-      const ethereum = (window as any).ethereum;
+      const ethereum = window.ethereum;
       if (!ethereum) return;
 
       // Listen for account changes
@@ -275,14 +316,15 @@ export const useWallet = () => {
       if (cleanup) cleanup();
       document.removeEventListener('DOMContentLoaded', initializeWallet);
     };
-  }, [checkMetaMaskAvailability, disconnectWallet, refreshBalances]);
+  }, [checkWalletAvailability, disconnectWallet, refreshBalances]);
 
   return {
     ...wallet,
     connectWallet,
     disconnectWallet,
-    switchNetwork,
+    switchToAltcoinchain,
     refreshBalances,
-    isMetaMaskAvailable,
+    signTransaction,
+    isWalletAvailable,
   };
 };

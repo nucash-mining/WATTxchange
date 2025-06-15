@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Search, Plus, Check, AlertTriangle } from 'lucide-react';
 import { swapinService } from '../../services/swapinService';
 import { tokenService } from '../../services/tokenService';
+import { useWallet } from '../../hooks/useWallet';
 import toast from 'react-hot-toast';
 
 interface TokenSelectorProps {
@@ -26,22 +27,38 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
   const [customTokenDecimals, setCustomTokenDecimals] = useState('18');
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<{success: boolean; message: string} | null>(null);
+  const { isConnected } = useWallet();
 
   // Get tokens for the selected chain
   const network = swapinService.getNetwork(chainId);
-  const availableTokens = tokenService.getTokensForChain(network?.name || 'ALT');
+  const availableTokens = tokenService.getTokensForChain(network?.name || 'Altcoinchain');
   
   // Get Altcoinchain token addresses
   const altTokens = swapinService.getAltcoinchainTokens();
 
+  // Define default tokens for Altcoinchain
+  const defaultTokens = [
+    { symbol: 'ALT', name: 'Altcoinchain' },
+    { symbol: 'wALT', name: 'Wrapped ALT' },
+    { symbol: 'WATT', name: 'WATT Token' },
+    { symbol: 'AltPEPE', name: 'AltPEPE Token' },
+    { symbol: 'AltPEPI', name: 'AltPEPI Token' },
+    { symbol: 'SCAM', name: 'SCAM Token' },
+    { symbol: 'SWAPD', name: 'SWAPD Token' },
+    { symbol: 'MALT', name: 'MALT Token' }
+  ];
+
   // Filter tokens based on search and excluded token
-  const filteredTokens = availableTokens
-    .filter(token => 
-      token.symbol !== excludeToken && 
-      (token.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       (token.address && token.address.toLowerCase().includes(searchTerm.toLowerCase())))
-    );
+  const filteredTokens = availableTokens.length > 0 
+    ? availableTokens.filter(token => 
+        token.symbol !== excludeToken && 
+        (token.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         (token.address && token.address.toLowerCase().includes(searchTerm.toLowerCase()))))
+    : defaultTokens.filter(token => 
+        token.symbol !== excludeToken && 
+        (token.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         token.name.toLowerCase().includes(searchTerm.toLowerCase())));
 
   const getTokenIcon = (symbol: string) => {
     switch (symbol) {
@@ -153,7 +170,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
 
     try {
       // Add custom token to service
-      const success = await tokenService.addCustomToken(network?.name || 'ALT', {
+      const success = await tokenService.addCustomToken(network?.name || 'Altcoinchain', {
         symbol: customTokenSymbol,
         name: `Custom ${customTokenSymbol}`,
         address: customTokenAddress,
@@ -201,8 +218,6 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
       toast.error('Failed to add token');
     }
   };
-
-  const selectedTokenInfo = availableTokens.find(token => token.symbol === selectedToken);
 
   return (
     <div className="relative">

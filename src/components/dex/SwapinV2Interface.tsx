@@ -451,7 +451,7 @@ const SwapinV2Interface: React.FC = () => {
                     selectedToken={fromToken}
                     onSelectToken={setFromToken}
                     excludeToken={toToken}
-                    chainId={selectedNetwork || 2330}
+                    chainId={selectedNetwork?.chainId || 2330}
                   />
                 </div>
               </div>
@@ -488,7 +488,7 @@ const SwapinV2Interface: React.FC = () => {
                     selectedToken={toToken}
                     onSelectToken={setToToken}
                     excludeToken={fromToken}
-                    chainId={selectedNetwork || 2330}
+                    chainId={selectedNetwork?.chainId || 2330}
                   />
                 </div>
               </div>

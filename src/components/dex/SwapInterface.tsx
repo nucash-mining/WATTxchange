@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpDown, Settings, Info, AlertTriangle } from 'lucide-react';
+import { ArrowUpDown, Settings, Info, AlertTriangle, ArrowRight } from 'lucide-react';
 import { swapinService, SwapinNetwork } from '../../services/swapinService';
 import { useWallet } from '../../hooks/useWallet';
 import { useDeviceDetect } from '../../hooks/useDeviceDetect';
@@ -9,7 +9,7 @@ import TokenSelector from './TokenSelector';
 import toast from 'react-hot-toast';
 
 const SwapInterface: React.FC = () => {
-  const { isConnected, address, chainId, signTransaction } = useWallet();
+  const { isConnected, address, chainId, signTransaction, connectWallet } = useWallet();
   const { isMobile } = useDeviceDetect();
   const [selectedNetwork, setSelectedNetwork] = useState<SwapinNetwork | null>(null);
   const [fromAmount, setFromAmount] = useState('');
@@ -121,39 +121,6 @@ const SwapInterface: React.FC = () => {
     }
   }, [fromAmount, fromToken, toToken]);
 
-  const getTokenOptions = () => {
-    if (!selectedNetwork) return ['ETH', 'USDT'];
-    
-    // For Altcoinchain, include custom tokens
-    if (selectedNetwork.chainId === 2330) {
-      return [
-        'ALT',
-        'wALT',
-        'WATT',
-        'AltPEPE',
-        'AltPEPI',
-        'SCAM',
-        'SWAPD',
-        'MALT',
-        'USDT'
-      ];
-    }
-    
-    const baseTokens = [
-      selectedNetwork.nativeCurrency.symbol,
-      `w${selectedNetwork.nativeCurrency.symbol}`,
-      'USDT',
-      'USDC'
-    ];
-
-    // Add network-specific tokens
-    if (selectedNetwork.name === 'PlanQ') {
-      baseTokens.push('SWAPD');
-    }
-
-    return baseTokens;
-  };
-
   return (
     <div className="space-y-6">
       {/* Network Selection */}
@@ -187,6 +154,32 @@ const SwapInterface: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Wallet Connection Notice */}
+      {!isConnected && (
+        <motion.div
+          className="bg-yellow-600/20 border border-yellow-500/30 rounded-xl p-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              <p className="text-yellow-400">
+                Connect your wallet to access all DEX features
+              </p>
+            </div>
+            <motion.button
+              onClick={connectWallet}
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Connect Wallet
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Swap Interface */}
       <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50 relative z-20">

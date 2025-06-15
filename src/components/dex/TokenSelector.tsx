@@ -173,6 +173,26 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
         // Select the newly added token
         onSelectToken(customTokenSymbol);
         setIsOpen(false);
+        
+        // Trigger wallet to add token
+        if (window.ethereum) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_watchAsset',
+              params: {
+                type: 'ERC20',
+                options: {
+                  address: customTokenAddress,
+                  symbol: customTokenSymbol,
+                  decimals: parseInt(customTokenDecimals),
+                  image: ''
+                }
+              }
+            });
+          } catch (error) {
+            console.error('Error adding token to wallet:', error);
+          }
+        }
       } else {
         toast.error('Failed to add token');
       }
@@ -207,7 +227,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
             />
             
             <motion.div
-              className="absolute top-full left-0 right-0 mt-2 bg-slate-800/98 backdrop-blur-xl rounded-lg border border-slate-700/50 shadow-2xl z-50 max-h-80 overflow-y-auto"
+              className="absolute top-full left-0 right-0 mt-2 bg-slate-800 rounded-lg border border-slate-700 shadow-2xl z-50 max-h-80 overflow-y-auto"
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -221,7 +241,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                     placeholder="Search token name or symbol"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg focus:outline-none focus:border-blue-500/50"
+                    className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -230,7 +250,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                     <button
                       key={token.symbol}
                       onClick={() => handleSelectToken(token.symbol)}
-                      className="w-full flex items-center justify-between p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                      className="w-full flex items-center justify-between p-2 hover:bg-slate-700 rounded-lg transition-colors"
                     >
                       <div className="flex items-center space-x-3">
                         {getTokenIcon(token.symbol)}
@@ -253,7 +273,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                 </div>
 
                 {/* Add Custom Token */}
-                <div className="mt-3 pt-3 border-t border-slate-700/50">
+                <div className="mt-3 pt-3 border-t border-slate-700">
                   {!showAddToken ? (
                     <button
                       onClick={() => setShowAddToken(true)}
@@ -263,7 +283,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                       <span className="text-sm">Add Custom Token</span>
                     </button>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 bg-slate-900 p-4 rounded-lg">
                       <div>
                         <label className="block text-xs font-medium mb-1">Token Contract Address</label>
                         <input
@@ -271,7 +291,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                           value={customTokenAddress}
                           onChange={(e) => setCustomTokenAddress(e.target.value)}
                           placeholder="0x..."
-                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                         />
                       </div>
                       
@@ -282,7 +302,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                           value={customTokenSymbol}
                           onChange={(e) => setCustomTokenSymbol(e.target.value.toUpperCase())}
                           placeholder="TOKEN"
-                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                         />
                       </div>
                       
@@ -293,7 +313,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                           value={customTokenDecimals}
                           onChange={(e) => setCustomTokenDecimals(e.target.value)}
                           placeholder="18"
-                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                         />
                       </div>
                       

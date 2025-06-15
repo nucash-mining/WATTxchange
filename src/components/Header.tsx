@@ -10,7 +10,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle }) => {
-  const { isConnected } = useWallet();
+  const { isConnected, chainId } = useWallet();
 
   return (
     <header className="bg-black/80 backdrop-blur-xl border-b border-gray-800 p-4">
@@ -64,7 +64,7 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle }) => {
               <WifiOff className="w-4 h-4 text-red-400" />
             )}
             <span className="text-sm">
-              {isConnected ? 'Connected' : 'Disconnected'}
+              {isConnected ? `Connected${chainId === 2330 ? ' (Altcoinchain)' : ''}` : 'Disconnected'}
             </span>
           </div>
           

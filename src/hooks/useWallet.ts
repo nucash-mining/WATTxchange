@@ -4,20 +4,28 @@ import { ethers } from 'ethers';
 interface WalletState {
   address: string | null;
   balance: string;
+  altBalance: string;
+  wattBalance: string;
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
   chainId: number | null;
+  provider: ethers.BrowserProvider | null;
+  signer: ethers.JsonRpcSigner | null;
 }
 
 export const useWallet = () => {
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     balance: '0',
+    altBalance: '0',
+    wattBalance: '0',
     isConnected: false,
     isConnecting: false,
     error: null,
     chainId: null,
+    provider: null,
+    signer: null,
   });
 
   const [isMetaMaskAvailable, setIsMetaMaskAvailable] = useState(false);
@@ -53,6 +61,27 @@ export const useWallet = () => {
     return true;
   }, []);
 
+  const refreshBalances = useCallback(async (provider: ethers.BrowserProvider, address: string) => {
+    try {
+      // Fetch ETH balance
+      const ethBalance = await provider.getBalance(address);
+      
+      // Mock ALT and WATT balances - in a real app, these would be fetched from token contracts
+      // For now, we'll simulate some balance values
+      const altBalance = '0'; // This would be fetched from ALT token contract
+      const wattBalance = '0'; // This would be fetched from WATT token contract
+      
+      setWallet(prev => ({
+        ...prev,
+        balance: ethers.formatEther(ethBalance),
+        altBalance,
+        wattBalance,
+      }));
+    } catch (error) {
+      console.error('Error refreshing balances:', error);
+    }
+  }, []);
+
   const connectWallet = useCallback(async () => {
     if (!checkMetaMaskAvailability()) {
       return;
@@ -76,14 +105,22 @@ export const useWallet = () => {
       const balance = await provider.getBalance(address);
       const network = await provider.getNetwork();
 
-      setWallet({
+      setWallet(prev => ({
+        ...prev,
         address,
         balance: ethers.formatEther(balance),
+        altBalance: '0',
+        wattBalance: '0',
         isConnected: true,
         isConnecting: false,
         error: null,
         chainId: Number(network.chainId),
-      });
+        provider,
+        signer,
+      }));
+
+      // Refresh balances after connection
+      await refreshBalances(provider, address);
     } catch (error: any) {
       let errorMessage = 'Failed to connect to MetaMask';
       
@@ -101,16 +138,20 @@ export const useWallet = () => {
         error: errorMessage,
       }));
     }
-  }, [checkMetaMaskAvailability]);
+  }, [checkMetaMaskAvailability, refreshBalances]);
 
   const disconnectWallet = useCallback(() => {
     setWallet({
       address: null,
       balance: '0',
+      altBalance: '0',
+      wattBalance: '0',
       isConnected: false,
       isConnecting: false,
       error: null,
       chainId: null,
+      provider: null,
+      signer: null,
     });
   }, []);
 
@@ -163,17 +204,26 @@ export const useWallet = () => {
 
         if (accounts.length > 0) {
           const provider = new ethers.BrowserProvider(ethereum);
+          const signer = await provider.getSigner();
           const balance = await provider.getBalance(accounts[0]);
           const network = await provider.getNetwork();
 
-          setWallet({
+          setWallet(prev => ({
+            ...prev,
             address: accounts[0],
             balance: ethers.formatEther(balance),
+            altBalance: '0',
+            wattBalance: '0',
             isConnected: true,
             isConnecting: false,
             error: null,
             chainId: Number(network.chainId),
-          });
+            provider,
+            signer,
+          }));
+
+          // Refresh balances after reconnection
+          await refreshBalances(provider, accounts[0]);
         }
       } catch (error) {
         console.error('Error checking wallet connection:', error);
@@ -225,13 +275,14 @@ export const useWallet = () => {
       if (cleanup) cleanup();
       document.removeEventListener('DOMContentLoaded', initializeWallet);
     };
-  }, [checkMetaMaskAvailability, disconnectWallet]);
+  }, [checkMetaMaskAvailability, disconnectWallet, refreshBalances]);
 
   return {
     ...wallet,
     connectWallet,
     disconnectWallet,
     switchNetwork,
+    refreshBalances,
     isMetaMaskAvailable,
   };
 };

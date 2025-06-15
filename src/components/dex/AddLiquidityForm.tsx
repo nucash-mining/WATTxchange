@@ -21,7 +21,7 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
   const [token2Balance, setToken2Balance] = useState('0');
   const [isLoading, setIsLoading] = useState(false);
   const [feeTier, setFeeTier] = useState(selectedPool ? selectedPool.fee : 0.3);
-  const { isConnected, address, switchToAltcoinchain, signTransaction } = useWallet();
+  const { isConnected, address, switchToAltcoinchain, signTransaction, connectWallet } = useWallet();
 
   // Initialize with selected pool or default values
   useEffect(() => {
@@ -70,7 +70,7 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
 
   const handleAddLiquidity = async () => {
     if (!isConnected) {
-      toast.error('Please connect your wallet');
+      connectWallet();
       return;
     }
     
@@ -303,7 +303,7 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
           <div>
             <p className="text-blue-400 font-medium">Altcoinchain Liquidity</p>
             <p className="text-sm text-slate-300 mt-1">
-              You're adding liquidity on Altcoinchain using Swapin.co's Uniswap V4 compatible contracts.
+              You're adding liquidity on Altcoinchain using Swapin.co's Uniswap V2 compatible contracts.
               {selectedPool?.address && (
                 <span> Pool address: <span className="font-mono text-xs">{selectedPool.address}</span></span>
               )}
@@ -329,7 +329,7 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
       {/* Submit Button */}
       <motion.button
         onClick={handleAddLiquidity}
-        disabled={isLoading || !token1Amount || !token2Amount || !isConnected}
+        disabled={isLoading || !token1Amount || !token2Amount}
         className="w-full flex items-center justify-center space-x-2 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors disabled:opacity-50"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}

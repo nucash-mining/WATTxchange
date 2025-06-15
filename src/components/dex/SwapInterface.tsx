@@ -41,7 +41,7 @@ const SwapInterface: React.FC = () => {
 
   const handleSwap = async () => {
     if (!isConnected) {
-      toast.error('Please connect your wallet');
+      connectWallet();
       return;
     }
 
@@ -227,6 +227,19 @@ const SwapInterface: React.FC = () => {
                     min="0.1"
                     max="50"
                   />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Transaction Deadline</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    defaultValue="30"
+                    className="px-2 py-1 bg-slate-700 rounded text-sm w-16"
+                    min="1"
+                  />
+                  <span className="text-sm text-slate-400">minutes</span>
                 </div>
               </div>
             </div>

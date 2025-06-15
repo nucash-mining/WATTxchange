@@ -223,7 +223,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full px-3 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
+        className="flex items-center justify-between min-w-[120px] px-3 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
       >
         <div className="flex items-center space-x-2">
           {getTokenIcon(selectedToken)}
@@ -242,12 +242,12 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
             />
             
             <motion.div
-              className="absolute top-full left-0 right-0 mt-2 bg-slate-800 rounded-lg border border-slate-700 shadow-2xl z-50"
+              className="absolute top-full left-0 right-0 mt-2 bg-slate-800/98 backdrop-blur-xl rounded-lg border border-slate-700/50 shadow-2xl z-50"
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              style={{ maxHeight: '400px' }}
+              style={{ width: '280px', maxHeight: '400px' }}
             >
               <div className="p-3">
                 <div className="relative mb-3">
@@ -269,7 +269,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                     </div>
                   </div>
                   
-                  <div className="space-y-1 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900 py-2">
+                  <div className="space-y-1 max-h-60 overflow-y-auto scrollbar-thin py-2">
                     {filteredTokens.map((token) => (
                       <button
                         key={token.symbol}
@@ -315,7 +315,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                       <span className="text-sm">Add Custom Token</span>
                     </button>
                   ) : (
-                    <div className="space-y-3 bg-slate-900 p-4 rounded-lg">
+                    <div className="space-y-3 bg-slate-900/90 p-4 rounded-lg">
                       <div>
                         <label className="block text-xs font-medium mb-1">Token Contract Address</label>
                         <input

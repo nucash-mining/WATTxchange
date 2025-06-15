@@ -58,17 +58,17 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
   const [isApproving, setIsApproving] = useState(false);
   const [selectedChain, setSelectedChain] = useState<'polygon' | 'altcoinchain'>('altcoinchain');
 
-  // Contract addresses
+  // Contract addresses - Updated with placeholder addresses that are not zero addresses
   const contractAddresses = {
     polygon: {
       nft: '0x970a8b10147e3459d3cbf56329b76ac18d329728',
       watt: '0xE960d5076cd3169C343Ee287A2c3380A222e5839',
-      miningRig: '0x0000000000000000000000000000000000000000' // To be deployed
+      miningRig: '0x1234567890123456789012345678901234567890' // Placeholder - replace with actual deployed contract
     },
     altcoinchain: {
       nft: '0x970a8b10147e3459d3cbf56329b76ac18d329728', // Same address on both chains
       watt: '0x6645143e49B3a15d8F205658903a55E520444698',
-      miningRig: '0x0000000000000000000000000000000000000000' // To be deployed
+      miningRig: '0x1234567890123456789012345678901234567890' // Placeholder - replace with actual deployed contract
     }
   };
 
@@ -159,6 +159,13 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
     try {
       const addresses = contractAddresses[selectedChain];
       
+      // Skip approval checks for placeholder addresses
+      if (addresses.miningRig === '0x1234567890123456789012345678901234567890') {
+        console.log('Using placeholder contract addresses - skipping approval checks');
+        setIsApproved(false);
+        return;
+      }
+      
       // Check NFT approval
       const nftContract = new ethers.Contract(addresses.nft, NFT_ABI, provider);
       const isNftApproved = await nftContract.isApprovedForAll(address, addresses.miningRig);
@@ -197,11 +204,17 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
       return;
     }
     
+    const addresses = contractAddresses[selectedChain];
+    
+    // Check if using placeholder addresses
+    if (addresses.miningRig === '0x1234567890123456789012345678901234567890') {
+      toast.error('Mining Rig contract not deployed yet. Please wait for deployment.');
+      return;
+    }
+    
     setIsApproving(true);
     
     try {
-      const addresses = contractAddresses[selectedChain];
-      
       // Approve NFT contract
       const nftContract = new ethers.Contract(addresses.nft, NFT_ABI, signer);
       const nftTx = await nftContract.setApprovalForAll(addresses.miningRig, true);
@@ -328,6 +341,28 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
       return;
     }
     
+    const addresses = contractAddresses[selectedChain];
+    
+    // Check if using placeholder addresses
+    if (addresses.miningRig === '0x1234567890123456789012345678901234567890') {
+      toast.error('Mining Rig contract not deployed yet. This is a demo - rig creation simulated.');
+      
+      // Simulate rig creation for demo purposes
+      setTimeout(() => {
+        toast.success('Demo: Mining rig created successfully!');
+        // Reset form
+        setNfts(nfts.map(nft => ({ ...nft, selected: false })));
+        setWattAmount('');
+        setMiningDuration('24');
+        
+        if (onRigCreated) {
+          onRigCreated(Math.floor(Math.random() * 1000));
+        }
+      }, 2000);
+      
+      return;
+    }
+    
     setIsCreatingRig(true);
     
     try {
@@ -349,8 +384,6 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
         toast.error('Please enter a valid mining duration');
         return;
       }
-      
-      const addresses = contractAddresses[selectedChain];
       
       // Get selected component IDs
       const componentIds = nfts
@@ -453,8 +486,22 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
         </div>
       </div>
       
+      {/* Contract Status Notice */}
+      <div className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-6">
+        <div className="flex items-start space-x-3">
+          <AlertCircle className="w-6 h-6 text-blue-400 mt-1" />
+          <div>
+            <h4 className="font-semibold text-blue-400">Demo Mode</h4>
+            <p className="text-slate-300 mt-1">
+              Mining Rig contracts are not yet deployed. This interface demonstrates the functionality 
+              and will be fully functional once contracts are deployed to the selected networks.
+            </p>
+          </div>
+        </div>
+      </div>
+      
       {/* Approval Section */}
-      {!isApproved && (
+      {!isApproved && contractAddresses[selectedChain].miningRig !== '0x1234567890123456789012345678901234567890' && (
         <div className="bg-yellow-600/20 border border-yellow-500/30 rounded-xl p-6">
           <div className="flex items-start space-x-3">
             <AlertCircle className="w-6 h-6 text-yellow-400 mt-1" />
@@ -664,7 +711,6 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
         onClick={handleCreateRig}
         disabled={
           !isConnected || 
-          !isApproved || 
           !calculateRigPerformance().valid || 
           !wattAmount || 
           isCreatingRig
@@ -695,7 +741,7 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M13 2L4.09 12.11C3.69 12.59 3.48 12.83 3.43 13.11C3.38 13.35 3.44 13.6 3.6 13.8C3.78 14.03 4.14 14.12 4.84 14.31L10.07 15.93C10.35 16.02 10.49 16.06 10.59 16.15C10.68 16.23 10.73 16.34 10.73 16.46C10.74 16.6 10.65 16.76 10.46 17.08L7.75 21.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M14.7 14.5L16.7 14.5C17.2523 14.5 17.5284 14.5 17.7611 14.3891C17.9623 14.2929 18.1297 14.1255 18.2259 13.9243C18.3368 13.6916 18.3368 13.4155 18.3368 12.8632L18.3368 6.13678C18.3368 5.58451 18.3368 5.30837 18.2259 5.07568C18.1297 4.87446 17.9623 4.70708 17.7611 4.61083C17.5284 4.5 17.2523 4.5 16.7 4.5L14.7 4.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.7 14.5L16.7 14.5C17.2523 14.5 17.5284 14.5 17.7611 14.3891C17.9623 14.2929 18.1297 14.1255 18.2259 13.9243C17.3368 13.6916 18.3368 13.4155 18.3368 12.8632L18.3368 6.13678C18.3368 5.58451 18.3368 5.30837 18.2259 5.07568C18.1297 4.87446 17.9623 4.70708 17.7611 4.61083C17.5284 4.5 17.2523 4.5 16.7 4.5L14.7 4.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span className="text-yellow-400 font-medium">Built with Bolt.new</span>
         </a>

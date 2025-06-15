@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Monitor, Cpu, HardDrive, Zap, Lock, Unlock, Plus, Clock, AlertCircle } from 'lucide-react';
+import { Monitor, Cpu, HardDrive, Zap, Lock, Unlock, Plus, Clock, AlertCircle, Check } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
 import toast from 'react-hot-toast';
 

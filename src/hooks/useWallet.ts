@@ -20,13 +20,18 @@ export const useWallet = () => {
     chainId: null,
   });
 
+  const [isMetaMaskAvailable, setIsMetaMaskAvailable] = useState(false);
+
   const checkMetaMaskAvailability = useCallback(() => {
     if (typeof window === 'undefined') {
       return false;
     }
     
+    // Wait for MetaMask to be fully loaded
+    const ethereum = (window as any).ethereum;
+    
     // Check if MetaMask is installed
-    if (!window.ethereum) {
+    if (!ethereum) {
       setWallet(prev => ({
         ...prev,
         error: 'MetaMask is not installed. Please install MetaMask browser extension to continue.',
@@ -36,7 +41,7 @@ export const useWallet = () => {
     }
 
     // Check if it's specifically MetaMask (not another wallet)
-    if (!window.ethereum.isMetaMask) {
+    if (!ethereum.isMetaMask) {
       setWallet(prev => ({
         ...prev,
         error: 'MetaMask is not detected. Please make sure MetaMask is enabled and refresh the page.',
@@ -56,7 +61,8 @@ export const useWallet = () => {
     setWallet(prev => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      const accounts = await window.ethereum.request({
+      const ethereum = (window as any).ethereum;
+      const accounts = await ethereum.request({
         method: 'eth_requestAccounts',
       });
 
@@ -64,7 +70,7 @@ export const useWallet = () => {
         throw new Error('No accounts found. Please unlock MetaMask.');
       }
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      const provider = new ethers.BrowserProvider(ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       const balance = await provider.getBalance(address);
@@ -114,7 +120,8 @@ export const useWallet = () => {
     }
 
     try {
-      await window.ethereum.request({
+      const ethereum = (window as any).ethereum;
+      await ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId }],
       });
@@ -135,19 +142,27 @@ export const useWallet = () => {
   }, [checkMetaMaskAvailability]);
 
   useEffect(() => {
-    if (!checkMetaMaskAvailability()) {
-      return;
-    }
+    // Wait for the page to load and MetaMask to initialize
+    const initializeWallet = async () => {
+      // Wait a bit for MetaMask to load
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const isAvailable = checkMetaMaskAvailability();
+      setIsMetaMaskAvailable(isAvailable);
+      
+      if (!isAvailable) {
+        return;
+      }
 
-    // Check if already connected
-    const checkConnection = async () => {
+      // Check if already connected
       try {
-        const accounts = await window.ethereum.request({
+        const ethereum = (window as any).ethereum;
+        const accounts = await ethereum.request({
           method: 'eth_accounts',
         });
 
         if (accounts.length > 0) {
-          const provider = new ethers.BrowserProvider(window.ethereum);
+          const provider = new ethers.BrowserProvider(ethereum);
           const balance = await provider.getBalance(accounts[0]);
           const network = await provider.getNetwork();
 
@@ -165,30 +180,50 @@ export const useWallet = () => {
       }
     };
 
-    checkConnection();
-
-    // Listen for account changes
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnectWallet();
+    // Initialize wallet detection
+    if (typeof window !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeWallet);
       } else {
-        setWallet(prev => ({ ...prev, address: accounts[0] }));
+        initializeWallet();
       }
+    }
+
+    // Listen for MetaMask events only if it's available
+    const setupEventListeners = () => {
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) return;
+
+      // Listen for account changes
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length === 0) {
+          disconnectWallet();
+        } else {
+          setWallet(prev => ({ ...prev, address: accounts[0] }));
+        }
+      };
+
+      // Listen for chain changes
+      const handleChainChanged = (chainId: string) => {
+        setWallet(prev => ({ ...prev, chainId: parseInt(chainId, 16) }));
+      };
+
+      ethereum.on('accountsChanged', handleAccountsChanged);
+      ethereum.on('chainChanged', handleChainChanged);
+
+      return () => {
+        if (ethereum.removeListener) {
+          ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+      };
     };
 
-    // Listen for chain changes
-    const handleChainChanged = (chainId: string) => {
-      setWallet(prev => ({ ...prev, chainId: parseInt(chainId, 16) }));
-    };
-
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
+    const cleanup = setupEventListeners();
 
     return () => {
-      if (window.ethereum.removeListener) {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-      }
+      if (cleanup) cleanup();
+      document.removeEventListener('DOMContentLoaded', initializeWallet);
     };
   }, [checkMetaMaskAvailability, disconnectWallet]);
 
@@ -197,6 +232,6 @@ export const useWallet = () => {
     connectWallet,
     disconnectWallet,
     switchNetwork,
-    isMetaMaskAvailable: checkMetaMaskAvailability(),
+    isMetaMaskAvailable,
   };
 };

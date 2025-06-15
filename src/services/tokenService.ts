@@ -88,11 +88,65 @@ class TokenService {
         chainId: 2330
       },
       {
+        symbol: 'wALT',
+        name: 'Wrapped ALT',
+        address: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
+        decimals: 18,
+        logo: '/Altcoinchain logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
         symbol: 'WATT',
         name: 'WATT Token',
         address: '0x6645143e49B3a15d8F205658903a55E520444698',
         decimals: 18,
         logo: '/WATT logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
+        symbol: 'AltPEPE',
+        name: 'AltPEPE Token',
+        address: '0xd350ecd60912913cc15d312ef38adeca909ecdd5',
+        decimals: 18,
+        logo: '/PEPE logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
+        symbol: 'AltPEPI',
+        name: 'AltPEPI Token',
+        address: '0xbb1f8b3a73a0b5084af9a95e748f9d84ddba6e88',
+        decimals: 18,
+        logo: '/PEPI logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
+        symbol: 'SCAM',
+        name: 'SCAM Token',
+        address: '0x75b37574c2317ccba905e2c628d949710627c20a',
+        decimals: 18,
+        logo: '/SCAM logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
+        symbol: 'SWAPD',
+        name: 'SWAPD Token',
+        address: '0x67e7ebda5cba73f5830538b03e678a1b45517dd7',
+        decimals: 18,
+        logo: '/SWAPD logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
+        symbol: 'MALT',
+        name: 'MALT Token',
+        address: '0xaf5d066eb3e4147325d3ed23f94bc925fbf3b9ef',
+        decimals: 18,
+        logo: '/MALT logo.png',
         isNative: false,
         chainId: 2330
       },
@@ -307,6 +361,12 @@ class TokenService {
   async getTokenBalance(chainSymbol: string, tokenAddress: string, walletAddress: string): Promise<string> {
     // This would integrate with Web3 providers to get actual token balances
     return '0';
+  }
+
+  // Get token address by symbol
+  getTokenAddress(chainSymbol: string, tokenSymbol: string): string | undefined {
+    const token = this.getToken(chainSymbol, tokenSymbol);
+    return token?.address;
   }
 }
 

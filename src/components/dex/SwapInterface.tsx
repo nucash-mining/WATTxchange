@@ -14,8 +14,8 @@ const SwapInterface: React.FC = () => {
   const [selectedNetwork, setSelectedNetwork] = useState<SwapinNetwork | null>(null);
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
-  const [fromToken, setFromToken] = useState('ETH');
-  const [toToken, setToToken] = useState('USDT');
+  const [fromToken, setFromToken] = useState('ALT');
+  const [toToken, setToToken] = useState('WATT');
   const [slippage, setSlippage] = useState('0.5');
   const [showSettings, setShowSettings] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
@@ -100,7 +100,19 @@ const SwapInterface: React.FC = () => {
     if (fromAmount && fromToken && toToken) {
       // Calculate the output amount based on the input
       const rate = fromToken === 'ALT' && toToken === 'WATT' ? 1.5 : 
-                  fromToken === 'WATT' && toToken === 'ALT' ? 0.67 : 1;
+                  fromToken === 'WATT' && toToken === 'ALT' ? 0.67 : 
+                  fromToken === 'ALT' && toToken === 'AltPEPE' ? 0.5 :
+                  fromToken === 'AltPEPE' && toToken === 'ALT' ? 2.0 :
+                  fromToken === 'ALT' && toToken === 'AltPEPI' ? 0.667 :
+                  fromToken === 'AltPEPI' && toToken === 'ALT' ? 1.5 :
+                  fromToken === 'ALT' && toToken === 'SCAM' ? 0.25 :
+                  fromToken === 'SCAM' && toToken === 'ALT' ? 4.0 :
+                  fromToken === 'ALT' && toToken === 'SWAPD' ? 0.75 :
+                  fromToken === 'SWAPD' && toToken === 'ALT' ? 1.333 :
+                  fromToken === 'ALT' && toToken === 'MALT' ? 0.8 :
+                  fromToken === 'MALT' && toToken === 'ALT' ? 1.25 :
+                  fromToken === 'AltPEPE' && toToken === 'WATT' ? 1.5 :
+                  fromToken === 'WATT' && toToken === 'AltPEPE' ? 0.667 : 1;
       
       const calculatedAmount = parseFloat(fromAmount) * rate;
       if (!isNaN(calculatedAmount)) {
@@ -305,6 +317,14 @@ const SwapInterface: React.FC = () => {
                 <span className="text-slate-400">Network Fee</span>
                 <span>~$0.50</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Route</span>
+                <div className="flex items-center space-x-1">
+                  <span>{fromToken}</span>
+                  <ArrowRight className="w-3 h-3" />
+                  <span>{toToken}</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -340,7 +360,7 @@ const SwapInterface: React.FC = () => {
             <div>
               <p className="font-medium text-blue-400">Multi-Chain DEX</p>
               <p className="text-sm text-slate-300 mt-1">
-                You're trading on {selectedNetwork.name} using Swapin.co's Uniswap V4 compatible contracts. 
+                You're trading on {selectedNetwork.name} using Swapin.co's Uniswap V2 compatible contracts. 
                 All trades are executed on-chain with full decentralization.
               </p>
               {!isMobile && (

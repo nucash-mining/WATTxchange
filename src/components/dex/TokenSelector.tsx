@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Search, Plus, Check, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Search, Plus, Check, AlertTriangle, ChevronUp } from 'lucide-react';
 import { swapinService } from '../../services/swapinService';
 import { tokenService } from '../../services/tokenService';
 import { useWallet } from '../../hooks/useWallet';
@@ -242,11 +242,12 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
             />
             
             <motion.div
-              className="absolute top-full left-0 right-0 mt-2 bg-slate-800 rounded-lg border border-slate-700 shadow-2xl z-50 max-h-80 overflow-y-auto"
+              className="absolute top-full left-0 right-0 mt-2 bg-slate-800 rounded-lg border border-slate-700 shadow-2xl z-50"
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
+              style={{ maxHeight: '400px' }}
             >
               <div className="p-3">
                 <div className="relative mb-3">
@@ -260,31 +261,47 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                   />
                 </div>
 
-                <div className="space-y-1 max-h-60 overflow-y-auto">
-                  {filteredTokens.map((token) => (
-                    <button
-                      key={token.symbol}
-                      onClick={() => handleSelectToken(token.symbol)}
-                      className="w-full flex items-center justify-between p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {getTokenIcon(token.symbol)}
-                        <div className="text-left">
-                          <p className="font-medium">{token.symbol}</p>
-                          <p className="text-xs text-slate-400">{token.name}</p>
-                        </div>
-                      </div>
-                      {selectedToken === token.symbol && (
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      )}
-                    </button>
-                  ))}
-
-                  {filteredTokens.length === 0 && !showAddToken && (
-                    <div className="text-center py-4 text-slate-400">
-                      <p>No tokens found</p>
+                <div className="relative">
+                  {/* Up arrow for scrolling */}
+                  <div className="absolute top-0 left-0 right-0 flex justify-center z-10 pointer-events-none">
+                    <div className="bg-gradient-to-b from-slate-800 to-transparent h-6 w-full flex items-center justify-center">
+                      <ChevronUp className="w-5 h-5 text-slate-400" />
                     </div>
-                  )}
+                  </div>
+                  
+                  <div className="space-y-1 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900 py-2">
+                    {filteredTokens.map((token) => (
+                      <button
+                        key={token.symbol}
+                        onClick={() => handleSelectToken(token.symbol)}
+                        className="w-full flex items-center justify-between p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-center space-x-3">
+                          {getTokenIcon(token.symbol)}
+                          <div className="text-left">
+                            <p className="font-medium">{token.symbol}</p>
+                            <p className="text-xs text-slate-400">{token.name}</p>
+                          </div>
+                        </div>
+                        {selectedToken === token.symbol && (
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        )}
+                      </button>
+                    ))}
+
+                    {filteredTokens.length === 0 && !showAddToken && (
+                      <div className="text-center py-4 text-slate-400">
+                        <p>No tokens found</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Down arrow for scrolling */}
+                  <div className="absolute bottom-0 left-0 right-0 flex justify-center z-10 pointer-events-none">
+                    <div className="bg-gradient-to-t from-slate-800 to-transparent h-6 w-full flex items-center justify-center">
+                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Add Custom Token */}
@@ -306,7 +323,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                           value={customTokenAddress}
                           onChange={(e) => setCustomTokenAddress(e.target.value)}
                           placeholder="0x..."
-                          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 font-mono overflow-ellipsis"
                         />
                       </div>
                       

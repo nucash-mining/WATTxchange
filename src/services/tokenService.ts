@@ -298,19 +298,29 @@ class TokenService {
     return tokens.find(token => token.symbol === tokenSymbol) || null;
   }
 
-  async addCustomToken(chainSymbol: string, contractAddress: string): Promise<boolean> {
+  async addCustomToken(chainSymbol: string, tokenData: Token | string): Promise<boolean> {
     try {
-      // In a real implementation, this would query the contract for token details
-      // For now, we'll create a basic token entry
-      const tokenSymbol = `TOKEN_${Date.now()}`;
-      const customToken: Token = {
-        symbol: tokenSymbol,
-        name: `Custom Token (${contractAddress.slice(0, 6)}...)`,
-        address: contractAddress,
-        decimals: 18, // Default, should be queried from contract
-        logo: '/placeholder-token.png',
-        isNative: false
-      };
+      let customToken: Token;
+      
+      if (typeof tokenData === 'string') {
+        // If tokenData is a string, it's a contract address
+        const contractAddress = tokenData;
+        
+        // In a real implementation, this would query the contract for token details
+        // For now, we'll create a basic token entry
+        const tokenSymbol = `TOKEN_${Date.now()}`;
+        customToken = {
+          symbol: tokenSymbol,
+          name: `Custom Token (${contractAddress.slice(0, 6)}...)`,
+          address: contractAddress,
+          decimals: 18, // Default, should be queried from contract
+          logo: '/placeholder-token.png',
+          isNative: false
+        };
+      } else {
+        // If tokenData is an object, use it directly
+        customToken = tokenData;
+      }
 
       if (!this.customTokens[chainSymbol]) {
         this.customTokens[chainSymbol] = [];
@@ -318,7 +328,8 @@ class TokenService {
 
       // Check if token already exists
       const exists = this.customTokens[chainSymbol].some(
-        token => token.address?.toLowerCase() === contractAddress.toLowerCase()
+        token => token.address?.toLowerCase() === customToken.address?.toLowerCase() ||
+                token.symbol === customToken.symbol
       );
 
       if (exists) {
@@ -367,6 +378,43 @@ class TokenService {
   getTokenAddress(chainSymbol: string, tokenSymbol: string): string | undefined {
     const token = this.getToken(chainSymbol, tokenSymbol);
     return token?.address;
+  }
+
+  // Verify token contract (placeholder for future implementation)
+  async verifyTokenContract(chainSymbol: string, contractAddress: string): Promise<{
+    success: boolean;
+    symbol?: string;
+    name?: string;
+    decimals?: number;
+    error?: string;
+  }> {
+    try {
+      // In a real implementation, this would query the blockchain
+      // For now, we'll simulate verification
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if address is valid format
+      if (!contractAddress.startsWith('0x') || contractAddress.length !== 42) {
+        return {
+          success: false,
+          error: 'Invalid contract address format'
+        };
+      }
+      
+      // Simulate successful verification
+      return {
+        success: true,
+        symbol: 'CUSTOM',
+        name: 'Custom Token',
+        decimals: 18
+      };
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return {
+        success: false,
+        error: 'Failed to verify token contract'
+      };
+    }
   }
 }
 

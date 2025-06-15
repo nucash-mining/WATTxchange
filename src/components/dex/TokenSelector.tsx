@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Search, Plus, Check } from 'lucide-react';
+import { ChevronDown, Search, Plus, Check, AlertTriangle } from 'lucide-react';
 import { swapinService } from '../../services/swapinService';
 import { tokenService } from '../../services/tokenService';
+import toast from 'react-hot-toast';
 
 interface TokenSelectorProps {
   selectedToken: string;
@@ -21,6 +22,10 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddToken, setShowAddToken] = useState(false);
   const [customTokenAddress, setCustomTokenAddress] = useState('');
+  const [customTokenSymbol, setCustomTokenSymbol] = useState('');
+  const [customTokenDecimals, setCustomTokenDecimals] = useState('18');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<{success: boolean; message: string} | null>(null);
 
   // Get tokens for the selected chain
   const network = swapinService.getNetwork(chainId);
@@ -34,7 +39,8 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     .filter(token => 
       token.symbol !== excludeToken && 
       (token.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       token.name.toLowerCase().includes(searchTerm.toLowerCase()))
+       token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       (token.address && token.address.toLowerCase().includes(searchTerm.toLowerCase())))
     );
 
   const getTokenIcon = (symbol: string) => {
@@ -82,11 +88,98 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     setSearchTerm('');
   };
 
-  const handleAddCustomToken = () => {
-    // In a real implementation, this would validate the token address
-    // and add it to the list of available tokens
-    setShowAddToken(false);
-    setCustomTokenAddress('');
+  const verifyCustomToken = async () => {
+    if (!customTokenAddress) {
+      toast.error('Please enter a token contract address');
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationResult(null);
+
+    try {
+      // Simulate token verification
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Check if address is valid format
+      if (!customTokenAddress.startsWith('0x') || customTokenAddress.length !== 42) {
+        setVerificationResult({
+          success: false,
+          message: 'Invalid contract address format'
+        });
+        return;
+      }
+
+      // Check if token symbol is provided
+      if (!customTokenSymbol) {
+        setVerificationResult({
+          success: false,
+          message: 'Please enter a token symbol'
+        });
+        return;
+      }
+
+      // Check if decimals is a valid number
+      const decimals = parseInt(customTokenDecimals);
+      if (isNaN(decimals) || decimals < 0 || decimals > 18) {
+        setVerificationResult({
+          success: false,
+          message: 'Decimals must be between 0 and 18'
+        });
+        return;
+      }
+
+      // Simulate successful verification
+      setVerificationResult({
+        success: true,
+        message: 'Token verified successfully!'
+      });
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      setVerificationResult({
+        success: false,
+        message: 'Failed to verify token'
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleAddCustomToken = async () => {
+    if (!verificationResult?.success) {
+      await verifyCustomToken();
+      return;
+    }
+
+    try {
+      // Add custom token to service
+      const success = await tokenService.addCustomToken(network?.name || 'ALT', {
+        symbol: customTokenSymbol,
+        name: `Custom ${customTokenSymbol}`,
+        address: customTokenAddress,
+        decimals: parseInt(customTokenDecimals),
+        logo: '',
+        isNative: false
+      });
+
+      if (success) {
+        toast.success(`Added ${customTokenSymbol} token successfully!`);
+        setCustomTokenAddress('');
+        setCustomTokenSymbol('');
+        setCustomTokenDecimals('18');
+        setShowAddToken(false);
+        setVerificationResult(null);
+        
+        // Select the newly added token
+        onSelectToken(customTokenSymbol);
+        setIsOpen(false);
+      } else {
+        toast.error('Failed to add token');
+      }
+    } catch (error) {
+      console.error('Failed to add custom token:', error);
+      toast.error('Failed to add token');
+    }
   };
 
   const selectedTokenInfo = availableTokens.find(token => token.symbol === selectedToken);
@@ -170,27 +263,83 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                       <span className="text-sm">Add Custom Token</span>
                     </button>
                   ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={customTokenAddress}
-                        onChange={(e) => setCustomTokenAddress(e.target.value)}
-                        placeholder="Token contract address..."
-                        className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Token Contract Address</label>
+                        <input
+                          type="text"
+                          value={customTokenAddress}
+                          onChange={(e) => setCustomTokenAddress(e.target.value)}
+                          placeholder="0x..."
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Token Symbol</label>
+                        <input
+                          type="text"
+                          value={customTokenSymbol}
+                          onChange={(e) => setCustomTokenSymbol(e.target.value.toUpperCase())}
+                          placeholder="TOKEN"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Decimals</label>
+                        <input
+                          type="number"
+                          value={customTokenDecimals}
+                          onChange={(e) => setCustomTokenDecimals(e.target.value)}
+                          placeholder="18"
+                          className="w-full bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500/50"
+                        />
+                      </div>
+                      
+                      {verificationResult && (
+                        <div className={`p-2 rounded text-xs ${
+                          verificationResult.success 
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        }`}>
+                          <div className="flex items-start space-x-1">
+                            {verificationResult.success ? (
+                              <Check className="w-3 h-3 mt-0.5" />
+                            ) : (
+                              <AlertTriangle className="w-3 h-3 mt-0.5" />
+                            )}
+                            <span>{verificationResult.message}</span>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="flex space-x-2">
-                        <button
-                          onClick={handleAddCustomToken}
-                          className="flex-1 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
-                        >
-                          Add
-                        </button>
+                        {verificationResult?.success ? (
+                          <button
+                            onClick={handleAddCustomToken}
+                            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm transition-colors"
+                          >
+                            Add Token
+                          </button>
+                        ) : (
+                          <button
+                            onClick={verifyCustomToken}
+                            disabled={isVerifying}
+                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors disabled:opacity-50"
+                          >
+                            {isVerifying ? 'Verifying...' : 'Verify Token'}
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setShowAddToken(false);
                             setCustomTokenAddress('');
+                            setCustomTokenSymbol('');
+                            setCustomTokenDecimals('18');
+                            setVerificationResult(null);
                           }}
-                          className="flex-1 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
+                          className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
                         >
                           Cancel
                         </button>

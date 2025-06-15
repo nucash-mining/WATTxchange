@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Zap, Trophy, Gift, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
+import { Gamepad2, Zap, Trophy, Gift, ExternalLink, Maximize2, Minimize2, Plus } from 'lucide-react';
 import NFTStaking from './mining/NFTStaking';
 import MiningStats from './mining/MiningStats';
 import RewardsClaiming from './mining/RewardsClaiming';
+import MiningRigConfigurator from './mining/MiningRigConfigurator';
 
 const MiningGameView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dapp' | 'stake' | 'mine' | 'rewards'>('dapp');
+  const [activeTab, setActiveTab] = useState<'dapp' | 'stake' | 'mine' | 'rewards' | 'configure'>('dapp');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   return (
@@ -32,6 +33,16 @@ const MiningGameView: React.FC = () => {
             }`}
           >
             Play Game
+          </button>
+          <button
+            onClick={() => setActiveTab('configure')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'configure'
+                ? 'bg-yellow-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Configure Rig
           </button>
           <button
             onClick={() => setActiveTab('stake')}
@@ -232,6 +243,7 @@ const MiningGameView: React.FC = () => {
             </div>
           </div>
         )}
+        {activeTab === 'configure' && <MiningRigConfigurator />}
         {activeTab === 'stake' && <NFTStaking />}
         {activeTab === 'mine' && <MiningStats />}
         {activeTab === 'rewards' && <RewardsClaiming />}
@@ -246,6 +258,22 @@ const MiningGameView: React.FC = () => {
           onClick={() => setIsFullscreen(false)}
         />
       )}
+
+      {/* Built with Bolt.new badge */}
+      <div className="flex justify-center mt-8">
+        <a 
+          href="https://bolt.new" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center space-x-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg transition-colors border border-slate-700/50"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 2L4.09 12.11C3.69 12.59 3.48 12.83 3.43 13.11C3.38 13.35 3.44 13.6 3.6 13.8C3.78 14.03 4.14 14.12 4.84 14.31L10.07 15.93C10.35 16.02 10.49 16.06 10.59 16.15C10.68 16.23 10.73 16.34 10.73 16.46C10.74 16.6 10.65 16.76 10.46 17.08L7.75 21.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.7 14.5L16.7 14.5C17.2523 14.5 17.5284 14.5 17.7611 14.3891C17.9623 14.2929 18.1297 14.1255 18.2259 13.9243C18.3368 13.6916 18.3368 13.4155 18.3368 12.8632L18.3368 6.13678C18.3368 5.58451 18.3368 5.30837 18.2259 5.07568C18.1297 4.87446 17.9623 4.70708 17.7611 4.61083C17.5284 4.5 17.2523 4.5 16.7 4.5L14.7 4.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-yellow-400 font-medium">Built with Bolt.new</span>
+        </a>
+      </div>
     </div>
   );
 };

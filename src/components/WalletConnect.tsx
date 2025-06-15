@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, ExternalLink, Zap, WifiOff } from 'lucide-react';
+import { Wallet, ExternalLink, Zap, WifiOff, Shield } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 
 const WalletConnect: React.FC = () => {

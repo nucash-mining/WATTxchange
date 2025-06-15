@@ -55,9 +55,9 @@ interface OSInfo {
 
 export interface SystemInfo {
   cpu: CPUInfo;
-  gpus: GPUInfo[];
+  gpu: GPUInfo;
   memory: MemoryInfo;
-  storage: StorageInfo[];
+  storage: StorageInfo;
   network: NetworkInfo;
   os: OSInfo;
 }
@@ -74,8 +74,8 @@ class HardwareDetectionService {
       // Detect CPU
       const cpu = await this.detectCPU();
       
-      // Detect GPUs
-      const gpus = await this.detectGPUs();
+      // Detect GPU
+      const gpu = await this.detectGPU();
       
       // Detect Memory
       const memory = await this.detectMemory();
@@ -91,7 +91,7 @@ class HardwareDetectionService {
       
       return {
         cpu,
-        gpus,
+        gpu,
         memory,
         storage,
         network,
@@ -149,7 +149,7 @@ class HardwareDetectionService {
   /**
    * Detect GPU information
    */
-  private async detectGPUs(): Promise<GPUInfo[]> {
+  private async detectGPU(): Promise<GPUInfo> {
     // In a real implementation, this would use system APIs
     // For demo purposes, we'll return mock data
     
@@ -159,14 +159,14 @@ class HardwareDetectionService {
     
     if (!gl) {
       // No WebGL support, likely no GPU or very old one
-      return [{
+      return {
         model: 'Integrated Graphics',
         memory: 1,
         driver: 'Unknown',
         cudaCores: 0,
         temperature: 40,
         usage: 0
-      }];
+      };
     }
     
     // Get renderer info if available
@@ -229,14 +229,14 @@ class HardwareDetectionService {
       cudaCores = 8704;
     }
     
-    return [{
+    return {
       model,
       memory,
       driver: '535.129.03',
       cudaCores,
       temperature: 50 + Math.random() * 20, // Random temperature between 50-70°C
       usage: Math.random() * 20 // Random usage between 0-20%
-    }];
+    };
   }
 
   /**
@@ -279,17 +279,17 @@ class HardwareDetectionService {
   /**
    * Detect storage information
    */
-  private async detectStorage(): Promise<StorageInfo[]> {
+  private async detectStorage(): Promise<StorageInfo> {
     // In a real implementation, this would use system APIs
     // For demo purposes, we'll return mock data
     
-    return [{
+    return {
       total: 1000, // 1TB
       available: 650, // 650GB free
       type: 'NVMe SSD',
       readSpeed: 3500, // MB/s
       writeSpeed: 3000 // MB/s
-    }];
+    };
   }
 
   /**
@@ -442,12 +442,12 @@ class HardwareDetectionService {
       }
       
       // Check GPU if available
-      if (systemInfo.gpus.length > 0 && systemInfo.gpus[0].memory < 2) {
+      if (systemInfo.gpu.memory < 2) {
         issues.push('GPU must have at least 2GB of VRAM');
       }
       
       // Check Storage
-      if (systemInfo.storage[0].available < 10) {
+      if (systemInfo.storage.available < 10) {
         issues.push('At least 10GB of free storage space is required');
       }
       
@@ -483,15 +483,15 @@ class HardwareDetectionService {
     
     // Calculate GPU earnings
     let gpuEarnings = 0;
-    if (systemInfo.gpus.length > 0 && systemInfo.gpus[0].cudaCores > 0) {
-      gpuEarnings = systemInfo.gpus[0].cudaCores * 713633.13824723 / 1000;
+    if (systemInfo.gpu.cudaCores > 0) {
+      gpuEarnings = systemInfo.gpu.cudaCores * 713633.13824723 / 1000;
     }
     
     // Calculate memory earnings
     const memoryEarnings = systemInfo.memory.total * 713633.13824723 / 100;
     
     // Calculate storage earnings
-    const storageEarnings = systemInfo.storage[0].available * 713633.13824723 / 10000;
+    const storageEarnings = systemInfo.storage.available * 713633.13824723 / 10000;
     
     // Calculate network earnings
     const networkEarnings = systemInfo.network.download * 713633.13824723 / 10000;
@@ -516,3 +516,4 @@ class HardwareDetectionService {
 
 // Create a singleton instance
 export const hardwareDetectionService = new HardwareDetectionService();
+export type { SystemInfo as HardwareSpecs };

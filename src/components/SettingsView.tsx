@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Shield, Network, Bell, Palette, Key } from 'lucide-react';
+import { Settings, Shield, Network, Bell, Palette, Key, QrCode, Clock, Eye, EyeOff, Copy } from 'lucide-react';
+import QRCode from 'qrcode';
+import toast from 'react-hot-toast';
 
 const SettingsView: React.FC = () => {
   const [activeSection, setActiveSection] = useState('general');
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorQR, setTwoFactorQR] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
+  const [autoLockTimeout, setAutoLockTimeout] = useState('900'); // 15 minutes in seconds
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const sections = [
     { id: 'general', label: 'General', icon: Settings },
@@ -13,6 +22,73 @@ const SettingsView: React.FC = () => {
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'advanced', label: 'Advanced', icon: Key }
   ];
+
+  // Generate 2FA secret when enabling
+  useEffect(() => {
+    if (twoFactorEnabled && !twoFactorSecret) {
+      generateTwoFactorSecret();
+    }
+  }, [twoFactorEnabled]);
+
+  const generateTwoFactorSecret = async () => {
+    // In a real implementation, this would be generated on the server
+    // For demo purposes, we'll generate a random string
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let secret = '';
+    for (let i = 0; i < 16; i++) {
+      secret += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    setTwoFactorSecret(secret);
+    
+    // Generate QR code
+    try {
+      const otpauth = `otpauth://totp/WATTxchange:${localStorage.getItem('wallet_address') || 'user'}?secret=${secret}&issuer=WATTxchange&algorithm=SHA1&digits=6&period=30`;
+      const qrCode = await QRCode.toDataURL(otpauth);
+      setTwoFactorQR(qrCode);
+    } catch (error) {
+      console.error('Failed to generate QR code:', error);
+    }
+  };
+
+  const verifyTwoFactorCode = () => {
+    setIsVerifying(true);
+    
+    // In a real implementation, this would verify the code with the server
+    // For demo purposes, we'll simulate verification
+    setTimeout(() => {
+      // Simulate successful verification
+      if (verificationCode.length === 6) {
+        toast.success('Two-factor authentication enabled successfully!');
+        localStorage.setItem('2fa_enabled', 'true');
+        localStorage.setItem('2fa_secret', twoFactorSecret);
+      } else {
+        toast.error('Invalid verification code');
+        setTwoFactorEnabled(false);
+      }
+      setIsVerifying(false);
+      setVerificationCode('');
+    }, 1500);
+  };
+
+  const handleAutoLockChange = (value: string) => {
+    setAutoLockTimeout(value);
+    localStorage.setItem('auto_lock_timeout', value);
+    toast.success(`Auto-lock timeout set to ${formatTimeout(value)}`);
+  };
+
+  const formatTimeout = (seconds: string) => {
+    const secs = parseInt(seconds);
+    if (secs < 60) return `${secs} seconds`;
+    if (secs < 3600) return `${Math.floor(secs / 60)} minutes`;
+    if (secs < 86400) return `${Math.floor(secs / 3600)} hours`;
+    return `${Math.floor(secs / 86400)} days`;
+  };
+
+  const copySecret = () => {
+    navigator.clipboard.writeText(twoFactorSecret);
+    toast.success('Secret copied to clipboard');
+  };
 
   return (
     <div className="space-y-6">
@@ -108,20 +184,98 @@ const SettingsView: React.FC = () => {
                       <p className="font-medium">Two-Factor Authentication</p>
                       <p className="text-sm text-slate-400">Add an extra layer of security</p>
                     </div>
-                    <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors">
-                      Enable
+                    <button 
+                      className={`px-4 py-2 ${twoFactorEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg text-sm transition-colors`}
+                      onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
+                    >
+                      {twoFactorEnabled ? 'Enabled' : 'Enable'}
                     </button>
                   </div>
+                  
+                  {twoFactorEnabled && (
+                    <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700/30 space-y-4">
+                      <div className="text-center">
+                        <h4 className="font-medium text-yellow-400 mb-2">Scan QR Code</h4>
+                        <p className="text-sm text-slate-400 mb-4">
+                          Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                        </p>
+                        {twoFactorQR && (
+                          <div className="flex justify-center mb-4">
+                            <img src={twoFactorQR} alt="2FA QR Code" className="w-48 h-48" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Secret Key</label>
+                        <div className="flex">
+                          <input
+                            type={showSecret ? "text" : "password"}
+                            value={twoFactorSecret}
+                            readOnly
+                            className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-l-lg px-3 py-2 focus:outline-none focus:border-blue-500/50 font-mono"
+                          />
+                          <button
+                            onClick={() => setShowSecret(!showSecret)}
+                            className="px-3 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-none"
+                          >
+                            {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={copySecret}
+                            className="px-3 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-r-lg"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          If you can't scan the QR code, you can manually enter this secret key in your authenticator app.
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Verification Code</label>
+                        <div className="flex">
+                          <input
+                            type="text"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
+                            placeholder="Enter 6-digit code"
+                            className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500/50 font-mono"
+                            maxLength={6}
+                          />
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={verifyTwoFactorCode}
+                        disabled={verificationCode.length !== 6 || isVerifying}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isVerifying ? 'Verifying...' : 'Verify and Enable 2FA'}
+                      </button>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Auto-lock timeout</p>
                       <p className="text-sm text-slate-400">Lock wallet after inactivity</p>
                     </div>
-                    <select className="bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2">
-                      <option>5 minutes</option>
-                      <option>15 minutes</option>
-                      <option>30 minutes</option>
-                      <option>Never</option>
+                    <select 
+                      className="bg-slate-900/50 border border-slate-700/50 rounded px-3 py-2"
+                      value={autoLockTimeout}
+                      onChange={(e) => handleAutoLockChange(e.target.value)}
+                    >
+                      <option value="10">10 seconds</option>
+                      <option value="60">1 minute</option>
+                      <option value="300">5 minutes</option>
+                      <option value="900">15 minutes</option>
+                      <option value="1800">30 minutes</option>
+                      <option value="3600">1 hour</option>
+                      <option value="21600">6 hours</option>
+                      <option value="86400">1 day</option>
+                      <option value="604800">7 days</option>
                     </select>
                   </div>
                   <div className="flex items-center justify-between">
@@ -259,6 +413,22 @@ const SettingsView: React.FC = () => {
             )}
           </div>
         </motion.div>
+      </div>
+
+      {/* Built with Bolt.new badge */}
+      <div className="flex justify-center mt-8">
+        <a 
+          href="https://bolt.new" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center space-x-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg transition-colors border border-slate-700/50"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 2L4.09 12.11C3.69 12.59 3.48 12.83 3.43 13.11C3.38 13.35 3.44 13.6 3.6 13.8C3.78 14.03 4.14 14.12 4.84 14.31L10.07 15.93C10.35 16.02 10.49 16.06 10.59 16.15C10.68 16.23 10.73 16.34 10.73 16.46C10.74 16.6 10.65 16.76 10.46 17.08L7.75 21.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.7 14.5L16.7 14.5C17.2523 14.5 17.5284 14.5 17.7611 14.3891C17.9623 14.2929 18.1297 14.1255 18.2259 13.9243C18.3368 13.6916 18.3368 13.4155 18.3368 12.8632L18.3368 6.13678C18.3368 5.58451 18.3368 5.30837 18.2259 5.07568C18.1297 4.87446 17.9623 4.70708 17.7611 4.61083C17.5284 4.5 17.2523 4.5 16.7 4.5L14.7 4.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-yellow-400 font-medium">Built with Bolt.new</span>
+        </a>
       </div>
     </div>
   );

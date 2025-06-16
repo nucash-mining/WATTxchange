@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Key, Wallet, Eye, EyeOff, Download, Upload } from 'lucide-react';
 import { walletService } from '../../services/walletService';
 import toast from 'react-hot-toast';
-import QRCode from 'qrcode.react';
+import QRCode from 'qrcode';
 
 interface WalletAuthProps {
   onAuthenticated: () => void;
@@ -19,9 +19,9 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFactorSecret, setTwoFactorSecret] = useState('');
   const [twoFactorQR, setTwoFactorQR] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
 
   const supportedChains = walletService.getSupportedChains();
 
@@ -106,7 +106,7 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
     setMnemonic(mnemonicWords.join(' '));
   };
 
-  const generateTwoFactorSecret = () => {
+  const generateTwoFactorSecret = async () => {
     // Generate a random secret key for 2FA
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
     let secret = '';
@@ -118,7 +118,14 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
     
     // Generate QR code
     const otpauth = `otpauth://totp/WATTxchange:user?secret=${secret}&issuer=WATTxchange&algorithm=SHA1&digits=6&period=30`;
-    setTwoFactorQR(otpauth);
+    
+    try {
+      const qrDataURL = await QRCode.toDataURL(otpauth);
+      setTwoFactorQR(qrDataURL);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast.error('Failed to generate QR code');
+    }
   };
 
   const verifyTwoFactorCode = () => {
@@ -245,7 +252,7 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
                     {twoFactorQR && (
                       <div className="flex justify-center mb-4">
                         <div className="bg-white p-4 rounded-lg">
-                          <QRCode value={twoFactorQR} size={200} />
+                          <img src={twoFactorQR} alt="2FA QR Code" className="w-48 h-48" />
                         </div>
                       </div>
                     )}

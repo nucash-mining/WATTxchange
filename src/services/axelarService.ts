@@ -34,7 +34,7 @@ interface AxelarMessage {
 }
 
 class AxelarService {
-  // Axelar RPC endpoints - using proxy paths for development
+  // Axelar RPC endpoints - using fallback mode for development
   private rpcEndpoint = 'https://rpc-axelar.imperator.co:443';
   private restEndpoint = import.meta.env.DEV ? '/api/axelar-rest' : 'https://rest-axelar.imperator.co';
   private gmpEndpoint = import.meta.env.DEV ? '/api/axelar-gmp' : 'https://api.gmp.axelarscan.io';
@@ -131,6 +131,7 @@ class AxelarService {
   private validatorCount: number = 0;
   private connectionAttempts: number = 0;
   private maxConnectionAttempts: number = 3;
+  private fallbackMode: boolean = false;
 
   constructor() {
     this.initializeConnection();
@@ -138,79 +139,126 @@ class AxelarService {
 
   private async initializeConnection() {
     try {
-      // Simulate connecting to Axelar network
       this.connectionAttempts++;
+      
+      // Create AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
       // Fetch network status to check connection
       const response = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/node_info`, {
-        signal: AbortSignal.timeout(10000) // Increased timeout to 10 seconds
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         this.isConnected = true;
+        this.fallbackMode = false;
         console.log('✅ Connected to Axelar network');
         
         // Get latest block height
         try {
+          const blockController = new AbortController();
+          const blockTimeoutId = setTimeout(() => blockController.abort(), 5000);
+          
           const blockResponse = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/blocks/latest`, {
-            signal: AbortSignal.timeout(5000)
+            signal: blockController.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
           });
+          
+          clearTimeout(blockTimeoutId);
+          
           if (blockResponse.ok) {
             const blockData = await blockResponse.json();
             this.lastBlockHeight = parseInt(blockData.block.header.height);
           }
         } catch (blockError) {
           console.warn('Could not fetch block height:', blockError);
+          this.lastBlockHeight = 12500000; // Fallback block height
         }
         
         // Get validator count
         try {
+          const validatorController = new AbortController();
+          const validatorTimeoutId = setTimeout(() => validatorController.abort(), 5000);
+          
           const validatorResponse = await fetch(`${this.restEndpoint}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=100`, {
-            signal: AbortSignal.timeout(5000)
+            signal: validatorController.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
           });
+          
+          clearTimeout(validatorTimeoutId);
+          
           if (validatorResponse.ok) {
             const validatorData = await validatorResponse.json();
-            this.validatorCount = validatorData.validators?.length || 0;
+            this.validatorCount = validatorData.validators?.length || 75;
           }
         } catch (validatorError) {
           console.warn('Could not fetch validator count:', validatorError);
+          this.validatorCount = 75; // Fallback validator count
         }
       } else {
-        this.isConnected = false;
-        console.warn(`⚠️ Failed to connect to Axelar network: ${response.status} ${response.statusText}`);
-        
-        // Retry connection if under max attempts
-        if (this.connectionAttempts < this.maxConnectionAttempts) {
-          console.log(`Retrying connection (${this.connectionAttempts}/${this.maxConnectionAttempts})...`);
-          setTimeout(() => this.initializeConnection(), 5000);
-        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       this.isConnected = false;
-      console.error('❌ Error connecting to Axelar network:', error);
+      console.warn(`⚠️ Failed to connect to Axelar network (attempt ${this.connectionAttempts}/${this.maxConnectionAttempts}):`, error);
       
-      // Retry connection if under max attempts
-      if (this.connectionAttempts < this.maxConnectionAttempts) {
-        console.log(`Retrying connection (${this.connectionAttempts}/${this.maxConnectionAttempts})...`);
-        setTimeout(() => this.initializeConnection(), 5000);
-      } else {
-        console.log('Max connection attempts reached. Using fallback mode.');
-        // Set some default values for fallback mode
-        this.lastBlockHeight = 1000000; // Mock block height
+      // Enable fallback mode after max attempts
+      if (this.connectionAttempts >= this.maxConnectionAttempts) {
+        this.fallbackMode = true;
+        this.lastBlockHeight = 12500000; // Mock block height
         this.validatorCount = 75; // Mock validator count
+        console.log('🔄 Axelar service running in fallback mode with mock data');
+      } else {
+        // Retry connection with exponential backoff
+        const retryDelay = Math.min(5000 * Math.pow(2, this.connectionAttempts - 1), 30000);
+        console.log(`Retrying connection in ${retryDelay / 1000} seconds...`);
+        setTimeout(() => this.initializeConnection(), retryDelay);
       }
     }
   }
 
   async getNetworkStatus(): Promise<{ connected: boolean; blockHeight: number; validators: number }> {
     try {
-      // If we're already connected, return cached status
+      // If we're in fallback mode, return mock data
+      if (this.fallbackMode) {
+        // Simulate block progression
+        this.lastBlockHeight += Math.floor(Math.random() * 3) + 1;
+        
+        return {
+          connected: false, // Show as disconnected in fallback mode
+          blockHeight: this.lastBlockHeight,
+          validators: this.validatorCount
+        };
+      }
+      
+      // If we're connected, try to refresh block height
       if (this.isConnected) {
-        // Refresh block height
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          
           const blockResponse = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/blocks/latest`, {
-            signal: AbortSignal.timeout(3000) // 3 second timeout
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
           });
+          
+          clearTimeout(timeoutId);
           
           if (blockResponse.ok) {
             const blockData = await blockResponse.json();
@@ -227,12 +275,11 @@ class AxelarService {
         };
       }
       
-      // Try to reconnect if not connected
+      // Try to reconnect if not connected and not in fallback mode
       if (!this.isConnected && this.connectionAttempts < this.maxConnectionAttempts) {
         this.initializeConnection();
       }
       
-      // Return current status
       return {
         connected: this.isConnected,
         blockHeight: this.lastBlockHeight,
@@ -250,9 +297,24 @@ class AxelarService {
 
   async getSupportedChains(): Promise<string[]> {
     try {
+      // Skip API call in fallback mode
+      if (this.fallbackMode) {
+        return Object.keys(this.supportedNetworks);
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const response = await fetch(`${this.gmpEndpoint}/chains`, {
-        signal: AbortSignal.timeout(5000)
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const data = await response.json();
         return data.map((chain: any) => chain.id);
@@ -270,16 +332,34 @@ class AxelarService {
     amount: string
   ): Promise<{ fee: string; gasLimit: string }> {
     try {
-      // Try to get actual fee from API
+      // Skip API call in fallback mode
+      if (this.fallbackMode) {
+        return {
+          fee: (parseFloat(amount) * 0.001).toFixed(6), // 0.1% fee
+          gasLimit: '200000'
+        };
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const response = await fetch(
         `${this.gmpEndpoint}/transfer-fee?sourceChain=${sourceChain}&destinationChain=${destinationChain}&asset=${token}&amount=${amount}`,
-        { signal: AbortSignal.timeout(5000) }
+        { 
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
       );
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();
         return {
-          fee: data.fee || (parseFloat(amount) * 0.001).toFixed(6), // Default to 0.1% fee
+          fee: data.fee || (parseFloat(amount) * 0.001).toFixed(6),
           gasLimit: data.gasLimit || '200000'
         };
       }
@@ -338,26 +418,37 @@ class AxelarService {
 
   async getTransferStatus(transferId: string): Promise<CrossChainTransfer | null> {
     try {
-      // Try to get from GMP API
-      const response = await fetch(`${this.gmpEndpoint}/gmp/${transferId}`, {
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      // Skip API call in fallback mode
+      if (!this.fallbackMode) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        return {
-          id: transferId,
-          sourceChain: data.call?.chain || '',
-          destinationChain: data.call?.returnValues?.destinationChain || '',
-          sourceToken: data.call?.returnValues?.symbol || '',
-          destinationToken: data.call?.returnValues?.symbol || '',
-          amount: data.call?.returnValues?.amount || '0',
-          recipient: data.call?.returnValues?.destinationAddress || '',
-          status: this.mapAxelarStatus(data.status),
-          txHash: data.call?.transactionHash,
-          timestamp: new Date(data.call?.blockTimestamp * 1000)
-        };
+        const response = await fetch(`${this.gmpEndpoint}/gmp/${transferId}`, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          return {
+            id: transferId,
+            sourceChain: data.call?.chain || '',
+            destinationChain: data.call?.returnValues?.destinationChain || '',
+            sourceToken: data.call?.returnValues?.symbol || '',
+            destinationToken: data.call?.returnValues?.symbol || '',
+            amount: data.call?.returnValues?.amount || '0',
+            recipient: data.call?.returnValues?.destinationAddress || '',
+            status: this.mapAxelarStatus(data.status),
+            txHash: data.call?.transactionHash,
+            timestamp: new Date(data.call?.blockTimestamp * 1000)
+          };
+        }
       }
     } catch (error) {
       console.error('Failed to get transfer status from API:', error);
@@ -424,23 +515,34 @@ class AxelarService {
 
   async getMessageStatus(messageId: string): Promise<AxelarMessage | null> {
     try {
-      // Query Axelar GMP API for message status
-      const response = await fetch(`${this.gmpEndpoint}/gmp/${messageId}`, {
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      // Skip API call in fallback mode
+      if (!this.fallbackMode) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        return {
-          id: messageId,
-          sourceChain: data.call?.chain || '',
-          destinationChain: data.call?.returnValues?.destinationChain || '',
-          payload: data.call?.returnValues?.payload || '',
-          status: this.mapAxelarStatus(data.status),
-          commandId: data.approved?.commandId,
-          timestamp: new Date(data.call?.blockTimestamp * 1000)
-        };
+        const response = await fetch(`${this.gmpEndpoint}/gmp/${messageId}`, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          return {
+            id: messageId,
+            sourceChain: data.call?.chain || '',
+            destinationChain: data.call?.returnValues?.destinationChain || '',
+            payload: data.call?.returnValues?.payload || '',
+            status: this.mapAxelarStatus(data.status),
+            commandId: data.approved?.commandId,
+            timestamp: new Date(data.call?.blockTimestamp * 1000)
+          };
+        }
       }
     } catch (error) {
       console.error('Failed to get message status:', error);
@@ -462,18 +564,32 @@ class AxelarService {
     payload: string
   ): Promise<{ gasLimit: string; gasPrice: string }> {
     try {
-      const response = await fetch(
-        `${this.gmpEndpoint}/gas-price/${destinationChain}`,
-        { signal: AbortSignal.timeout(5000) }
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
+      // Skip API call in fallback mode
+      if (!this.fallbackMode) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        return {
-          gasLimit: '500000', // Default gas limit for messages
-          gasPrice: data.gasPrice || '20000000000' // 20 gwei default
-        };
+        const response = await fetch(
+          `${this.gmpEndpoint}/gas-price/${destinationChain}`,
+          { 
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          return {
+            gasLimit: '500000', // Default gas limit for messages
+            gasPrice: data.gasPrice || '20000000000' // 20 gwei default
+          };
+        }
       }
     } catch (error) {
       console.error('Failed to estimate gas:', error);
@@ -501,27 +617,38 @@ class AxelarService {
   // Get all recent transfers for monitoring
   async getRecentTransfers(limit: number = 10): Promise<CrossChainTransfer[]> {
     try {
-      // Try to get from GMP API
-      const response = await fetch(`${this.gmpEndpoint}/gmp/search?size=${limit}&sort=-call.blockTimestamp`, {
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      // Skip API call in fallback mode
+      if (!this.fallbackMode) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        if (data.data && Array.isArray(data.data)) {
-          return data.data.map((item: any) => ({
-            id: item.call?.transactionHash || `transfer_${Date.now()}`,
-            sourceChain: item.call?.chain || '',
-            destinationChain: item.call?.returnValues?.destinationChain || '',
-            sourceToken: item.call?.returnValues?.symbol || '',
-            destinationToken: item.call?.returnValues?.symbol || '',
-            amount: item.call?.returnValues?.amount || '0',
-            recipient: item.call?.returnValues?.destinationAddress || '',
-            status: this.mapAxelarStatus(item.status),
-            txHash: item.call?.transactionHash,
-            timestamp: new Date(item.call?.blockTimestamp * 1000)
-          }));
+        const response = await fetch(`${this.gmpEndpoint}/gmp/search?size=${limit}&sort=-call.blockTimestamp`, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.data && Array.isArray(data.data)) {
+            return data.data.map((item: any) => ({
+              id: item.call?.transactionHash || `transfer_${Date.now()}`,
+              sourceChain: item.call?.chain || '',
+              destinationChain: item.call?.returnValues?.destinationChain || '',
+              sourceToken: item.call?.returnValues?.symbol || '',
+              destinationToken: item.call?.returnValues?.symbol || '',
+              amount: item.call?.returnValues?.amount || '0',
+              recipient: item.call?.returnValues?.destinationAddress || '',
+              status: this.mapAxelarStatus(item.status),
+              txHash: item.call?.transactionHash,
+              timestamp: new Date(item.call?.blockTimestamp * 1000)
+            }));
+          }
         }
       }
     } catch (error) {
@@ -592,6 +719,19 @@ class AxelarService {
         timestamp: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
       }
     ];
+  }
+
+  // Check if service is in fallback mode
+  isFallbackMode(): boolean {
+    return this.fallbackMode;
+  }
+
+  // Reset connection attempts (useful for manual retry)
+  resetConnection(): void {
+    this.connectionAttempts = 0;
+    this.fallbackMode = false;
+    this.isConnected = false;
+    this.initializeConnection();
   }
 }
 

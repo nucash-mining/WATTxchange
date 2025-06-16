@@ -34,10 +34,10 @@ interface AxelarMessage {
 }
 
 class AxelarService {
-  // Axelar RPC endpoints
+  // Axelar RPC endpoints - using proxy paths for development
   private rpcEndpoint = 'https://rpc-axelar.imperator.co:443';
-  private restEndpoint = 'https://rest-axelar.imperator.co';
-  private gmpEndpoint = 'https://api.gmp.axelarscan.io';
+  private restEndpoint = import.meta.env.DEV ? '/api/axelar-rest' : 'https://rest-axelar.imperator.co';
+  private gmpEndpoint = import.meta.env.DEV ? '/api/axelar-gmp' : 'https://api.gmp.axelarscan.io';
 
   // Supported networks for cross-chain operations
   private supportedNetworks: Record<string, AxelarNetwork> = {
@@ -143,7 +143,7 @@ class AxelarService {
       
       // Fetch network status to check connection
       const response = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/node_info`, {
-        signal: AbortSignal.timeout(5000) // 5 second timeout
+        signal: AbortSignal.timeout(10000) // Increased timeout to 10 seconds
       });
       
       if (response.ok) {
@@ -151,17 +151,29 @@ class AxelarService {
         console.log('✅ Connected to Axelar network');
         
         // Get latest block height
-        const blockResponse = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/blocks/latest`);
-        if (blockResponse.ok) {
-          const blockData = await blockResponse.json();
-          this.lastBlockHeight = parseInt(blockData.block.header.height);
+        try {
+          const blockResponse = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/blocks/latest`, {
+            signal: AbortSignal.timeout(5000)
+          });
+          if (blockResponse.ok) {
+            const blockData = await blockResponse.json();
+            this.lastBlockHeight = parseInt(blockData.block.header.height);
+          }
+        } catch (blockError) {
+          console.warn('Could not fetch block height:', blockError);
         }
         
         // Get validator count
-        const validatorResponse = await fetch(`${this.restEndpoint}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=100`);
-        if (validatorResponse.ok) {
-          const validatorData = await validatorResponse.json();
-          this.validatorCount = validatorData.validators.length;
+        try {
+          const validatorResponse = await fetch(`${this.restEndpoint}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=100`, {
+            signal: AbortSignal.timeout(5000)
+          });
+          if (validatorResponse.ok) {
+            const validatorData = await validatorResponse.json();
+            this.validatorCount = validatorData.validators?.length || 0;
+          }
+        } catch (validatorError) {
+          console.warn('Could not fetch validator count:', validatorError);
         }
       } else {
         this.isConnected = false;
@@ -181,6 +193,11 @@ class AxelarService {
       if (this.connectionAttempts < this.maxConnectionAttempts) {
         console.log(`Retrying connection (${this.connectionAttempts}/${this.maxConnectionAttempts})...`);
         setTimeout(() => this.initializeConnection(), 5000);
+      } else {
+        console.log('Max connection attempts reached. Using fallback mode.');
+        // Set some default values for fallback mode
+        this.lastBlockHeight = 1000000; // Mock block height
+        this.validatorCount = 75; // Mock validator count
       }
     }
   }
@@ -190,13 +207,17 @@ class AxelarService {
       // If we're already connected, return cached status
       if (this.isConnected) {
         // Refresh block height
-        const blockResponse = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/blocks/latest`, {
-          signal: AbortSignal.timeout(3000) // 3 second timeout
-        });
-        
-        if (blockResponse.ok) {
-          const blockData = await blockResponse.json();
-          this.lastBlockHeight = parseInt(blockData.block.header.height);
+        try {
+          const blockResponse = await fetch(`${this.restEndpoint}/cosmos/base/tendermint/v1beta1/blocks/latest`, {
+            signal: AbortSignal.timeout(3000) // 3 second timeout
+          });
+          
+          if (blockResponse.ok) {
+            const blockData = await blockResponse.json();
+            this.lastBlockHeight = parseInt(blockData.block.header.height);
+          }
+        } catch (error) {
+          console.warn('Could not refresh block height:', error);
         }
         
         return {
@@ -229,13 +250,17 @@ class AxelarService {
 
   async getSupportedChains(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.gmpEndpoint}/chains`);
-      const data = await response.json();
-      return data.map((chain: any) => chain.id);
+      const response = await fetch(`${this.gmpEndpoint}/chains`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.map((chain: any) => chain.id);
+      }
     } catch (error) {
       console.error('Failed to get supported chains:', error);
-      return Object.keys(this.supportedNetworks);
     }
+    return Object.keys(this.supportedNetworks);
   }
 
   async getTransferFee(
@@ -248,7 +273,7 @@ class AxelarService {
       // Try to get actual fee from API
       const response = await fetch(
         `${this.gmpEndpoint}/transfer-fee?sourceChain=${sourceChain}&destinationChain=${destinationChain}&asset=${token}&amount=${amount}`,
-        { signal: AbortSignal.timeout(3000) }
+        { signal: AbortSignal.timeout(5000) }
       );
       
       if (response.ok) {
@@ -258,19 +283,15 @@ class AxelarService {
           gasLimit: data.gasLimit || '200000'
         };
       }
-      
-      // Fallback to estimated fee
-      return {
-        fee: (parseFloat(amount) * 0.001).toFixed(6), // 0.1% fee
-        gasLimit: '200000'
-      };
     } catch (error) {
       console.error('Failed to get transfer fee:', error);
-      return {
-        fee: (parseFloat(amount) * 0.001).toFixed(6), // 0.1% fee
-        gasLimit: '200000'
-      };
     }
+    
+    // Fallback to estimated fee
+    return {
+      fee: (parseFloat(amount) * 0.001).toFixed(6), // 0.1% fee
+      gasLimit: '200000'
+    };
   }
 
   async initiateTransfer(
@@ -318,7 +339,9 @@ class AxelarService {
   async getTransferStatus(transferId: string): Promise<CrossChainTransfer | null> {
     try {
       // Try to get from GMP API
-      const response = await fetch(`${this.gmpEndpoint}/gmp/${transferId}`);
+      const response = await fetch(`${this.gmpEndpoint}/gmp/${transferId}`, {
+        signal: AbortSignal.timeout(5000)
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -336,29 +359,28 @@ class AxelarService {
           timestamp: new Date(data.call?.blockTimestamp * 1000)
         };
       }
+    } catch (error) {
+      console.error('Failed to get transfer status from API:', error);
+    }
+    
+    // Check local storage for demo
+    const savedTransfers = this.getSavedTransfers();
+    const transfer = savedTransfers.find(t => t.id === transferId);
+    
+    if (transfer) {
+      // Simulate status progression for demo
+      const elapsedMinutes = (Date.now() - new Date(transfer.timestamp).getTime()) / (1000 * 60);
       
-      // Check local storage for demo
-      const savedTransfers = this.getSavedTransfers();
-      const transfer = savedTransfers.find(t => t.id === transferId);
-      
-      if (transfer) {
-        // Simulate status progression for demo
-        const elapsedMinutes = (Date.now() - new Date(transfer.timestamp).getTime()) / (1000 * 60);
-        
-        if (elapsedMinutes > 5) {
-          transfer.status = Math.random() > 0.1 ? 'executed' : 'failed';
-        } else if (elapsedMinutes > 2) {
-          transfer.status = 'confirmed';
-        }
-        
-        return transfer;
+      if (elapsedMinutes > 5) {
+        transfer.status = Math.random() > 0.1 ? 'executed' : 'failed';
+      } else if (elapsedMinutes > 2) {
+        transfer.status = 'confirmed';
       }
       
-      return null;
-    } catch (error) {
-      console.error('Failed to get transfer status:', error);
-      return null;
+      return transfer;
     }
+    
+    return null;
   }
 
   private mapAxelarStatus(axelarStatus: string): 'pending' | 'confirmed' | 'executed' | 'failed' {
@@ -403,7 +425,9 @@ class AxelarService {
   async getMessageStatus(messageId: string): Promise<AxelarMessage | null> {
     try {
       // Query Axelar GMP API for message status
-      const response = await fetch(`${this.gmpEndpoint}/gmp/${messageId}`);
+      const response = await fetch(`${this.gmpEndpoint}/gmp/${messageId}`, {
+        signal: AbortSignal.timeout(5000)
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -418,12 +442,11 @@ class AxelarService {
           timestamp: new Date(data.call?.blockTimestamp * 1000)
         };
       }
-      
-      return null;
     } catch (error) {
       console.error('Failed to get message status:', error);
-      return null;
     }
+    
+    return null;
   }
 
   getNetworkConfig(chainName: string): AxelarNetwork | null {
@@ -440,7 +463,8 @@ class AxelarService {
   ): Promise<{ gasLimit: string; gasPrice: string }> {
     try {
       const response = await fetch(
-        `${this.gmpEndpoint}/gas-price/${destinationChain}`
+        `${this.gmpEndpoint}/gas-price/${destinationChain}`,
+        { signal: AbortSignal.timeout(5000) }
       );
       
       if (response.ok) {
@@ -451,18 +475,14 @@ class AxelarService {
           gasPrice: data.gasPrice || '20000000000' // 20 gwei default
         };
       }
-      
-      return {
-        gasLimit: '500000',
-        gasPrice: '20000000000'
-      };
     } catch (error) {
       console.error('Failed to estimate gas:', error);
-      return {
-        gasLimit: '500000',
-        gasPrice: '20000000000'
-      };
     }
+    
+    return {
+      gasLimit: '500000',
+      gasPrice: '20000000000'
+    };
   }
 
   // Get supported tokens for a specific chain
@@ -482,7 +502,9 @@ class AxelarService {
   async getRecentTransfers(limit: number = 10): Promise<CrossChainTransfer[]> {
     try {
       // Try to get from GMP API
-      const response = await fetch(`${this.gmpEndpoint}/gmp/search?size=${limit}&sort=-call.blockTimestamp`);
+      const response = await fetch(`${this.gmpEndpoint}/gmp/search?size=${limit}&sort=-call.blockTimestamp`, {
+        signal: AbortSignal.timeout(5000)
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -502,13 +524,12 @@ class AxelarService {
           }));
         }
       }
-      
-      // Fallback to local storage for demo
-      return this.getSavedTransfers().slice(0, limit);
     } catch (error) {
-      console.error('Failed to get recent transfers:', error);
-      return this.getSavedTransfers().slice(0, limit);
+      console.error('Failed to get recent transfers from API:', error);
     }
+    
+    // Fallback to local storage for demo
+    return this.getSavedTransfers().slice(0, limit);
   }
 
   // Get saved transfers from local storage (for demo)

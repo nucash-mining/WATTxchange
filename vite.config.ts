@@ -10,6 +10,20 @@ export default defineConfig({
   server: {
     hmr: {
       overlay: false
+    },
+    proxy: {
+      '/api/axelar-rest': {
+        target: 'https://rest-axelar.imperator.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/axelar-rest/, ''),
+        secure: true
+      },
+      '/api/axelar-gmp': {
+        target: 'https://api.gmp.axelarscan.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/axelar-gmp/, ''),
+        secure: true
+      }
     }
   }
 });

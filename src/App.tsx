@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -12,31 +12,23 @@ import AtomicSwapView from './components/AtomicSwapView';
 import SettingsView from './components/SettingsView';
 import NuChainView from './components/NuChainView';
 import MobileNavbar from './components/mobile/MobileNavbar';
+import { useDeviceDetect } from './hooks/useDeviceDetect';
 
 type ViewType = 'wallet' | 'nodes' | 'dex' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('wallet');
-  const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isMobile, isMobileWallet } = useDeviceDetect();
 
   // Detect mobile devices and wallet browsers
   useEffect(() => {
-    const checkMobile = () => {
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isSmallScreen = window.innerWidth < 768;
-      const isMobileWallet = window.ethereum?.isMetaMask && (window.innerWidth < 768 || isMobileDevice);
-      
-      setIsMobile(isMobileDevice || isSmallScreen || !!isMobileWallet);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
-  }, []);
+    // If we're in a mobile wallet browser, adjust the UI accordingly
+    if (isMobileWallet) {
+      // Mobile wallet specific adjustments could go here
+      console.log('Mobile wallet browser detected');
+    }
+  }, [isMobileWallet]);
 
   const renderView = () => {
     switch (currentView) {
@@ -72,49 +64,44 @@ function App() {
         
         {/* Mobile Sidebar with overlay */}
         {isMobile && (
-          <AnimatePresence>
-            {isSidebarOpen && (
-              <>
-                <motion.div 
-                  className="fixed inset-0 bg-black/70 z-40"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsSidebarOpen(false)}
-                />
-                <motion.div
-                  className="fixed left-0 top-0 bottom-0 w-64 z-50"
-                  initial={{ x: -320 }}
-                  animate={{ x: 0 }}
-                  exit={{ x: -320 }}
-                  transition={{ type: 'spring', damping: 25 }}
-                >
-                  <Sidebar 
-                    currentView={currentView} 
-                    onViewChange={(view) => {
-                      setCurrentView(view);
-                      setIsSidebarOpen(false);
-                    }} 
-                  />
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          <motion.div 
+            className="fixed inset-0 bg-black/70 z-40 flex"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isSidebarOpen ? 1 : 0 }}
+            style={{ pointerEvents: isSidebarOpen ? 'auto' : 'none' }}
+          >
+            <motion.div
+              className="w-64 bg-black/95 h-full"
+              initial={{ x: -320 }}
+              animate={{ x: isSidebarOpen ? 0 : -320 }}
+              transition={{ type: 'spring', damping: 25 }}
+            >
+              <Sidebar 
+                currentView={currentView} 
+                onViewChange={(view) => {
+                  setCurrentView(view);
+                  setIsSidebarOpen(false);
+                }} 
+              />
+            </motion.div>
+            <div 
+              className="flex-1" 
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          </motion.div>
         )}
         
         <main className={`flex-1 p-6 ${isMobile ? 'pb-20' : ''}`}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentView}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="h-full"
-            >
-              {renderView()}
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={currentView}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="h-full"
+          >
+            {renderView()}
+          </motion.div>
         </main>
       </div>
       

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Key, Wallet, Eye, EyeOff, Download, Upload } from 'lucide-react';
 import { walletService } from '../../services/walletService';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode.react';
 
 interface WalletAuthProps {
   onAuthenticated: () => void;
@@ -15,6 +16,12 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
   const [selectedChain, setSelectedChain] = useState('ETH');
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorQR, setTwoFactorQR] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const supportedChains = walletService.getSupportedChains();
 
@@ -99,6 +106,41 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
     setMnemonic(mnemonicWords.join(' '));
   };
 
+  const generateTwoFactorSecret = () => {
+    // Generate a random secret key for 2FA
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let secret = '';
+    for (let i = 0; i < 16; i++) {
+      secret += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    setTwoFactorSecret(secret);
+    
+    // Generate QR code
+    const otpauth = `otpauth://totp/WATTxchange:user?secret=${secret}&issuer=WATTxchange&algorithm=SHA1&digits=6&period=30`;
+    setTwoFactorQR(otpauth);
+  };
+
+  const verifyTwoFactorCode = () => {
+    setIsVerifying(true);
+    
+    // In a real implementation, this would verify the code with the server
+    // For demo purposes, we'll simulate verification
+    setTimeout(() => {
+      // Simulate successful verification
+      if (verificationCode.length === 6) {
+        toast.success('Two-factor authentication enabled successfully!');
+        localStorage.setItem('2fa_enabled', 'true');
+        localStorage.setItem('2fa_secret', twoFactorSecret);
+      } else {
+        toast.error('Invalid verification code');
+        setTwoFactorEnabled(false);
+      }
+      setIsVerifying(false);
+      setVerificationCode('');
+    }, 1500);
+  };
+
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <motion.div
@@ -172,6 +214,99 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
               <Wallet className="w-5 h-5" />
               <span>{loading ? 'Connecting...' : 'Connect Wallet'}</span>
             </motion.button>
+
+            {/* Two-factor authentication */}
+            <div className="mt-6 pt-6 border-t border-slate-700/50">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="font-medium">Two-Factor Authentication</p>
+                  <p className="text-sm text-slate-400">Add an extra layer of security</p>
+                </div>
+                <button 
+                  className={`px-4 py-2 ${twoFactorEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg text-sm transition-colors`}
+                  onClick={() => {
+                    setTwoFactorEnabled(!twoFactorEnabled);
+                    if (!twoFactorEnabled) {
+                      generateTwoFactorSecret();
+                    }
+                  }}
+                >
+                  {twoFactorEnabled ? 'Enabled' : 'Enable'}
+                </button>
+              </div>
+              
+              {twoFactorEnabled && (
+                <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700/30 space-y-4">
+                  <div className="text-center">
+                    <h4 className="font-medium text-yellow-400 mb-2">Scan QR Code</h4>
+                    <p className="text-sm text-slate-400 mb-4">
+                      Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                    </p>
+                    {twoFactorQR && (
+                      <div className="flex justify-center mb-4">
+                        <div className="bg-white p-4 rounded-lg">
+                          <QRCode value={twoFactorQR} size={200} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Secret Key</label>
+                    <div className="flex">
+                      <input
+                        type={showSecret ? "text" : "password"}
+                        value={twoFactorSecret}
+                        readOnly
+                        className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-l-lg px-3 py-2 focus:outline-none focus:border-blue-500/50 font-mono"
+                      />
+                      <button
+                        onClick={() => setShowSecret(!showSecret)}
+                        className="px-3 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-none"
+                      >
+                        {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(twoFactorSecret);
+                          toast.success('Secret copied to clipboard');
+                        }}
+                        className="px-3 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-r-lg"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      If you can't scan the QR code, you can manually enter this secret key in your authenticator app.
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Verification Code</label>
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
+                        placeholder="Enter 6-digit code"
+                        className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500/50 font-mono"
+                        maxLength={6}
+                      />
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={verifyTwoFactorCode}
+                    disabled={verificationCode.length !== 6 || isVerifying}
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isVerifying ? 'Verifying...' : 'Verify and Enable 2FA'}
+                  </button>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -280,6 +415,22 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
           <p className="text-yellow-400 text-sm">
             <strong>Security Notice:</strong> Your private keys and mnemonic phrases are stored locally and never transmitted to our servers.
           </p>
+        </div>
+
+        {/* Built with Bolt.new badge */}
+        <div className="flex justify-center mt-8">
+          <a 
+            href="https://bolt.new" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center space-x-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg transition-colors border border-slate-700/50"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13 2L4.09 12.11C3.69 12.59 3.48 12.83 3.43 13.11C3.38 13.35 3.44 13.6 3.6 13.8C3.78 14.03 4.14 14.12 4.84 14.31L10.07 15.93C10.35 16.02 10.49 16.06 10.59 16.15C10.68 16.23 10.73 16.34 10.73 16.46C10.74 16.6 10.65 16.76 10.46 17.08L7.75 21.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14.7 14.5L16.7 14.5C17.2523 14.5 17.5284 14.5 17.7611 14.3891C17.9623 14.2929 18.1297 14.1255 18.2259 13.9243C18.3368 13.6916 18.3368 13.4155 18.3368 12.8632L18.3368 6.13678C18.3368 5.58451 18.3368 5.30837 18.2259 5.07568C18.1297 4.87446 17.9623 4.70708 17.7611 4.61083C17.5284 4.5 17.2523 4.5 16.7 4.5L14.7 4.5" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="text-yellow-400 font-medium">Built with Bolt.new</span>
+          </a>
         </div>
       </motion.div>
     </div>

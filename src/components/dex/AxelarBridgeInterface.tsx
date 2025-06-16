@@ -15,15 +15,10 @@ const AxelarBridgeInterface: React.FC = () => {
   const [recipient, setRecipient] = useState('');
   const [transferFee, setTransferFee] = useState({ fee: '0', gasLimit: '0' });
   const [loading, setLoading] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState({ connected: false, blockHeight: 0, validators: 0 });
   const [recentTransfers, setRecentTransfers] = useState<CrossChainTransfer[]>([]);
   const [loadingStatus, setLoadingStatus] = useState(true);
-
-  const supportedChains = [
-    { id: 'ethereum', name: 'Ethereum', logo: '/ETH logo.png' },
-    { id: 'polygon', name: 'Polygon', logo: '/MATIC logo.png' },
-    { id: 'altcoinchain', name: 'Altcoinchain', logo: '/Altcoinchain logo.png' }
-  ];
+  const [networkStatus, setNetworkStatus] = useState({ connected: false, blockHeight: 0, validators: 0 });
+  const [supportedChains, setSupportedChains] = useState<{id: string, name: string, logo: string}[]>([]);
 
   const availableTokens = [
     { symbol: 'USDT', name: 'Tether USD', logo: '/USDT logo.png' },
@@ -37,6 +32,7 @@ const AxelarBridgeInterface: React.FC = () => {
   useEffect(() => {
     loadNetworkStatus();
     loadRecentTransfers();
+    loadSupportedChains();
     
     const interval = setInterval(() => {
       loadNetworkStatus();
@@ -57,6 +53,18 @@ const AxelarBridgeInterface: React.FC = () => {
       updateTransferFee();
     }
   }, [amount, sourceChain, destinationChain, selectedToken]);
+
+  const loadSupportedChains = () => {
+    const networks = axelarService.getAllNetworks();
+    const chains = networks.map(network => ({
+      id: Object.keys(axelarService['supportedNetworks']).find(
+        key => axelarService['supportedNetworks'][key].name === network.name
+      ) || network.name.toLowerCase(),
+      name: network.name,
+      logo: network.icon || `/placeholder-chain.png`
+    }));
+    setSupportedChains(chains);
+  };
 
   const loadNetworkStatus = async () => {
     setLoadingStatus(true);
@@ -159,6 +167,14 @@ const AxelarBridgeInterface: React.FC = () => {
     }
   };
 
+  const getChainIcon = (chainId: string) => {
+    const chain = supportedChains.find(c => c.id === chainId);
+    if (chain) {
+      return <img src={chain.logo} alt={chain.name} className="w-5 h-5 rounded-full" />;
+    }
+    return <div className="w-5 h-5 bg-slate-600 rounded-full flex items-center justify-center text-xs">{chainId.charAt(0).toUpperCase()}</div>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Axelar Network Status */}
@@ -197,7 +213,7 @@ const AxelarBridgeInterface: React.FC = () => {
             <p className="text-slate-400 text-sm">Active Validators</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-emerald-400">50+</p>
+            <p className="text-2xl font-bold text-emerald-400">{supportedChains.length}</p>
             <p className="text-slate-400 text-sm">Connected Chains</p>
           </div>
         </div>
@@ -356,7 +372,15 @@ const AxelarBridgeInterface: React.FC = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <h3 className="text-xl font-semibold mb-6">Recent Transfers</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold">Recent Transfers</h3>
+            <button 
+              onClick={loadRecentTransfers}
+              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
 
           {recentTransfers.length === 0 ? (
             <div className="text-center py-8">
@@ -387,9 +411,9 @@ const AxelarBridgeInterface: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm">{transfer.sourceChain}</span>
+                      {getChainIcon(transfer.sourceChain)}
                       <ArrowRight className="w-3 h-3 text-slate-400" />
-                      <span className="text-sm">{transfer.destinationChain}</span>
+                      {getChainIcon(transfer.destinationChain)}
                     </div>
                     <div className="text-right">
                       <p className="font-medium">{transfer.amount} {transfer.sourceToken}</p>
@@ -433,12 +457,12 @@ const AxelarBridgeInterface: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <img src={sourceChain.logo} alt={sourceChain.name} className="w-5 h-5" />
+                      <img src={sourceChain.logo} alt={sourceChain.name} className="w-5 h-5 rounded-full" />
                       <span className="text-sm">{sourceChain.name}</span>
                     </div>
                     <ArrowRight className="w-4 h-4 text-slate-400" />
                     <div className="flex items-center space-x-2">
-                      <img src={destChain.logo} alt={destChain.name} className="w-5 h-5" />
+                      <img src={destChain.logo} alt={destChain.name} className="w-5 h-5 rounded-full" />
                       <span className="text-sm">{destChain.name}</span>
                     </div>
                   </div>

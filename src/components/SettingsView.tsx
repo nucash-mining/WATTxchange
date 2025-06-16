@@ -4,6 +4,20 @@ import { Settings, Shield, Network, Bell, Palette, Key, QrCode, Clock, Eye, EyeO
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 
+interface DeviceInfo {
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+  isMobileWallet: boolean;
+  isMetaMask: boolean;
+  isTrustWallet: boolean;
+  isRainbow: boolean;
+  isWalletConnect: boolean;
+  orientation: 'portrait' | 'landscape';
+  screenWidth: number;
+  screenHeight: number;
+}
+
 const SettingsView: React.FC = () => {
   const [activeSection, setActiveSection] = useState('general');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -22,6 +36,31 @@ const SettingsView: React.FC = () => {
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'advanced', label: 'Advanced', icon: Key }
   ];
+
+  // Load saved settings
+  useEffect(() => {
+    // Load 2FA status
+    const savedTwoFactorEnabled = localStorage.getItem('2fa_enabled') === 'true';
+    setTwoFactorEnabled(savedTwoFactorEnabled);
+    
+    // Load auto-lock timeout
+    const savedTimeout = localStorage.getItem('auto_lock_timeout');
+    if (savedTimeout) {
+      setAutoLockTimeout(savedTimeout);
+    }
+    
+    // If 2FA is enabled, we need to load the secret
+    if (savedTwoFactorEnabled) {
+      const savedSecret = localStorage.getItem('2fa_secret');
+      if (savedSecret) {
+        setTwoFactorSecret(savedSecret);
+        generateQRCode(savedSecret);
+      } else {
+        // If no secret is found but 2FA is enabled, generate a new one
+        generateTwoFactorSecret();
+      }
+    }
+  }, []);
 
   // Generate 2FA secret when enabling
   useEffect(() => {
@@ -42,6 +81,10 @@ const SettingsView: React.FC = () => {
     setTwoFactorSecret(secret);
     
     // Generate QR code
+    generateQRCode(secret);
+  };
+
+  const generateQRCode = async (secret: string) => {
     try {
       const otpauth = `otpauth://totp/WATTxchange:${localStorage.getItem('wallet_address') || 'user'}?secret=${secret}&issuer=WATTxchange&algorithm=SHA1&digits=6&period=30`;
       const qrCode = await QRCode.toDataURL(otpauth);

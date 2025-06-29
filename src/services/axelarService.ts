@@ -34,10 +34,10 @@ interface AxelarMessage {
 }
 
 class AxelarService {
-  // Axelar RPC endpoints - using fallback mode for development
+  // Axelar RPC endpoints - using direct URLs to avoid proxy issues
   private rpcEndpoint = 'https://rpc-axelar.imperator.co:443';
-  private restEndpoint = import.meta.env.DEV ? '/api/axelar-rest' : 'https://rest-axelar.imperator.co';
-  private gmpEndpoint = import.meta.env.DEV ? '/api/axelar-gmp' : 'https://api.gmp.axelarscan.io';
+  private restEndpoint = 'https://rest-axelar.imperator.co';
+  private gmpEndpoint = 'https://api.gmp.axelarscan.io';
 
   // Supported networks for cross-chain operations
   private supportedNetworks: Record<string, AxelarNetwork> = {

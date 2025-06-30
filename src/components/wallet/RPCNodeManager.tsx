@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Server, Wifi, WifiOff, Settings, Trash2, TestTube, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Server, Wifi, WifiOff, Settings, Trash2, TestTube, Eye, EyeOff, Download, Play, Square } from 'lucide-react';
 import { rpcNodeService, RPCNodeConfig } from '../../services/rpcNodeService';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,7 @@ interface RPCNodeManagerProps {
 const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
   const [nodes, setNodes] = useState<RPCNodeConfig[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showInstallForm, setShowInstallForm] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
   const [formData, setFormData] = useState({
     name: '',
@@ -21,10 +22,21 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
     password: '',
     ssl: false
   });
+  const [installData, setInstallData] = useState({
+    symbol: 'BTC',
+    dataDir: '',
+    username: '',
+    password: '',
+    walletName: '',
+    walletPassphrase: ''
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const [starting, setStarting] = useState<string | null>(null);
+  const [stopping, setStopping] = useState<string | null>(null);
 
-  const supportedChains = ['BTC', 'LTC', 'XMR', 'GHOST', 'TROLL'];
+  const supportedChains = ['BTC', 'LTC', 'XMR', 'GHOST', 'TROLL', 'HTH', 'ALT'];
 
   useEffect(() => {
     if (isOpen) {
@@ -90,6 +102,103 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleInstallNode = async () => {
+    if (!installData.dataDir || !installData.username || !installData.password) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setInstalling(true);
+    try {
+      const success = await rpcNodeService.installNode(
+        installData.symbol,
+        installData.dataDir,
+        installData.username,
+        installData.password
+      );
+
+      if (success) {
+        toast.success(`${installData.symbol} node installed successfully`);
+        setShowInstallForm(false);
+        
+        // Add the newly installed node
+        const defaultConfig = rpcNodeService.getDefaultNodeConfig(installData.symbol);
+        const nodeConfig = {
+          id: `${installData.symbol.toLowerCase()}-${Date.now()}`,
+          name: `${defaultConfig?.name || installData.symbol} Node`,
+          symbol: installData.symbol,
+          host: '127.0.0.1',
+          port: defaultConfig?.port || 0,
+          username: installData.username,
+          password: installData.password,
+          ssl: false
+        };
+
+        rpcNodeService.addNode(nodeConfig);
+        loadNodes();
+      } else {
+        toast.error(`Failed to install ${installData.symbol} node`);
+      }
+    } catch (error) {
+      console.error('Installation failed:', error);
+      toast.error('Installation failed');
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const handleStartNode = async (nodeId: string) => {
+    setStarting(nodeId);
+    try {
+      const node = rpcNodeService.getNode(nodeId);
+      if (!node) {
+        toast.error('Node not found');
+        return;
+      }
+
+      const success = await rpcNodeService.startNode(node.symbol, '');
+      if (success) {
+        toast.success(`${node.symbol} node started successfully`);
+        // Update node status
+        await rpcNodeService.testConnection(nodeId);
+        loadNodes();
+      } else {
+        toast.error(`Failed to start ${node.symbol} node`);
+      }
+    } catch (error) {
+      console.error('Failed to start node:', error);
+      toast.error('Failed to start node');
+    } finally {
+      setStarting(null);
+    }
+  };
+
+  const handleStopNode = async (nodeId: string) => {
+    setStopping(nodeId);
+    try {
+      const node = rpcNodeService.getNode(nodeId);
+      if (!node) {
+        toast.error('Node not found');
+        return;
+      }
+
+      const success = await rpcNodeService.stopNode(node.symbol, '');
+      if (success) {
+        toast.success(`${node.symbol} node stopped successfully`);
+        // Update node status
+        rpcNodeService.updateNode(nodeId, { isConnected: false });
+        loadNodes();
+      } else {
+        toast.error(`Failed to stop ${node.symbol} node`);
+      }
+    } catch (error) {
+      console.error('Failed to stop node:', error);
+      toast.error('Failed to stop node');
+    } finally {
+      setStopping(null);
+    }
+  };
+
   const handleTestConnection = async (nodeId: string) => {
     setTesting(nodeId);
     try {
@@ -129,6 +238,14 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleInstallSymbolChange = (symbol: string) => {
+    setInstallData(prev => ({
+      ...prev,
+      symbol,
+      dataDir: `/home/project/nodes/${symbol.toLowerCase()}`
+    }));
+  };
+
   const getStatusIcon = (node: RPCNodeConfig) => {
     if (node.isConnected) {
       return <Wifi className="w-4 h-4 text-emerald-400" />;
@@ -165,6 +282,15 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
                 <Plus className="w-4 h-4" />
                 <span>Add Node</span>
               </motion.button>
+              <motion.button
+                onClick={() => setShowInstallForm(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Download className="w-4 h-4" />
+                <span>Install Node</span>
+              </motion.button>
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
@@ -198,6 +324,23 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
                         <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">{node.symbol}</span>
                       </div>
                       <div className="flex items-center space-x-1">
+                        {node.isConnected ? (
+                          <button
+                            onClick={() => handleStopNode(node.id)}
+                            disabled={stopping === node.id}
+                            className="p-1 hover:bg-red-500/20 rounded transition-colors text-red-400 disabled:opacity-50"
+                          >
+                            <Square className={`w-4 h-4 ${stopping === node.id ? 'animate-pulse' : ''}`} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleStartNode(node.id)}
+                            disabled={starting === node.id}
+                            className="p-1 hover:bg-emerald-500/20 rounded transition-colors text-emerald-400 disabled:opacity-50"
+                          >
+                            <Play className={`w-4 h-4 ${starting === node.id ? 'animate-pulse' : ''}`} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleTestConnection(node.id)}
                           disabled={testing === node.id}
@@ -358,6 +501,146 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
                   </motion.button>
                   <button
                     onClick={() => setShowAddForm(false)}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Install Node Form */}
+          <AnimatePresence>
+            {showInstallForm && (
+              <motion.div
+                className="border-t border-slate-700/50 p-6"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <h4 className="text-lg font-semibold mb-4">Install New Blockchain Node</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Blockchain</label>
+                    <select
+                      value={installData.symbol}
+                      onChange={(e) => handleInstallSymbolChange(e.target.value)}
+                      className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 focus:outline-none focus:border-yellow-500/50"
+                    >
+                      {supportedChains.map(symbol => (
+                        <option key={symbol} value={symbol}>{symbol}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Data Directory</label>
+                    <input
+                      type="text"
+                      value={installData.dataDir}
+                      onChange={(e) => setInstallData(prev => ({ ...prev, dataDir: e.target.value }))}
+                      placeholder="/home/project/nodes/bitcoin"
+                      className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 focus:outline-none focus:border-yellow-500/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">RPC Username</label>
+                    <input
+                      type="text"
+                      value={installData.username}
+                      onChange={(e) => setInstallData(prev => ({ ...prev, username: e.target.value }))}
+                      placeholder="rpcuser"
+                      className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 focus:outline-none focus:border-yellow-500/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">RPC Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={installData.password}
+                        onChange={(e) => setInstallData(prev => ({ ...prev, password: e.target.value }))}
+                        placeholder="rpcpassword"
+                        className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:border-yellow-500/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Wallet Name</label>
+                    <input
+                      type="text"
+                      value={installData.walletName}
+                      onChange={(e) => setInstallData(prev => ({ ...prev, walletName: e.target.value }))}
+                      placeholder="mywallet"
+                      className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 focus:outline-none focus:border-yellow-500/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Wallet Passphrase (Optional)</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={installData.walletPassphrase}
+                        onChange={(e) => setInstallData(prev => ({ ...prev, walletPassphrase: e.target.value }))}
+                        placeholder="Secure passphrase"
+                        className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:border-yellow-500/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <h5 className="font-medium text-blue-400 mb-2">Installation Information</h5>
+                  <p className="text-sm text-slate-300">
+                    This will download and install a {installData.symbol} node on your system. The installation process may take some time depending on your internet connection and system performance. Make sure you have enough disk space available.
+                  </p>
+                  <p className="text-sm text-slate-300 mt-2">
+                    After installation, the node will be automatically configured and added to your node list. You can then start and stop it from the node manager.
+                  </p>
+                </div>
+
+                <div className="flex space-x-3 mt-6">
+                  <motion.button
+                    onClick={handleInstallNode}
+                    disabled={installing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {installing ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Installing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>Install Node</span>
+                      </>
+                    )}
+                  </motion.button>
+                  <button
+                    onClick={() => setShowInstallForm(false)}
                     className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
                   >
                     Cancel

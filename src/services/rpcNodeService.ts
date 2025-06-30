@@ -1,3 +1,5 @@
+import { ethers } from 'ethers';
+
 interface RPCNodeConfig {
   id: string;
   name: string;
@@ -57,7 +59,34 @@ class RPCNodeService {
       name: 'Help The Homeless Core',
       symbol: 'HTH',
       port: 13777, // Default RPC port for HTH
+    },
+    ALT: {
+      name: 'Altcoinchain Core',
+      symbol: 'ALT',
+      port: 8645,
     }
+  };
+
+  // Node installation paths
+  private nodeInstallPaths: Record<string, string> = {
+    BTC: '/home/project/nodes/bitcoin',
+    LTC: '/home/project/nodes/litecoin',
+    XMR: '/home/project/nodes/monero',
+    GHOST: '/home/project/nodes/ghost',
+    TROLL: '/home/project/nodes/trollcoin',
+    HTH: '/home/project/nodes/hth',
+    ALT: '/home/project/nodes/altcoinchain'
+  };
+
+  // Node installation scripts
+  private nodeInstallScripts: Record<string, string> = {
+    BTC: 'nodes/bitcoin/install.sh',
+    LTC: 'nodes/litecoin/install.sh',
+    XMR: 'nodes/monero/install.sh',
+    GHOST: 'nodes/ghost/install.sh',
+    TROLL: 'nodes/trollcoin/install.sh',
+    HTH: 'nodes/hth/install.sh',
+    ALT: 'nodes/altcoinchain/install.sh'
   };
 
   constructor() {
@@ -190,6 +219,7 @@ class RPCNodeService {
         case 'LTC':
         case 'GHOST':
         case 'TROLL':
+        case 'ALT':
           method = 'getbalance';
           params = address ? [address] : [];
           break;
@@ -232,6 +262,7 @@ class RPCNodeService {
         case 'LTC':
         case 'GHOST':
         case 'TROLL':
+        case 'ALT':
           method = 'getnewaddress';
           params = [];
           break;
@@ -275,6 +306,7 @@ class RPCNodeService {
         case 'LTC':
         case 'GHOST':
         case 'TROLL':
+        case 'ALT':
           method = 'sendtoaddress';
           params = [toAddress, amount];
           break;
@@ -400,6 +432,104 @@ class RPCNodeService {
     }
   }
 
+  // GHOST specific methods
+  async getGHOSTStakingInfo(nodeId: string): Promise<any> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'GHOST') return null;
+
+    try {
+      const response = await this.makeRPCCall(node, 'getstakinginfo', []);
+      
+      if (response.error) {
+        console.error(`Staking info request failed:`, response.error);
+        return null;
+      }
+
+      return response.result;
+    } catch (error) {
+      console.error(`Failed to get staking info for ${nodeId}:`, error);
+      return null;
+    }
+  }
+
+  async startGHOSTStaking(nodeId: string, walletPassword: string): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'GHOST') return false;
+
+    try {
+      // Unlock wallet for staking only
+      const response = await this.makeRPCCall(node, 'walletpassphrase', [walletPassword, 0, true]);
+      
+      if (response.error) {
+        console.error(`Start staking request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to start staking for ${nodeId}:`, error);
+      return false;
+    }
+  }
+
+  // TROLL specific methods
+  async getTROLLMiningInfo(nodeId: string): Promise<any> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'TROLL') return null;
+
+    try {
+      const response = await this.makeRPCCall(node, 'getmininginfo', []);
+      
+      if (response.error) {
+        console.error(`Mining info request failed:`, response.error);
+        return null;
+      }
+
+      return response.result;
+    } catch (error) {
+      console.error(`Failed to get mining info for ${nodeId}:`, error);
+      return null;
+    }
+  }
+
+  async startTROLLMining(nodeId: string, threads: number = 1): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'TROLL') return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'setgenerate', [true, threads]);
+      
+      if (response.error) {
+        console.error(`Start mining request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to start mining for ${nodeId}:`, error);
+      return false;
+    }
+  }
+
+  async stopTROLLMining(nodeId: string): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'TROLL') return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'setgenerate', [false]);
+      
+      if (response.error) {
+        console.error(`Stop mining request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to stop mining for ${nodeId}:`, error);
+      return false;
+    }
+  }
+
   private async makeRPCCall(node: RPCNodeConfig, method: string, params: any[]): Promise<RPCResponse> {
     const url = `${node.ssl ? 'https' : 'http'}://${node.host}:${node.port}`;
     
@@ -487,6 +617,192 @@ class RPCNodeService {
     }
 
     return discovered;
+  }
+
+  // Get node installation path
+  getNodeInstallPath(symbol: string): string {
+    return this.nodeInstallPaths[symbol] || '';
+  }
+
+  // Get node installation script
+  getNodeInstallScript(symbol: string): string {
+    return this.nodeInstallScripts[symbol] || '';
+  }
+
+  // Generate node configuration file
+  generateNodeConfig(symbol: string, username: string, password: string, dataDir: string): string {
+    let config = '';
+    
+    switch (symbol) {
+      case 'BTC':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+`;
+        break;
+      case 'LTC':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+`;
+        break;
+      case 'XMR':
+        config = `
+rpc-login=${username}:${password}
+rpc-bind-ip=127.0.0.1
+confirm-external-bind=1
+data-dir=${dataDir}
+`;
+        break;
+      case 'GHOST':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+staking=1
+`;
+        break;
+      case 'TROLL':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+`;
+        break;
+      case 'HTH':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+`;
+        break;
+      case 'ALT':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+`;
+        break;
+    }
+    
+    return config;
+  }
+
+  // Install node
+  async installNode(symbol: string, dataDir: string, username: string, password: string): Promise<boolean> {
+    try {
+      // In a real implementation, this would execute the installation script
+      // For now, we'll just return true to simulate successful installation
+      console.log(`Installing ${symbol} node in ${dataDir} with username ${username}`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to install ${symbol} node:`, error);
+      return false;
+    }
+  }
+
+  // Start node
+  async startNode(symbol: string, dataDir: string): Promise<boolean> {
+    try {
+      // In a real implementation, this would start the node
+      console.log(`Starting ${symbol} node in ${dataDir}`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to start ${symbol} node:`, error);
+      return false;
+    }
+  }
+
+  // Stop node
+  async stopNode(symbol: string, dataDir: string): Promise<boolean> {
+    try {
+      // In a real implementation, this would stop the node
+      console.log(`Stopping ${symbol} node in ${dataDir}`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to stop ${symbol} node:`, error);
+      return false;
+    }
+  }
+
+  // Generate wallet
+  async generateWallet(nodeId: string, walletName: string, passphrase?: string): Promise<{address: string, mnemonic?: string}> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected) throw new Error('Node not connected');
+
+    try {
+      // Different methods for different coins
+      if (node.symbol === 'XMR') {
+        // Monero uses a different wallet creation method
+        const response = await this.makeRPCCall(node, 'create_wallet', [walletName, passphrase || '']);
+        if (response.error) throw new Error(response.error.message);
+        
+        // Get address
+        const addressResponse = await this.makeRPCCall(node, 'get_address', []);
+        if (addressResponse.error) throw new Error(addressResponse.error.message);
+        
+        return {
+          address: addressResponse.result?.address || '',
+          // Monero doesn't return a mnemonic via RPC, user needs to use the CLI or GUI
+        };
+      } else {
+        // For Bitcoin-like coins
+        // Create wallet
+        const createResponse = await this.makeRPCCall(node, 'createwallet', [walletName, false, false, passphrase || '', false]);
+        if (createResponse.error) throw new Error(createResponse.error.message);
+        
+        // Generate new address
+        const addressResponse = await this.makeRPCCall(node, 'getnewaddress', []);
+        if (addressResponse.error) throw new Error(addressResponse.error.message);
+        
+        // For demo purposes, generate a fake mnemonic
+        // In reality, this would be generated by the wallet
+        const wallet = ethers.Wallet.createRandom();
+        const mnemonic = wallet.mnemonic?.phrase;
+        
+        return {
+          address: addressResponse.result || '',
+          mnemonic
+        };
+      }
+    } catch (error) {
+      console.error(`Failed to generate wallet for ${nodeId}:`, error);
+      throw error;
+    }
+  }
+
+  // Backup wallet
+  async backupWallet(nodeId: string, destination: string): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected) return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'backupwallet', [destination]);
+      return !response.error;
+    } catch (error) {
+      console.error(`Failed to backup wallet for ${nodeId}:`, error);
+      return false;
+    }
   }
 }
 

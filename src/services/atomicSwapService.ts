@@ -498,6 +498,8 @@ class AtomicSwapService {
         return 'TRoLLcoinCcHUDSrh1Jb6QgFiEMfKxG4VM';
       case 'HTH':
         return 'HelpThehomeLesS1Jb6QgFiEMfKxG4VM';
+      case 'RTM':
+        return 'RDLxkVuFY3LdFMJXuZJPXrH3GLJqFSYjMg';
       default:
         return '0x742d35Cc23c3a684194D92Bb99c8b77C7516E6Db';
     }
@@ -512,6 +514,7 @@ class AtomicSwapService {
       case 'GHOST': return 3;
       case 'TROLL': return 4;
       case 'HTH': return 5;
+      case 'RTM': return 6;
       default: return 0;
     }
   }
@@ -525,6 +528,7 @@ class AtomicSwapService {
       case 'GHOST': return 8;
       case 'TROLL': return 8;
       case 'HTH': return 8;
+      case 'RTM': return 8;
       default: return 8;
     }
   }
@@ -599,6 +603,20 @@ class AtomicSwapService {
         status: 'expired',
         createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
         expiresAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: '0x567890123abcdef567890123abcdef567890123abcdef567890123abcdef5678',
+        maker: '0xabc0123456789abcdef0123456789abcdef01234',
+        type: 'buy',
+        sendToken: 'RTM',
+        receiveToken: 'BTC',
+        sendAmount: '10000',
+        receiveAmount: '0.05',
+        rate: '0.000005',
+        timelock: '4 hours',
+        status: 'active',
+        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000)
       }
     ];
   }

@@ -34,6 +34,7 @@ mkdir -p "$NODES_DIR/ghost"
 mkdir -p "$NODES_DIR/trollcoin"
 mkdir -p "$NODES_DIR/hth"
 mkdir -p "$NODES_DIR/altcoinchain"
+mkdir -p "$NODES_DIR/raptoreum"
 
 # Make installation scripts executable
 chmod +x "$NODES_DIR/bitcoin/install.sh"
@@ -43,6 +44,7 @@ chmod +x "$NODES_DIR/ghost/install.sh"
 chmod +x "$NODES_DIR/trollcoin/install.sh"
 chmod +x "$NODES_DIR/hth/install.sh"
 chmod +x "$NODES_DIR/altcoinchain/install.sh"
+chmod +x "$NODES_DIR/raptoreum/install.sh"
 
 # Start the application
 echo "Starting WATTxchange..."

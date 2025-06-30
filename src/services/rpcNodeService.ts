@@ -64,6 +64,11 @@ class RPCNodeService {
       name: 'Altcoinchain Core',
       symbol: 'ALT',
       port: 8645,
+    },
+    RTM: {
+      name: 'Raptoreum Core',
+      symbol: 'RTM',
+      port: 9998, // Default RPC port for Raptoreum
     }
   };
 
@@ -75,7 +80,8 @@ class RPCNodeService {
     GHOST: '/home/project/nodes/ghost',
     TROLL: '/home/project/nodes/trollcoin',
     HTH: '/home/project/nodes/hth',
-    ALT: '/home/project/nodes/altcoinchain'
+    ALT: '/home/project/nodes/altcoinchain',
+    RTM: '/home/project/nodes/raptoreum'
   };
 
   // Node installation scripts
@@ -86,7 +92,8 @@ class RPCNodeService {
     GHOST: 'nodes/ghost/install.sh',
     TROLL: 'nodes/trollcoin/install.sh',
     HTH: 'nodes/hth/install.sh',
-    ALT: 'nodes/altcoinchain/install.sh'
+    ALT: 'nodes/altcoinchain/install.sh',
+    RTM: 'nodes/raptoreum/install.sh'
   };
 
   constructor() {
@@ -220,6 +227,7 @@ class RPCNodeService {
         case 'GHOST':
         case 'TROLL':
         case 'ALT':
+        case 'RTM':
           method = 'getbalance';
           params = address ? [address] : [];
           break;
@@ -263,6 +271,7 @@ class RPCNodeService {
         case 'GHOST':
         case 'TROLL':
         case 'ALT':
+        case 'RTM':
           method = 'getnewaddress';
           params = [];
           break;
@@ -307,6 +316,7 @@ class RPCNodeService {
         case 'GHOST':
         case 'TROLL':
         case 'ALT':
+        case 'RTM':
           method = 'sendtoaddress';
           params = [toAddress, amount];
           break;
@@ -530,6 +540,83 @@ class RPCNodeService {
     }
   }
 
+  // Raptoreum specific methods
+  async getRTMSmartNodeStatus(nodeId: string): Promise<any> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'RTM') return null;
+
+    try {
+      const response = await this.makeRPCCall(node, 'smartnode', ['status']);
+      
+      if (response.error) {
+        console.error(`Smartnode status request failed:`, response.error);
+        return null;
+      }
+
+      return response.result;
+    } catch (error) {
+      console.error(`Failed to get smartnode status for ${nodeId}:`, error);
+      return null;
+    }
+  }
+
+  async getRTMMiningInfo(nodeId: string): Promise<any> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'RTM') return null;
+
+    try {
+      const response = await this.makeRPCCall(node, 'getmininginfo', []);
+      
+      if (response.error) {
+        console.error(`Mining info request failed:`, response.error);
+        return null;
+      }
+
+      return response.result;
+    } catch (error) {
+      console.error(`Failed to get mining info for ${nodeId}:`, error);
+      return null;
+    }
+  }
+
+  async startRTMMining(nodeId: string, threads: number = 1): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'RTM') return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'setgenerate', [true, threads]);
+      
+      if (response.error) {
+        console.error(`Start mining request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to start mining for ${nodeId}:`, error);
+      return false;
+    }
+  }
+
+  async stopRTMMining(nodeId: string): Promise<boolean> {
+    const node = this.nodes.get(nodeId);
+    if (!node || !node.isConnected || node.symbol !== 'RTM') return false;
+
+    try {
+      const response = await this.makeRPCCall(node, 'setgenerate', [false]);
+      
+      if (response.error) {
+        console.error(`Stop mining request failed:`, response.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to stop mining for ${nodeId}:`, error);
+      return false;
+    }
+  }
+
   private async makeRPCCall(node: RPCNodeConfig, method: string, params: any[]): Promise<RPCResponse> {
     const url = `${node.ssl ? 'https' : 'http'}://${node.host}:${node.port}`;
     
@@ -694,6 +781,16 @@ datadir=${dataDir}
 `;
         break;
       case 'ALT':
+        config = `
+server=1
+daemon=1
+rpcuser=${username}
+rpcpassword=${password}
+rpcallowip=127.0.0.1
+datadir=${dataDir}
+`;
+        break;
+      case 'RTM':
         config = `
 server=1
 daemon=1

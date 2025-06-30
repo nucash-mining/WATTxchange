@@ -28,7 +28,7 @@ const WalletView: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const { isConnected, address, chainId, altBalance, wattBalance, refreshBalances } = useWallet();
   
-  // Fetch prices for all supported cryptocurrencies including GHOST, TROLL and HTH
+  // Fetch prices for all supported cryptocurrencies including GHOST, TROLL, HTH, and RTM
   const { 
     prices, 
     loading: pricesLoading, 
@@ -39,7 +39,7 @@ const WalletView: React.FC = () => {
     lastUpdated,
     apiConnected,
     getTotalValue
-  } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL', 'HTH']);
+  } = usePrices(['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL', 'HTH', 'RTM']);
 
   useEffect(() => {
     // Check if wallet service is already initialized
@@ -153,6 +153,15 @@ const WalletView: React.FC = () => {
       balance: '0.000000',
       icon: () => <img src="/HTH logo.webp" alt="HTH" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-green-600 to-yellow-500',
+      nodeType: 'rpc' as const,
+      syncStatus: 'disconnected' as const
+    },
+    {
+      name: 'Raptoreum',
+      symbol: 'RTM',
+      balance: '0.000000',
+      icon: () => <img src="/RTM logo.png" alt="RTM" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      color: 'from-red-600 to-orange-600',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
     }
@@ -330,7 +339,7 @@ const WalletView: React.FC = () => {
           <div className="flex items-center space-x-2">
             <Server className="w-5 h-5 text-blue-400" />
             <p className="text-blue-400 font-medium">
-              UTXO chains (BTC, LTC, XMR, GHOST, TROLL, HTH) require RPC node connections for balance and transaction management
+              UTXO chains (BTC, LTC, XMR, GHOST, TROLL, HTH, RTM) require RPC node connections for balance and transaction management
             </p>
           </div>
         </motion.div>

@@ -36,7 +36,7 @@ const RPCNodeManager: React.FC<RPCNodeManagerProps> = ({ isOpen, onClose }) => {
   const [starting, setStarting] = useState<string | null>(null);
   const [stopping, setStopping] = useState<string | null>(null);
 
-  const supportedChains = ['BTC', 'LTC', 'XMR', 'GHOST', 'TROLL', 'HTH', 'ALT'];
+  const supportedChains = ['BTC', 'LTC', 'XMR', 'GHOST', 'TROLL', 'HTH', 'ALT', 'RTM'];
 
   useEffect(() => {
     if (isOpen) {

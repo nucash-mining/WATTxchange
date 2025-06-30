@@ -60,6 +60,15 @@ class TokenService {
         chainId: 1
       },
       {
+        symbol: 'wRTM',
+        name: 'Wrapped Raptoreum',
+        address: '0x7C28F627eA3aEc8B882b51eb1935f66e5b875714',
+        decimals: 8,
+        logo: '/RTM logo.png',
+        isNative: false,
+        chainId: 1
+      },
+      {
         symbol: 'USDT',
         name: 'Tether USD',
         address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
@@ -196,6 +205,15 @@ class TokenService {
         chainId: 2330
       },
       {
+        symbol: 'wRTM',
+        name: 'Wrapped Raptoreum',
+        address: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7',
+        decimals: 8,
+        logo: '/RTM logo.png',
+        isNative: false,
+        chainId: 2330
+      },
+      {
         symbol: 'USDT',
         name: 'Tether USD',
         address: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7',
@@ -242,6 +260,15 @@ class TokenService {
         chainId: 137
       },
       {
+        symbol: 'wRTM',
+        name: 'Wrapped Raptoreum',
+        address: '0x7C28F627eA3aEc8B882b51eb1935f66e5b875714',
+        decimals: 8,
+        logo: '/RTM logo.png',
+        isNative: false,
+        chainId: 137
+      },
+      {
         symbol: 'USDT',
         name: 'Tether USD',
         address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
@@ -258,6 +285,15 @@ class TokenService {
         logo: '/DAI logo.png',
         isNative: false,
         chainId: 137
+      }
+    ],
+    RTM: [
+      {
+        symbol: 'RTM',
+        name: 'Raptoreum',
+        decimals: 8,
+        logo: '/RTM logo.png',
+        isNative: true
       }
     ]
   };

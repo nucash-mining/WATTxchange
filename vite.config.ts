@@ -4,10 +4,27 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    global: 'globalThis',
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    target: 'es2015',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['framer-motion', 'react-hot-toast'],
+          web3: ['ethers', 'web3'],
+        },
+      },
+    },
+  },
   server: {
+    host: '0.0.0.0',
+    port: 5173,
     hmr: {
       overlay: false
     },

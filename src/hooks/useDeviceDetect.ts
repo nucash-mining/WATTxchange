@@ -25,8 +25,8 @@ export const useDeviceDetect = (): DeviceInfo => {
     isRainbow: false,
     isWalletConnect: false,
     orientation: 'landscape',
-    screenWidth: typeof window !== 'undefined' ? window.innerWidth : 1920,
-    screenHeight: typeof window !== 'undefined' ? window.innerHeight : 1080
+    screenWidth: typeof window !== 'undefined' ? window.innerWidth : 375,
+    screenHeight: typeof window !== 'undefined' ? window.innerHeight : 812
   });
 
   useEffect(() => {
@@ -38,10 +38,10 @@ export const useDeviceDetect = (): DeviceInfo => {
       const height = window.innerHeight;
       
       // Detect mobile devices
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i.test(userAgent) || width <= 768;
       
       // Detect tablets (typically have larger screens than phones)
-      const isTablet = isMobileDevice && Math.min(width, height) > 480;
+      const isTablet = isMobileDevice && Math.min(width, height) > 600 && Math.max(width, height) > 900;
       
       // Detect mobile wallets
       const ethereum = window.ethereum;
@@ -52,15 +52,15 @@ export const useDeviceDetect = (): DeviceInfo => {
       
       // Detect if we're in a mobile wallet browser
       const isMobileWallet = (isMetaMask || isTrustWallet || isRainbow || isWalletConnect) && 
-                            (isMobileDevice || width < 768);
+                            (isMobileDevice || width <= 768);
       
       // Determine orientation
       const orientation = width > height ? 'landscape' : 'portrait';
       
       setDeviceInfo({
-        isMobile: isMobileDevice && !isTablet,
+        isMobile: isMobileDevice && !isTablet || width <= 768,
         isTablet,
-        isDesktop: !isMobileDevice && !isTablet,
+        isDesktop: !isMobileDevice && !isTablet && width > 768,
         isMobileWallet,
         isMetaMask,
         isTrustWallet,
@@ -74,9 +74,11 @@ export const useDeviceDetect = (): DeviceInfo => {
 
     detectDevice();
     window.addEventListener('resize', detectDevice);
+    window.addEventListener('orientationchange', detectDevice);
     
     return () => {
       window.removeEventListener('resize', detectDevice);
+      window.removeEventListener('orientationchange', detectDevice);
     };
   }, []);
 

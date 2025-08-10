@@ -21,6 +21,7 @@ A comprehensive multi-chain DeFi platform featuring blockchain node management, 
 - Node.js 18+ and npm
 - MetaMask or compatible Web3 wallet
 - Git
+- For Android development: Android Studio and Java 11+
 
 ### Installation
 
@@ -37,6 +38,42 @@ npm run dev
 ```
 
 The application will be available at `http://localhost:5173`
+
+### Mobile Development
+
+#### PWA (Progressive Web App)
+The app is optimized for mobile browsers and can be installed as a PWA:
+1. Open https://wattxchange.app in your mobile browser
+2. Tap "Add to Home Screen" when prompted
+3. The app will install like a native app
+
+#### Android APK Build
+
+```bash
+# Build for Android (requires Android Studio)
+npm run build:android
+
+# Development build
+npm run android:dev
+
+# Production APK build
+npm run android:build
+
+# Sync changes to Android
+npm run android:sync
+```
+
+**Android Requirements:**
+- Android Studio 2022.3.1 or later
+- Android SDK 34
+- Java 11 or later
+- Gradle 8.2.1
+
+**APK Installation:**
+1. Enable "Unknown Sources" in Android Settings
+2. Download the APK from the releases page
+3. Install the APK file
+4. Launch WATTxchange from your app drawer
 
 ## 🔗 Supported Networks
 

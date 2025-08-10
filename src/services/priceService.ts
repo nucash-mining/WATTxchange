@@ -90,6 +90,7 @@ class PriceService {
         'TROLL': 'trollcoin',
         'HTH': 'help-the-homeless',
         'RTM': 'raptoreum'
+        'RTM': 'raptoreum'
       }
     },
     coinPaprika: {
@@ -104,6 +105,7 @@ class PriceService {
         'GHOST': 'ghost-ghost',
         'TROLL': 'troll-trollcoin',
         'HTH': 'hth-help-the-homeless',
+        'RTM': 'rtm-raptoreum'
         'RTM': 'rtm-raptoreum'
       }
     },
@@ -128,6 +130,7 @@ class PriceService {
     GHOST: { symbol: 'GHOST', price: 2.25, changePercent24h: 7.1, volume24h: 125000, marketCap: 45000000 },
     TROLL: { symbol: 'TROLL', price: 0.000045, changePercent24h: 7.1, volume24h: 2500000, marketCap: 900000 },
     HTH: { symbol: 'HTH', price: 0.00012, changePercent24h: 3.5, volume24h: 150000, marketCap: 1200000 },
+    RTM: { symbol: 'RTM', price: 0.00085, changePercent24h: 2.8, volume24h: 350000, marketCap: 8500000 }
     RTM: { symbol: 'RTM', price: 0.00085, changePercent24h: 2.8, volume24h: 350000, marketCap: 8500000 }
   };
 

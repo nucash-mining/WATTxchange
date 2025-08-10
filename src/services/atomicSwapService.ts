@@ -500,6 +500,8 @@ class AtomicSwapService {
         return 'HelpThehomeLesS1Jb6QgFiEMfKxG4VM';
       case 'RTM':
         return 'RDLxkVuFY3LdFMJXuZJPXrH3GLJqFSYjMg';
+      case 'RTM':
+        return 'RDLxkVuFY3LdFMJXuZJPXrH3GLJqFSYjMg';
       default:
         return '0x742d35Cc23c3a684194D92Bb99c8b77C7516E6Db';
     }
@@ -515,6 +517,7 @@ class AtomicSwapService {
       case 'TROLL': return 4;
       case 'HTH': return 5;
       case 'RTM': return 6;
+      case 'RTM': return 6;
       default: return 0;
     }
   }
@@ -528,6 +531,7 @@ class AtomicSwapService {
       case 'GHOST': return 8;
       case 'TROLL': return 8;
       case 'HTH': return 8;
+      case 'RTM': return 8;
       case 'RTM': return 8;
       default: return 8;
     }

@@ -6,7 +6,7 @@ import RPCNodeManager from './wallet/RPCNodeManager';
 import toast from 'react-hot-toast';
 
 const NodesView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'bitcoin' | 'ethereum' | 'litecoin' | 'monero' | 'altcoin' | 'ghost' | 'troll' | 'hth'>('bitcoin');
+  const [activeTab, setActiveTab] = useState<'bitcoin' | 'ethereum' | 'litecoin' | 'monero' | 'altcoin' | 'ghost' | 'troll' | 'hth' | 'raptoreum'>('bitcoin');
   const [showNodeManager, setShowNodeManager] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [nodeStatus, setNodeStatus] = useState<Record<string, { running: boolean; syncing: boolean; blockHeight: number; connections: number; lastBlock: Date }>>({
@@ -17,7 +17,8 @@ const NodesView: React.FC = () => {
     altcoin: { running: true, syncing: false, blockHeight: 1234567, connections: 6, lastBlock: new Date(Date.now() - 2 * 60 * 1000) },
     ghost: { running: true, syncing: false, blockHeight: 987654, connections: 5, lastBlock: new Date(Date.now() - 15 * 60 * 1000) },
     troll: { running: false, syncing: false, blockHeight: 456789, connections: 0, lastBlock: new Date(Date.now() - 5 * 60 * 60 * 1000) },
-    hth: { running: true, syncing: false, blockHeight: 789123, connections: 7, lastBlock: new Date(Date.now() - 8 * 60 * 1000) }
+    hth: { running: true, syncing: false, blockHeight: 789123, connections: 7, lastBlock: new Date(Date.now() - 8 * 60 * 1000) },
+    raptoreum: { running: false, syncing: false, blockHeight: 1234567, connections: 0, lastBlock: new Date(Date.now() - 2 * 60 * 60 * 1000) }
   });
 
   const handleRefresh = async () => {
@@ -75,6 +76,8 @@ const NodesView: React.FC = () => {
         return <img src="/TROLL logo.png" alt="Trollcoin" className="w-6 h-6" />;
       case 'hth':
         return <img src="/HTH logo.webp" alt="Help The Homeless" className="w-6 h-6" />;
+      case 'raptoreum':
+        return <img src="/RTM logo.png" alt="Raptoreum" className="w-6 h-6" />;
       default:
         return <Server className="w-6 h-6" />;
     }
@@ -91,6 +94,7 @@ const NodesView: React.FC = () => {
       case 'altcoin':
       case 'troll':
       case 'hth':
+      case 'raptoreum':
         return { type: 'PoW', icon: <Cpu className="w-4 h-4 text-orange-400" /> };
       default:
         return { type: 'Unknown', icon: <Activity className="w-4 h-4 text-gray-400" /> };
@@ -211,6 +215,20 @@ const NodesView: React.FC = () => {
             network: '5 Mbps'
           }
         };
+      case 'raptoreum':
+        return {
+          name: 'Raptoreum Core',
+          version: 'v1.3.17.02',
+          dataDir: '~/.raptoreum',
+          rpcPort: 9998,
+          p2pPort: 9999,
+          minRequirements: {
+            storage: '50 GB SSD',
+            memory: '4 GB RAM',
+            cpu: '2 cores',
+            network: '10 Mbps'
+          }
+        };
       default:
         return {
           name: 'Unknown Node',
@@ -283,7 +301,7 @@ const NodesView: React.FC = () => {
 
       {/* Node Selection Tabs */}
       <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-        {['bitcoin', 'ethereum', 'litecoin', 'monero', 'altcoin', 'ghost', 'troll', 'hth'].map((node) => (
+        {['bitcoin', 'ethereum', 'litecoin', 'monero', 'altcoin', 'ghost', 'troll', 'hth', 'raptoreum'].map((node) => (
           <motion.button
             key={node}
             onClick={() => setActiveTab(node as any)}
@@ -298,7 +316,7 @@ const NodesView: React.FC = () => {
             <span className="w-6 h-6 flex items-center justify-center">
               {getNodeIcon(node)}
             </span>
-            <span className="capitalize">{node === 'hth' ? 'HTH' : node}</span>
+            <span className="capitalize">{node === 'hth' ? 'HTH' : node === 'raptoreum' ? 'RTM' : node}</span>
             <div className={`w-2 h-2 rounded-full ${nodeStatus[node].running ? 'bg-emerald-400' : 'bg-red-400'}`}></div>
           </motion.button>
         ))}
@@ -572,6 +590,45 @@ const NodesView: React.FC = () => {
             </div>
           )}
 
+          {/* Raptoreum Specific Information */}
+          {activeTab === 'raptoreum' && (
+            <div className="mt-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <h4 className="font-medium text-red-400 mb-3">Raptoreum Proof-of-Work Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Consensus:</span>
+                    <span className="text-red-400">Proof-of-Work</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Algorithm:</span>
+                    <span>GhostRider</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Block Time:</span>
+                    <span>120 seconds</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Mining Status:</span>
+                    <span className={nodeStatus.raptoreum.running ? 'text-emerald-400' : 'text-red-400'}>
+                      {nodeStatus.raptoreum.running ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">SmartNodes:</span>
+                    <span>Supported</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Assets:</span>
+                    <span>Enabled</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Node Management */}
           <div className="mt-6">
             <h4 className="font-medium text-yellow-400 mb-3">Node Management</h4>
@@ -625,7 +682,8 @@ const NodesView: React.FC = () => {
                        activeTab === 'altcoin' ? '45 GB' : 
                        activeTab === 'ghost' ? '15 GB' : 
                        activeTab === 'troll' ? '5 GB' : 
-                       activeTab === 'hth' ? '8 GB' : '0 GB'}
+                       activeTab === 'hth' ? '8 GB' : 
+                       activeTab === 'raptoreum' ? '50 GB' : '0 GB'}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -634,7 +692,7 @@ const NodesView: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Database Engine:</span>
-                    <span>LevelDB</span>
+                    <span>{activeTab === 'raptoreum' ? 'Berkeley DB' : 'LevelDB'}</span>
                   </div>
                 </div>
               </div>
@@ -685,7 +743,8 @@ const NodesView: React.FC = () => {
                                                             activeTab === 'altcoin' ? 'altcoin-cli' :
                                                             activeTab === 'ghost' ? 'ghost-cli' :
                                                             activeTab === 'troll' ? 'trollcoind' :
-                                                            activeTab === 'hth' ? 'helpthehomeless-cli' : 'node-cli'} getblockchaininfo
+                                                            activeTab === 'hth' ? 'helpthehomeless-cli' :
+                                                            activeTab === 'raptoreum' ? 'raptoreum-cli' : 'node-cli'} getblockchaininfo
               </div>
               <div className="bg-slate-900/50 rounded p-2">
                 <span className="text-emerald-400">$</span> {activeTab === 'bitcoin' ? 'bitcoin-cli' : 
@@ -695,7 +754,8 @@ const NodesView: React.FC = () => {
                                                             activeTab === 'altcoin' ? 'altcoin-cli' :
                                                             activeTab === 'ghost' ? 'ghost-cli' :
                                                             activeTab === 'troll' ? 'trollcoind' :
-                                                            activeTab === 'hth' ? 'helpthehomeless-cli' : 'node-cli'} getnetworkinfo
+                                                            activeTab === 'hth' ? 'helpthehomeless-cli' :
+                                                            activeTab === 'raptoreum' ? 'raptoreum-cli' : 'node-cli'} getnetworkinfo
               </div>
               <div className="bg-slate-900/50 rounded p-2">
                 <span className="text-emerald-400">$</span> {activeTab === 'bitcoin' ? 'bitcoin-cli' : 
@@ -705,7 +765,8 @@ const NodesView: React.FC = () => {
                                                             activeTab === 'altcoin' ? 'altcoin-cli' :
                                                             activeTab === 'ghost' ? 'ghost-cli' :
                                                             activeTab === 'troll' ? 'trollcoind' :
-                                                            activeTab === 'hth' ? 'helpthehomeless-cli' : 'node-cli'} getpeerinfo
+                                                            activeTab === 'hth' ? 'helpthehomeless-cli' :
+                                                            activeTab === 'raptoreum' ? 'raptoreum-cli' : 'node-cli'} getpeerinfo
               </div>
             </div>
           </div>
@@ -746,7 +807,18 @@ const NodesView: React.FC = () => {
                 </>
               )}
               
-              {(activeTab !== 'ghost' && activeTab !== 'troll' && activeTab !== 'hth') && (
+              {activeTab === 'raptoreum' && (
+                <>
+                  <div className="bg-slate-900/50 rounded p-2">
+                    <span className="text-emerald-400">$</span> raptoreum-cli getmininginfo
+                  </div>
+                  <div className="bg-slate-900/50 rounded p-2">
+                    <span className="text-emerald-400">$</span> raptoreum-cli smartnode status
+                  </div>
+                </>
+              )}
+              
+              {(activeTab !== 'ghost' && activeTab !== 'troll' && activeTab !== 'hth' && activeTab !== 'raptoreum') && (
                 <>
                   <div className="bg-slate-900/50 rounded p-2">
                     <span className="text-emerald-400">$</span> {activeTab === 'bitcoin' ? 'bitcoin-cli' : 
@@ -760,7 +832,8 @@ const NodesView: React.FC = () => {
                                                               activeTab === 'ethereum' ? 'geth' :
                                                               activeTab === 'litecoin' ? 'litecoin-cli' :
                                                               activeTab === 'monero' ? 'monerod' :
-                                                              activeTab === 'altcoin' ? 'altcoin-cli' : 'node-cli'} getwalletinfo
+                                                              activeTab === 'altcoin' ? 'altcoin-cli' :
+                                                              activeTab === 'raptoreum' ? 'raptoreum-cli' : 'node-cli'} getwalletinfo
                   </div>
                 </>
               )}

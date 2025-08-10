@@ -160,7 +160,7 @@ const WalletView: React.FC = () => {
       name: 'Raptoreum',
       symbol: 'RTM',
       balance: '0.000000',
-      icon: () => <img src="/RTM logo.png" alt="RTM" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src="/RTM logo.png" alt="RTM" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain rounded-full`} />,
       color: 'from-red-600 to-orange-600',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const

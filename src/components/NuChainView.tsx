@@ -5,9 +5,10 @@ import NuChainDashboard from './nuchain/NuChainDashboard';
 import ValidatorNodes from './nuchain/ValidatorNodes';
 import MiningPools from './nuchain/MiningPools';
 import NFTMiningRigs from './nuchain/NFTMiningRigs';
+import NodeRewardDashboard from './nuchain/NodeRewardDashboard';
 
 const NuChainView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'validators' | 'pools' | 'rigs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
 
   const stats = [
     {
@@ -101,6 +102,16 @@ const NuChainView: React.FC = () => {
           >
             NFT Rigs
           </button>
+          <button
+            onClick={() => setActiveTab('rewards')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'rewards'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Node Rewards
+          </button>
         </div>
       </motion.div>
 
@@ -191,6 +202,7 @@ const NuChainView: React.FC = () => {
         {activeTab === 'validators' && <ValidatorNodes />}
         {activeTab === 'pools' && <MiningPools />}
         {activeTab === 'rigs' && <NFTMiningRigs />}
+        {activeTab === 'rewards' && <NodeRewardDashboard />}
       </motion.div>
     </div>
   );

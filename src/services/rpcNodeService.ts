@@ -87,7 +87,6 @@ class RPCNodeService {
     HTH: '/home/project/nodes/hth',
     ALT: '/home/project/nodes/altcoinchain',
     RTM: '/home/project/nodes/raptoreum'
-    RTM: '/home/project/nodes/raptoreum'
   };
 
   // Node installation scripts
@@ -99,7 +98,6 @@ class RPCNodeService {
     TROLL: 'nodes/trollcoin/install.sh',
     HTH: 'nodes/hth/install.sh',
     ALT: 'nodes/altcoinchain/install.sh',
-    RTM: 'nodes/raptoreum/install.sh'
     RTM: 'nodes/raptoreum/install.sh'
   };
 

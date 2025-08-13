@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, MemoryStick as Memory, HardDrive, Zap, Clock, AlertCircle, Check, Wallet, Calculator, TrendingUp } from 'lucide-react';
+import { Cpu, MemoryStick as Memory, HardDrive, Zap, Clock, AlertCircle, Check, Wallet, Calculator, TrendingUp, Monitor } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
@@ -312,20 +312,6 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
             return nft;
           }
         }
-          return nft;
-        }
-        
-        // Check if we're trying to select more than one Processor
-        if (nft.type === 'CPU' && nfts.some(n => n.type === 'CPU' && n.selected)) {
-          toast.error('Only one Processor allowed');
-          return nft;
-        }
-        
-        // Check if we're trying to select more than two GPUs
-        if (nft.type === 'GPU' && nfts.filter(n => n.type === 'GPU' && n.selected).length >= 2) {
-          toast.error('Maximum 2 GPUs allowed');
-          return nft;
-        }
         
         // Check if we're trying to select more than one Boost Item
         if (nft.type === 'Boost Item' && nfts.some(n => n.type === 'Boost Item' && n.selected)) {
@@ -347,6 +333,7 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
     const hasPCCase = selectedComponents.some(nft => nft.type === 'PC Case' && nft.id === 1);
     const hasCPU = selectedComponents.some(nft => nft.type === 'CPU' && nft.id === 3);
     const gpuCount = selectedComponents.filter(nft => nft.type === 'GPU' && (nft.id === 4 || nft.id === 5)).length;
+    const hasGenesisBadge = selectedComponents.some(nft => nft.type === 'Boost Item' && nft.id === 2);
     
     // Calculate performance
     let baseHashRate = 100; // Base hash rate in MH/s
@@ -384,6 +371,11 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
     // Convert power consumption in watts to WATT tokens per hour
     // Using the specified rate: 713633.13824723 WATT/hour
     return powerConsumption * 713633.13824723;
+  };
+
+  const calculateWattPerBlock = (powerConsumption: number) => {
+    // Convert power consumption in watts to WATT tokens per block
+    return calculateWattPerHour(powerConsumption) / 3600; // 3600 seconds per hour
   };
 
   const handleCreateRig = async () => {

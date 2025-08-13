@@ -152,7 +152,7 @@ const NuChainView: React.FC = () => {
             <Zap className="w-6 h-6 text-purple-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-purple-400 mb-2">nuChain Architecture</h3>
+            <h3 className="text-lg font-semibold text-purple-400 mb-2">nuChain L2 Architecture (Chain ID: 2331)</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="bg-slate-800/50 rounded-lg p-4">
                 <h4 className="font-semibold text-blue-400 mb-2">⚡ Sonic Labs Layer</h4>
@@ -177,15 +177,16 @@ const NuChainView: React.FC = () => {
                 <ul className="text-sm text-slate-300 space-y-1">
                   <li>• Hardware component NFTs</li>
                   <li>• Virtual mining pools</li>
-                  <li>• WATT token rewards</li>
-                  <li>• Genesis Badge boosts</li>
+                  <li>• WATT token consumption</li>
+                  <li>• NU token rewards</li>
                 </ul>
               </div>
             </div>
             <div className="text-xs text-slate-400 space-y-1">
-              <p>• Validator Contract: 0x... (To be deployed)</p>
-              <p>• Mining Pool Factory: 0x... (To be deployed)</p>
-              <p>• NU Token Contract: 0x... (To be deployed)</p>
+              <p>• Chain ID: 2331 (nuChain L2 zkRollup)</p>
+              <p>• RPC: https://rpc.nuchain.network</p>
+              <p>• Explorer: https://explorer.nuchain.network</p>
+              <p>• WATT Destination: 0x7069C4CEC0972D2f5FA8E6886e438656D6e6f23b</p>
             </div>
           </div>
         </div>

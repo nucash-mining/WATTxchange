@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Code, Reply as Deploy, CheckCircle, AlertCircle, ExternalLink, Copy } from 'lucide-react';
 import { contractService } from '../../services/contractService';
+import CrossChainDeployment from './CrossChainDeployment';
 import toast from 'react-hot-toast';
 
 const ContractDeployment: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'single' | 'crosschain'>('crosschain');
   const [deploymentStatus, setDeploymentStatus] = useState<Record<string, 'pending' | 'deploying' | 'deployed' | 'failed'>>({
     nuToken: 'pending',
     validator: 'pending',
@@ -23,7 +25,7 @@ const ContractDeployment: React.FC = () => {
 
   const contracts = [
     {
-      id: 'nuToken', 
+      id: 'nuToken',
       name: 'NU Token',
       description: 'Native token for nuChain L2 network',
       dependencies: [],
@@ -55,12 +57,28 @@ const ContractDeployment: React.FC = () => {
       icon: '🔗'
     },
     {
-      id: 'nuChainL2',
-      name: 'nuChain L2',
-      description: 'zkRollup L2 for cross-chain mining coordination',
-      dependencies: ['nuToken', 'crossChainValidator'],
+      id: 'nuChainCore',
+      name: 'nuChain L2 Core',
+      description: 'zkRollup L2 core with Sonic Labs integration (Chain ID: 2331)',
+      dependencies: ['nuToken'],
       gasEstimate: '6,100,000',
       icon: '🌉'
+    },
+    {
+      id: 'validatorContract',
+      name: 'Validator Contract',
+      description: 'PoS validator staking and delegation',
+      dependencies: ['nuToken'],
+      gasEstimate: '4,200,000',
+      icon: '🛡️'
+    },
+    {
+      id: 'zkRollupBridge',
+      name: 'zkRollup Bridge',
+      description: 'Cross-chain zkProof validation bridge',
+      dependencies: ['nuChainCore'],
+      gasEstimate: '5,500,000',
+      icon: '🌐'
     }
   ];
 
@@ -138,6 +156,35 @@ const ContractDeployment: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
+        <button
+          onClick={() => setActiveTab('crosschain')}
+          className={`px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'crosschain'
+              ? 'bg-purple-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Cross-Chain Deployment
+        </button>
+        <button
+          onClick={() => setActiveTab('single')}
+          className={`px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'single'
+              ? 'bg-purple-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Individual Contracts
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'crosschain' ? (
+        <CrossChainDeployment />
+      ) : (
+        <div className="space-y-6">
       {/* Header */}
       <motion.div
         className="flex items-center justify-between"
@@ -336,6 +383,9 @@ const ContractDeployment: React.FC = () => {
             </div>
           </div>
         </motion.div>
+      )}
+    </div>
+        </div>
       )}
     </div>
   );

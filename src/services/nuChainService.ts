@@ -74,19 +74,19 @@ class NuChainService {
 
   constructor() {
     this.config = {
-      chainId: 2331, // nuChain L2
+      chainId: 2331, // nuChain L2 zkRollup
       chainName: 'nuChain L2',
-      rpcUrl: 'https://rpc.nuchain.network', // To be deployed
-      blockExplorerUrl: 'https://explorer.nuchain.network', // To be deployed
+      rpcUrl: 'https://rpc.nuchain.network',
+      blockExplorerUrl: 'https://explorer.nuchain.network',
       nativeCurrency: {
         name: 'NU Token',
         symbol: 'NU',
         decimals: 18
       },
       contracts: {
-        validator: '0x0000000000000000000000000000000000000000', // To be deployed
-        miningPoolFactory: '0x0000000000000000000000000000000000000000', // To be deployed
-        nuToken: '0x0000000000000000000000000000000000000000', // To be deployed
+        validator: '0x0000000000000000000000000000000000000000', // Will be deployed
+        miningPoolFactory: '0x0000000000000000000000000000000000000000', // Will be deployed
+        nuToken: '0x0000000000000000000000000000000000000000', // Will be deployed
         wattToken: '0x6645143e49B3a15d8F205658903a55E520444698', // Existing WATT on Altcoinchain
         nftMiningRigs: '0x970a8b10147e3459d3cbf56329b76ac18d329728' // Existing NFTs on Polygon
       }

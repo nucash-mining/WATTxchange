@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, MemoryStick as Memory, HardDrive, Zap, Clock, AlertCircle, Check, Wallet } from 'lucide-react';
+import { Cpu, MemoryStick as Memory, HardDrive, Zap, Clock, AlertCircle, Check, Wallet, Calculator, TrendingUp } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
@@ -58,6 +58,11 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
   const [isApproving, setIsApproving] = useState(false);
   const [selectedChain, setSelectedChain] = useState<'polygon' | 'altcoinchain'>('altcoinchain');
 
+  // Real-time WATT usage calculations
+  const [dailyWattUsage, setDailyWattUsage] = useState(0);
+  const [totalWattRequired, setTotalWattRequired] = useState(0);
+  const [estimatedDailyEarnings, setEstimatedDailyEarnings] = useState(0);
+
   // Contract addresses
   const contractAddresses = {
     polygon: {
@@ -79,6 +84,30 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
       loadWattBalance();
     }
   }, [isConnected, provider, address, selectedChain]);
+
+  // Calculate WATT usage when components change
+  useEffect(() => {
+    const selectedComponents = nfts.filter(nft => nft.selected);
+    if (selectedComponents.length > 0) {
+      const performance = calculateRigPerformance();
+      if (performance.valid) {
+        const wattPerBlock = calculateWattPerBlock(performance.powerConsumption);
+        const dailyUsage = wattPerBlock * 86400; // 86400 blocks per day (1 block/second)
+        const totalRequired = dailyUsage * parseFloat(miningDuration || '1') / 24;
+        
+        setDailyWattUsage(dailyUsage);
+        setTotalWattRequired(totalRequired);
+        
+        // Estimate daily earnings based on hash rate (simplified)
+        const dailyEarnings = (performance.hashRate / 1000) * 2.5; // Rough estimate
+        setEstimatedDailyEarnings(dailyEarnings);
+      }
+    } else {
+      setDailyWattUsage(0);
+      setTotalWattRequired(0);
+      setEstimatedDailyEarnings(0);
+    }
+  }, [nfts, miningDuration]);
 
   const loadNFTs = async () => {
     setIsLoadingNFTs(true);
@@ -246,9 +275,43 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
           return { ...nft, selected: false };
         }
         
-        // Check if we're trying to select more than one PC Case
-        if (nft.type === 'PC Case' && nfts.some(n => n.type === 'PC Case' && n.selected)) {
-          toast.error('Only one PC Case allowed');
+        // Validate Free Mint Gaming PC requirement
+        if (nft.type === 'PC Case') {
+          if (nft.id !== 1) {
+            toast.error('Must use Free Mint Gaming PC (Token ID 1)');
+            return nft;
+          }
+          if (nfts.some(n => n.type === 'PC Case' && n.selected)) {
+            toast.error('Only one PC Case allowed');
+            return nft;
+          }
+        }
+        
+        // Validate XL1 Processor requirement
+        if (nft.type === 'CPU') {
+          if (nft.id !== 3) {
+            toast.error('Must use XL1 Processor (Token ID 3)');
+            return nft;
+          }
+          if (nfts.some(n => n.type === 'CPU' && n.selected)) {
+            toast.error('Only one Processor allowed');
+            return nft;
+          }
+        }
+        
+        // Validate GPU requirements: TX120 (ID 4) or GP50 (ID 5), 1-2 total
+        if (nft.type === 'GPU') {
+          if (nft.id !== 4 && nft.id !== 5) {
+            toast.error('Must use TX120 or GP50 GPU');
+            return nft;
+          }
+          
+          const selectedGPUs = nfts.filter(n => n.type === 'GPU' && n.selected);
+          if (selectedGPUs.length >= 2) {
+            toast.error('Maximum 2 GPUs allowed');
+            return nft;
+          }
+        }
           return nft;
         }
         
@@ -280,29 +343,17 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
     // Get selected NFTs
     const selectedComponents = nfts.filter(nft => nft.selected);
     
-    // Check if we have required components
-    const hasPCCase = selectedComponents.some(nft => nft.type === 'PC Case');
-    const hasCPU = selectedComponents.some(nft => nft.type === 'CPU');
-    
-    if (!hasPCCase || !hasCPU) {
-      return {
-        valid: false,
-        hashRate: 0,
-        powerConsumption: 0,
-        efficiency: 0,
-        error: !hasPCCase ? 'PC Case required' : 'Processor required'
-      };
-    }
+    // Check if we have required components with correct IDs
+    const hasPCCase = selectedComponents.some(nft => nft.type === 'PC Case' && nft.id === 1);
+    const hasCPU = selectedComponents.some(nft => nft.type === 'CPU' && nft.id === 3);
+    const gpuCount = selectedComponents.filter(nft => nft.type === 'GPU' && (nft.id === 4 || nft.id === 5)).length;
     
     // Calculate performance
     let baseHashRate = 100; // Base hash rate in MH/s
-    let powerConsumption = 50; // Base power consumption in watts
-    const hasGenesisBadge = selectedComponents.some(nft => nft.name === 'Genesis Badge');
+    let powerConsumption = 0;
     
-    // First pass: calculate base performance
+    // Calculate performance from selected components
     for (const component of selectedComponents) {
-      if (component.type === 'Boost Item') continue;
-      
       // Add component bonuses
       if (component.hashRate.includes('+') && component.hashRate.includes('%')) {
         const bonus = parseInt(component.hashRate.replace('+', '').replace('%', ''));

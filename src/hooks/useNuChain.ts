@@ -136,12 +136,7 @@ export const useNuChain = () => {
   };
 
   // Mining Pool Operations
-  const createMiningPool = async (
-    name: string,
-    wattAmount: string,
-    feePercentage: number,
-    minPayout: string
-  ): Promise<boolean> => {
+  const createMiningPool = async (name: string): Promise<boolean> => {
     if (!isConnected || !signer) {
       toast.error('Please connect your wallet');
       return false;
@@ -149,7 +144,7 @@ export const useNuChain = () => {
 
     setLoading(true);
     try {
-      const success = await contractService.createMiningPool(name, wattAmount, feePercentage, minPayout);
+      const success = await contractService.createMiningPool(name);
       if (success) {
         toast.success('Mining pool created successfully!');
         await refreshMiningPools();
@@ -292,6 +287,87 @@ export const useNuChain = () => {
     }
   };
 
+  // WATT Deposit Operations
+  const depositWatt = async (rigId: number, amount: string): Promise<boolean> => {
+    if (!isConnected || !signer) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      const success = await contractService.depositWatt(rigId, amount);
+      if (success) {
+        toast.success('WATT deposited successfully!');
+        await refreshMyRigs();
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to deposit WATT:', error);
+      toast.error('Failed to deposit WATT');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Claim Mining Rewards
+  const claimMiningRewards = async (rigId: number): Promise<boolean> => {
+    if (!isConnected || !signer) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      const success = await contractService.claimMiningRewards(rigId);
+      if (success) {
+        toast.success('Mining rewards claimed successfully!');
+        await refreshMyRigs();
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to claim mining rewards:', error);
+      toast.error('Failed to claim mining rewards');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Register Pool Operator
+  const registerPoolOperator = async (): Promise<boolean> => {
+    if (!isConnected || !signer) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      const success = await contractService.registerPoolOperator();
+      if (success) {
+        toast.success('Pool operator registered successfully!');
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to register pool operator:', error);
+      toast.error('Failed to register pool operator');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Estimate WATT Usage
+  const estimateWattUsage = async (componentTokenIds: number[]): Promise<string> => {
+    try {
+      return await contractService.estimateWattUsage(componentTokenIds);
+    } catch (error) {
+      console.error('Failed to estimate WATT usage:', error);
+      return '0';
+    }
+  };
+
   const refreshMyRigs = async () => {
     if (!address) return;
 
@@ -301,14 +377,16 @@ export const useNuChain = () => {
         {
           rigId: 1,
           owner: address,
-          componentTokenIds: [1, 3, 4, 2], // PC Case, XL1 Processor, TX120 GPU, Genesis Badge
+          componentTokenIds: [1, 3, 4], // PC Case, XL1 Processor, TX120 GPU
           totalHashRate: 187,
           totalPowerConsumption: 612,
-          efficiency: 305,
-          hasGenesisBadge: true,
+          wattPerBlock: '0.000000436',
           isActive: true,
           poolId: 1,
-          totalEarnings: '2.47'
+          accumulatedNU: '2.47',
+          lastClaimBlock: 12847,
+          wattBalance: '1000.0',
+          isPoolOperator: false
         },
         {
           rigId: 2,
@@ -316,11 +394,13 @@ export const useNuChain = () => {
           componentTokenIds: [1, 3, 5], // PC Case, XL1 Processor, GP50 GPU
           totalHashRate: 225,
           totalPowerConsumption: 575,
-          efficiency: 391,
-          hasGenesisBadge: false,
+          wattPerBlock: '0.000000410',
           isActive: false,
           poolId: 0,
-          totalEarnings: '1.83'
+          accumulatedNU: '1.83',
+          lastClaimBlock: 11234,
+          wattBalance: '500.0',
+          isPoolOperator: false
         }
       ];
       setMyRigs(mockRigs);
@@ -405,12 +485,15 @@ export const useNuChain = () => {
     startMining,
     stopMining,
     refreshMyRigs,
+    
+    // WATT operations
+    depositWatt,
+    claimMiningRewards,
+    registerPoolOperator,
+    estimateWattUsage,
 
     // Network operations
     addNuChainToWallet,
-
-    // zkRollup operations
-    submitZkProof,
 
     // Utility
     isConnected: isConnected && contractService.isInitialized()

@@ -23,7 +23,7 @@ const ContractDeployment: React.FC = () => {
 
   const contracts = [
     {
-      id: 'nuToken',
+      id: 'nuToken', 
       name: 'NU Token',
       description: 'Native token for nuChain L2 network',
       dependencies: [],
@@ -31,35 +31,35 @@ const ContractDeployment: React.FC = () => {
       icon: '🪙'
     },
     {
-      id: 'validator',
-      name: 'Validator Contract',
-      description: 'Proof-of-Stake validator management',
+      id: 'miningRigConfigurator',
+      name: 'Mining Rig Configurator',
+      description: 'NFT mining rig configuration and WATT consumption',
       dependencies: ['nuToken'],
-      gasEstimate: '4,200,000',
-      icon: '🛡️'
+      gasEstimate: '5,200,000',
+      icon: '⚙️'
     },
     {
-      id: 'miningPoolFactory',
-      name: 'Mining Pool Factory',
-      description: 'NFT mining pool creation and management',
+      id: 'miningPoolHost',
+      name: 'Mining Pool Host',
+      description: '100,000 WATT staking for pool hosting',
       dependencies: ['nuToken'],
-      gasEstimate: '3,800,000',
+      gasEstimate: '4,800,000',
       icon: '⛏️'
     },
     {
-      id: 'nftMiningRigs',
-      name: 'NFT Mining Rigs',
-      description: 'Hardware component NFT management',
+      id: 'crossChainValidator',
+      name: 'Cross-Chain Validator',
+      description: 'Validates hash power across Polygon and Altcoinchain',
       dependencies: [],
-      gasEstimate: '3,200,000',
-      icon: '🖥️'
+      gasEstimate: '3,800,000',
+      icon: '🔗'
     },
     {
-      id: 'zkRollupBridge',
-      name: 'zkRollup Bridge',
-      description: 'Altcoinchain validation bridge',
-      dependencies: [],
-      gasEstimate: '5,100,000',
+      id: 'nuChainL2',
+      name: 'nuChain L2',
+      description: 'zkRollup L2 for cross-chain mining coordination',
+      dependencies: ['nuToken', 'crossChainValidator'],
+      gasEstimate: '6,100,000',
       icon: '🌉'
     }
   ];

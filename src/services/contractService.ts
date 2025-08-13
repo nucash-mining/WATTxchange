@@ -13,10 +13,10 @@ class ContractService {
 
   // Contract addresses (will be updated after deployment)
   private contractAddresses = {
-    validator: '0x0000000000000000000000000000000000000000',
-    miningPoolFactory: '0x0000000000000000000000000000000000000000',
-    nftMiningRigs: '0x0000000000000000000000000000000000000000',
-    zkRollupBridge: '0x0000000000000000000000000000000000000000',
+    miningRigConfigurator: '0x0000000000000000000000000000000000000000',
+    miningPoolHost: '0x0000000000000000000000000000000000000000',
+    crossChainValidator: '0x0000000000000000000000000000000000000000',
+    nuChainL2: '0x0000000000000000000000000000000000000000',
     nuToken: '0x0000000000000000000000000000000000000000',
     wattToken: '0x6645143e49B3a15d8F205658903a55E520444698', // Existing WATT on Altcoinchain
     polygonNFTs: '0x970a8b10147e3459d3cbf56329b76ac18d329728' // Existing NFTs on Polygon
@@ -34,44 +34,44 @@ class ContractService {
     if (!this.provider) return;
 
     try {
-      // Validator Contract
-      if (this.contractAddresses.validator !== '0x0000000000000000000000000000000000000000') {
-        const validatorContract = new ethers.Contract(
-          this.contractAddresses.validator,
-          this.getValidatorABI(),
+      // Mining Rig Configurator Contract
+      if (this.contractAddresses.miningRigConfigurator !== '0x0000000000000000000000000000000000000000') {
+        const rigContract = new ethers.Contract(
+          this.contractAddresses.miningRigConfigurator,
+          this.getMiningRigABI(),
           this.signer || this.provider
         );
-        this.contracts.set('validator', validatorContract);
+        this.contracts.set('miningRigConfigurator', rigContract);
       }
 
-      // Mining Pool Factory
-      if (this.contractAddresses.miningPoolFactory !== '0x0000000000000000000000000000000000000000') {
+      // Mining Pool Host Contract
+      if (this.contractAddresses.miningPoolHost !== '0x0000000000000000000000000000000000000000') {
         const poolContract = new ethers.Contract(
-          this.contractAddresses.miningPoolFactory,
-          this.getMiningPoolABI(),
+          this.contractAddresses.miningPoolHost,
+          this.getMiningPoolHostABI(),
           this.signer || this.provider
         );
-        this.contracts.set('miningPoolFactory', poolContract);
+        this.contracts.set('miningPoolHost', poolContract);
       }
 
-      // NFT Mining Rigs
-      if (this.contractAddresses.nftMiningRigs !== '0x0000000000000000000000000000000000000000') {
-        const nftContract = new ethers.Contract(
-          this.contractAddresses.nftMiningRigs,
-          this.getNFTMiningABI(),
+      // Cross-Chain Validator
+      if (this.contractAddresses.crossChainValidator !== '0x0000000000000000000000000000000000000000') {
+        const validatorContract = new ethers.Contract(
+          this.contractAddresses.crossChainValidator,
+          this.getCrossChainValidatorABI(),
           this.signer || this.provider
         );
-        this.contracts.set('nftMiningRigs', nftContract);
+        this.contracts.set('crossChainValidator', validatorContract);
       }
 
-      // zkRollup Bridge
-      if (this.contractAddresses.zkRollupBridge !== '0x0000000000000000000000000000000000000000') {
-        const bridgeContract = new ethers.Contract(
-          this.contractAddresses.zkRollupBridge,
-          this.getZkRollupABI(),
+      // nuChain L2
+      if (this.contractAddresses.nuChainL2 !== '0x0000000000000000000000000000000000000000') {
+        const nuChainContract = new ethers.Contract(
+          this.contractAddresses.nuChainL2,
+          this.getNuChainL2ABI(),
           this.signer || this.provider
         );
-        this.contracts.set('zkRollupBridge', bridgeContract);
+        this.contracts.set('nuChainL2', nuChainContract);
       }
 
       console.log('✅ Contracts initialized successfully');
@@ -139,14 +139,12 @@ class ContractService {
   }
 
   // Mining Pool Operations
-  async createMiningPool(name: string, wattAmount: string, feePercentage: number, minPayout: string): Promise<boolean> {
+  async createMiningPool(name: string): Promise<boolean> {
     try {
-      const contract = this.contracts.get('miningPoolFactory');
+      const contract = this.contracts.get('miningPoolHost');
       if (!contract || !this.signer) return false;
 
-      const wattWei = ethers.parseEther(wattAmount);
-      const minPayoutWei = ethers.parseEther(minPayout);
-      const tx = await contract.createPool(name, wattWei, feePercentage * 100, minPayoutWei);
+      const tx = await contract.createPool(name);
       await tx.wait();
 
       console.log('✅ Mining pool created successfully');
@@ -159,7 +157,7 @@ class ContractService {
 
   async joinMiningPool(poolId: number, rigId: number, hashRate: number): Promise<boolean> {
     try {
-      const contract = this.contracts.get('miningPoolFactory');
+      const contract = this.contracts.get('miningPoolHost');
       if (!contract || !this.signer) return false;
 
       const tx = await contract.joinPool(poolId, rigId, hashRate);
@@ -191,7 +189,7 @@ class ContractService {
 
   async getPoolInfo(poolId: number): Promise<any> {
     try {
-      const contract = this.contracts.get('miningPoolFactory');
+      const contract = this.contracts.get('miningPoolHost');
       if (!contract) return null;
 
       const info = await contract.getPoolInfo(poolId);
@@ -201,15 +199,12 @@ class ContractService {
         name: info.name,
         wattLocked: ethers.formatEther(info.wattLocked),
         createdAt: new Date(Number(info.createdAt) * 1000),
-        lastHeartbeat: new Date(Number(info.lastHeartbeat) * 1000),
-        totalMiners: Number(info.totalMiners),
+        lastClaimBlock: Number(info.lastClaimBlock),
+        activeRigs: Number(info.activeRigs),
         totalHashRate: Number(info.totalHashRate),
-        feePercentage: Number(info.feePercentage) / 100,
-        minPayout: ethers.formatEther(info.minPayout),
+        accumulatedRewards: ethers.formatEther(info.accumulatedRewards),
         isActive: info.isActive,
-        uptime: Number(info.uptime) / 100,
-        blocksConnected: Number(info.blocksConnected),
-        totalBlocks: Number(info.totalBlocks)
+        createdAt: new Date(Number(info.createdAt) * 1000)
       };
     } catch (error) {
       console.error('❌ Failed to get pool info:', error);
@@ -220,7 +215,7 @@ class ContractService {
   // NFT Mining Rig Operations
   async configureRig(componentTokenIds: number[]): Promise<number | null> {
     try {
-      const contract = this.contracts.get('nftMiningRigs');
+      const contract = this.contracts.get('miningRigConfigurator');
       if (!contract || !this.signer) return null;
 
       const tx = await contract.configureRig(componentTokenIds);
@@ -246,7 +241,7 @@ class ContractService {
 
   async startMining(rigId: number, poolId: number): Promise<boolean> {
     try {
-      const contract = this.contracts.get('nftMiningRigs');
+      const contract = this.contracts.get('miningRigConfigurator');
       if (!contract || !this.signer) return false;
 
       const tx = await contract.startMining(rigId, poolId);
@@ -262,7 +257,7 @@ class ContractService {
 
   async stopMining(rigId: number): Promise<boolean> {
     try {
-      const contract = this.contracts.get('nftMiningRigs');
+      const contract = this.contracts.get('miningRigConfigurator');
       if (!contract || !this.signer) return false;
 
       const tx = await contract.stopMining(rigId);
@@ -278,7 +273,7 @@ class ContractService {
 
   async getRigInfo(rigId: number): Promise<any> {
     try {
-      const contract = this.contracts.get('nftMiningRigs');
+      const contract = this.contracts.get('miningRigConfigurator');
       if (!contract) return null;
 
       const info = await contract.getRigInfo(rigId);
@@ -288,12 +283,13 @@ class ContractService {
         componentTokenIds: info.componentTokenIds.map((id: any) => Number(id)),
         totalHashRate: Number(info.totalHashRate),
         totalPowerConsumption: Number(info.totalPowerConsumption),
-        efficiency: Number(info.efficiency),
-        hasGenesisBadge: info.hasGenesisBadge,
-        createdAt: new Date(Number(info.createdAt) * 1000),
+        wattPerBlock: ethers.formatUnits(info.wattPerBlock, 18),
         isActive: info.isActive,
         poolId: Number(info.poolId),
-        totalEarnings: ethers.formatEther(info.totalEarnings)
+        accumulatedNU: ethers.formatEther(info.accumulatedNU),
+        lastClaimBlock: Number(info.lastClaimBlock),
+        wattBalance: ethers.formatEther(info.wattBalance),
+        isPoolOperator: info.isPoolOperator
       };
     } catch (error) {
       console.error('❌ Failed to get rig info:', error);
@@ -301,96 +297,131 @@ class ContractService {
     }
   }
 
-  // zkRollup Operations
-  async submitZkProof(stateRoot: string, transactionRoot: string, blockNumber: number, proof: string): Promise<boolean> {
+  // WATT Deposit Operations
+  async depositWatt(rigId: number, amount: string): Promise<boolean> {
     try {
-      const contract = this.contracts.get('zkRollupBridge');
+      const contract = this.contracts.get('miningRigConfigurator');
       if (!contract || !this.signer) return false;
 
-      const tx = await contract.submitZkProof(stateRoot, transactionRoot, blockNumber, proof);
+      const amountWei = ethers.parseEther(amount);
+      const tx = await contract.depositWatt(rigId, amountWei);
       await tx.wait();
 
-      console.log('✅ zkProof submitted successfully');
+      console.log('✅ WATT deposited successfully');
       return true;
     } catch (error) {
-      console.error('❌ Failed to submit zkProof:', error);
+      console.error('❌ Failed to deposit WATT:', error);
       return false;
     }
   }
 
-  async getZkRollupStatus(): Promise<any> {
+  // Claim Rewards Operations
+  async claimMiningRewards(rigId: number): Promise<boolean> {
     try {
-      const contract = this.contracts.get('zkRollupBridge');
-      if (!contract) return null;
+      const contract = this.contracts.get('miningRigConfigurator');
+      if (!contract || !this.signer) return false;
 
-      const [stateRoot, blockNumber] = await contract.getCurrentState();
-      return {
-        currentStateRoot: stateRoot,
-        lastVerifiedBlock: Number(blockNumber),
-        timestamp: new Date()
-      };
+      const tx = await contract.claimRewards(rigId);
+      await tx.wait();
+
+      console.log('✅ Mining rewards claimed successfully');
+      return true;
     } catch (error) {
-      console.error('❌ Failed to get zkRollup status:', error);
-      return null;
+      console.error('❌ Failed to claim mining rewards:', error);
+      return false;
+    }
+  }
+
+  // Pool Operator Operations
+  async registerPoolOperator(): Promise<boolean> {
+    try {
+      const contract = this.contracts.get('miningRigConfigurator');
+      if (!contract || !this.signer) return false;
+
+      const tx = await contract.registerPoolOperator();
+      await tx.wait();
+
+      console.log('✅ Pool operator registered successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to register pool operator:', error);
+      return false;
+    }
+  }
+
+  // Estimate WATT usage
+  async estimateWattUsage(componentTokenIds: number[]): Promise<string> {
+    try {
+      const contract = this.contracts.get('miningRigConfigurator');
+      if (!contract) return '0';
+
+      const wattPerDay = await contract.estimateWattUsagePerDay(componentTokenIds);
+      return ethers.formatEther(wattPerDay);
+    } catch (error) {
+      console.error('❌ Failed to estimate WATT usage:', error);
+      return '0';
     }
   }
 
   // Contract ABIs
-  private getValidatorABI() {
-    return [
-      'function registerValidator(uint256 _stake, uint256 _commission) external',
-      'function delegate(address _validator, uint256 _amount) external',
-      'function undelegate(address _validator, uint256 _amount) external',
-      'function claimRewards(address _validator) external',
-      'function getValidatorInfo(address _validator) external view returns (tuple)',
-      'function getValidatorCount() external view returns (uint256)',
-      'function getTotalStaked() external view returns (uint256)',
-      'event ValidatorRegistered(address indexed validator, uint256 stake)',
-      'event Delegated(address indexed delegator, address indexed validator, uint256 amount)',
-      'event RewardsClaimed(address indexed user, uint256 amount)'
-    ];
-  }
-
-  private getMiningPoolABI() {
-    return [
-      'function createPool(string memory _name, uint256 _wattAmount, uint256 _feePercentage, uint256 _minPayout) external',
-      'function joinPool(uint256 _poolId, uint256 _rigId, uint256 _hashRate) external',
-      'function leavePool(uint256 _poolId) external',
-      'function sendHeartbeat(uint256 _poolId) external',
-      'function claimRewards(uint256 _poolId) external',
-      'function getPoolInfo(uint256 _poolId) external view returns (tuple)',
-      'function getPoolMiners(uint256 _poolId) external view returns (address[])',
-      'function getMinerInfo(uint256 _poolId, address _miner) external view returns (tuple)',
-      'event PoolCreated(uint256 indexed poolId, address indexed host, string name, uint256 wattLocked)',
-      'event MinerJoined(uint256 indexed poolId, address indexed miner, uint256 rigId, uint256 hashRate)',
-      'event RewardsDistributed(uint256 indexed poolId, uint256 totalRewards)'
-    ];
-  }
-
-  private getNFTMiningABI() {
+  private getMiningRigABI() {
     return [
       'function configureRig(uint256[] memory _componentTokenIds) external returns (uint256)',
       'function startMining(uint256 _rigId, uint256 _poolId) external',
       'function stopMining(uint256 _rigId) external',
+      'function depositWatt(uint256 _rigId, uint256 _amount) external',
+      'function claimRewards(uint256 _rigId) external',
+      'function registerPoolOperator() external',
       'function getRigInfo(uint256 _rigId) external view returns (tuple)',
       'function getUserRigs(address _user) external view returns (uint256[])',
-      'function getComponentInfo(uint256 _tokenId) external view returns (tuple)',
-      'event RigConfigured(uint256 indexed rigId, address indexed owner, uint256[] components)',
+      'function estimateWattUsagePerDay(uint256[] memory _componentTokenIds) external view returns (uint256)',
+      'event RigConfigured(uint256 indexed rigId, address indexed owner, uint256[] components, uint256 hashRate, uint256 wattPerBlock)',
       'event RigStartedMining(uint256 indexed rigId, uint256 poolId)',
-      'event RigStoppedMining(uint256 indexed rigId)'
+      'event RigStoppedMining(uint256 indexed rigId)',
+      'event WattConsumed(uint256 indexed rigId, uint256 amount, uint256 blockNumber)',
+      'event RewardsClaimed(address indexed miner, uint256 nuAmount, uint256 wattConsumed)'
     ];
   }
 
-  private getZkRollupABI() {
+  private getMiningPoolHostABI() {
     return [
-      'function submitZkProof(bytes32 _stateRoot, bytes32 _transactionRoot, uint256 _blockNumber, bytes memory _proof) external',
-      'function verifyProof(uint256 _proofId) external',
-      'function challengeProof(uint256 _proofId) external',
-      'function getCurrentState() external view returns (bytes32 stateRoot, uint256 blockNumber)',
-      'function getProofInfo(uint256 _proofId) external view returns (tuple)',
-      'event ProofSubmitted(uint256 indexed proofId, bytes32 stateRoot, address validator)',
-      'event ProofVerified(uint256 indexed proofId, bytes32 stateRoot)',
-      'event StateRootUpdated(bytes32 oldRoot, bytes32 newRoot, uint256 blockNumber)'
+      'function createPool(string memory _name) external returns (uint256)',
+      'function joinPool(uint256 _poolId, uint256 _rigId, uint256 _hashRate) external',
+      'function leavePool(uint256 _poolId) external',
+      'function claimPoolRewards(uint256 _poolId) external',
+      'function distributePoolRewards(uint256 _poolId, uint256 _totalRewards) external',
+      'function getPoolInfo(uint256 _poolId) external view returns (tuple)',
+      'function getPoolMiners(uint256 _poolId) external view returns (address[])',
+      'event PoolCreated(uint256 indexed poolId, address indexed host, string name, uint256 wattLocked)',
+      'event MinerJoined(uint256 indexed poolId, address indexed miner, uint256 rigId, uint256 hashRate)',
+      'event PoolRewardsClaimed(uint256 indexed poolId, address indexed host, uint256 nuAmount, uint256 wattConsumed)'
+    ];
+  }
+
+  private getCrossChainValidatorABI() {
+    return [
+      'function receiveHashPowerData(uint256 _chainId, uint256 _totalHashPower, uint256 _activeRigs, address[] memory _activeMiners, uint256[] memory _minerHashPowers) external',
+      'function setNuChainL2Contract(address _contract) external',
+      'function addValidator(address _validator) external',
+      'function getChainHashPower(uint256 _chainId) external view returns (tuple)',
+      'function getCurrentNetworkHashPower() external view returns (uint256 polygon, uint256 altcoinchain, uint256 total)',
+      'event HashPowerReceived(uint256 indexed chainId, uint256 totalHashPower, uint256 activeRigs)',
+      'event ValidationSubmitted(uint256 indexed blockNumber, uint256 polygonHashPower, uint256 altcoinchainHashPower)'
+    ];
+  }
+
+  private getNuChainL2ABI() {
+    return [
+      'function submitHashPowerData(uint256 _blockNumber, uint256 _polygonHashPower, uint256 _altcoinchainHashPower) external',
+      'function updateMinerRewards(address _miner, uint256 _nuAmount, uint256 _hashPower) external',
+      'function addValidator(address _validator) external',
+      'function getChainData(uint256 _chainId) external view returns (tuple)',
+      'function getBlockSubmission(uint256 _blockNumber) external view returns (tuple)',
+      'function getMinerRewards(address _miner) external view returns (tuple)',
+      'function getCurrentNetworkHashPower() external view returns (uint256 polygon, uint256 altcoinchain, uint256 total)',
+      'event BlockSubmitted(uint256 indexed blockNumber, uint256 polygonHashPower, uint256 altcoinchainHashPower)',
+      'event RewardsDistributed(uint256 indexed blockNumber, uint256 totalRewards, uint256 polygonShare, uint256 altcoinchainShare)',
+      'event CrossChainMessage(uint256 indexed targetChain, bytes data)'
     ];
   }
 

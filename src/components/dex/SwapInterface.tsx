@@ -275,11 +275,11 @@ const SwapInterface: React.FC = () => {
           <div className="flex justify-center">
             <motion.button
               onClick={handleSwapTokens}
-              className="p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors"
+              className="p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <ArrowUpDown className="w-5 h-5" />
+              <ArrowUpDown className="w-4 h-4" />
             </motion.button>
           </div>
 
@@ -293,10 +293,9 @@ const SwapInterface: React.FC = () => {
               <input
                 type="number"
                 value={toAmount}
-                onChange={(e) => setToAmount(e.target.value)}
+                readOnly
                 placeholder="0.0"
                 className="flex-1 bg-transparent text-2xl font-bold outline-none"
-                readOnly
               />
               
               <TokenSelector
@@ -307,51 +306,60 @@ const SwapInterface: React.FC = () => {
               />
             </div>
           </div>
+        </div>
 
-          {/* Swap Execution Button */}
-          <motion.button
-            onClick={handleSwap}
-            disabled={!fromAmount || !selectedNetwork || isSwapping}
-            className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
-              !fromAmount || !selectedNetwork || isSwapping
-                ? 'bg-slate-700/30 text-slate-500 cursor-not-allowed'
-                : isConnected
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
-                : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white'
-            }`}
-            whileHover={{ scale: isSwapping ? 1 : 1.02 }}
-            whileTap={{ scale: isSwapping ? 1 : 0.98 }}
+        {/* Swap Details */}
+        {fromAmount && toAmount && (
+          <motion.div
+            className="mt-4 p-3 bg-slate-900/50 rounded-lg"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            {isSwapping ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Swapping...</span>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Rate</span>
+                <span>1 {fromToken} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)} {toToken}</span>
               </div>
-            ) : !isConnected ? (
-              'Connect Wallet'
-            ) : (
-              `Swap ${fromToken} for ${toToken}`
-            )}
-          </motion.button>
-
-          {/* Transaction Details */}
-          {fromAmount && toAmount && (
-            <div className="bg-slate-900/30 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Exchange Rate</span>
-                <span>1 {fromToken} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(4)} {toToken}</span>
-              </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between">
                 <span className="text-slate-400">Slippage Tolerance</span>
                 <span>{slippage}%</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Network Fee</span>
-                <span>~$2.50</span>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Minimum Received</span>
+                <span>{(parseFloat(toAmount) * (1 - parseFloat(slippage) / 100)).toFixed(6)} {toToken}</span>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* Swap Button */}
+        <motion.button
+          onClick={handleSwap}
+          disabled={!isConnected || !fromAmount || !toAmount || isSwapping}
+          className={`w-full mt-6 py-4 rounded-xl font-semibold text-lg transition-all ${
+            !isConnected || !fromAmount || !toAmount || isSwapping
+              ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+          }`}
+          whileHover={!isSwapping ? { scale: 1.02 } : {}}
+          whileTap={!isSwapping ? { scale: 0.98 } : {}}
+        >
+          {isSwapping ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Swapping...</span>
+            </div>
+          ) : !isConnected ? (
+            'Connect Wallet'
+          ) : !fromAmount || !toAmount ? (
+            'Enter Amount'
+          ) : (
+            <div className="flex items-center justify-center space-x-2">
+              <span>Swap</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
           )}
-        </div>
+        </motion.button>
       </div>
     </div>
   );

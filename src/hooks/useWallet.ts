@@ -326,5 +326,7 @@ export const useWallet = () => {
     refreshBalances,
     signTransaction,
     isWalletAvailable,
+    tokenBalances,
+    getTokenBalance: (symbol: string) => tokenBalances[symbol] || '0'
   };
 };

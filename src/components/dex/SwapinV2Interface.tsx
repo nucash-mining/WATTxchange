@@ -28,7 +28,7 @@ import toast from 'react-hot-toast';
 import TokenSelector from './TokenSelector';
 
 const SwapinV2Interface: React.FC = () => {
-  const { isConnected, address, chainId, signTransaction, connectWallet } = useWallet();
+  const { isConnected, address, chainId, signTransaction, connectWallet, getTokenBalance } = useWallet();
   const [activeTab, setActiveTab] = useState<'swap' | 'pools' | 'positions'>('swap');
   const [selectedNetwork, setSelectedNetwork] = useState<number | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<string>('ALT-WATT');
@@ -443,7 +443,7 @@ const SwapinV2Interface: React.FC = () => {
               <div className="bg-slate-900/50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-slate-400">From</span>
-                  <span className="text-sm text-slate-400">Balance: 0.00</span>
+                  <span className="text-sm text-slate-400">Balance: {parseFloat(getTokenBalance(fromToken)).toFixed(4)}</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <input
@@ -479,7 +479,7 @@ const SwapinV2Interface: React.FC = () => {
               <div className="bg-slate-900/50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-slate-400">To</span>
-                  <span className="text-sm text-slate-400">Balance: 0.00</span>
+                  <span className="text-sm text-slate-400">Balance: {parseFloat(getTokenBalance(toToken)).toFixed(4)}</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <input

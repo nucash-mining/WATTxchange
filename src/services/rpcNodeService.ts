@@ -224,7 +224,7 @@ class RPCNodeService {
       switch (node.symbol) {
         case 'XMR':
           method = 'get_balance';
-          params = [];
+          params = [{ account_index: 0 }];
           break;
         case 'HTH':
         case 'BTC':
@@ -267,8 +267,8 @@ class RPCNodeService {
 
       switch (node.symbol) {
         case 'XMR':
-          method = 'get_address';
-          params = [];
+          method = 'create_address';
+          params = [{ account_index: 0, label: 'WATTxchange Address' }];
           break;
         case 'HTH':
         case 'BTC':
@@ -312,7 +312,11 @@ class RPCNodeService {
         case 'XMR':
           method = 'transfer';
           params = [{
-            destinations: [{ address: toAddress, amount: amount * 1e12 }] // Convert to atomic units
+            destinations: [{ address: toAddress, amount: amount * 1e12 }], // Convert to atomic units
+            account_index: 0,
+            subaddr_indices: [],
+            priority: 1,
+            unlock_time: 0
           }];
           break;
         case 'HTH':

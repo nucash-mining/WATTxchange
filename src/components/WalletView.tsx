@@ -11,6 +11,7 @@ import TransactionHistory from './wallet/TransactionHistory';
 import WalletAuth from './wallet/WalletAuth';
 import RPCNodeManager from './wallet/RPCNodeManager';
 import TradingBotManager from './wallet/TradingBotManager';
+import MoneroNodeManager from './wallet/MoneroNodeManager';
 import ReceiveModal from './wallet/ReceiveModal';
 import SendModal from './wallet/SendModal';
 import DepositModal from './wallet/DepositModal';
@@ -21,6 +22,7 @@ const WalletView: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showRPCManager, setShowRPCManager] = useState(false);
   const [showTradingBot, setShowTradingBot] = useState(false);
+  const [showMoneroNodes, setShowMoneroNodes] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -292,6 +294,15 @@ const WalletView: React.FC = () => {
               >
                 <BarChart2 className="w-5 h-5" />
                 <span className="text-sm">Trading Bot</span>
+              </motion.button>
+              <motion.button
+                onClick={() => setShowMoneroNodes(true)}
+                className="flex items-center space-x-2 p-2 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <img src="/XMR logo.png" alt="XMR" className="w-5 h-5" />
+                <span className="text-sm">Monero Nodes</span>
               </motion.button>
             </>
           )}
@@ -566,6 +577,12 @@ const WalletView: React.FC = () => {
       <TradingBotManager
         isOpen={showTradingBot}
         onClose={() => setShowTradingBot(false)}
+      />
+
+      {/* Monero Node Manager Modal */}
+      <MoneroNodeManager
+        isOpen={showMoneroNodes}
+        onClose={() => setShowMoneroNodes(false)}
       />
 
       {/* Mobile Modals */}

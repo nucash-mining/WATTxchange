@@ -385,7 +385,6 @@ const ContractDeployment: React.FC = () => {
         </motion.div>
       )}
     </div>
-        </div>
       )}
     </div>
   );

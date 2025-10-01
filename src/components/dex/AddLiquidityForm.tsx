@@ -162,7 +162,7 @@ const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({ selectedPool, onClo
           <label className="block text-sm font-medium mb-2">Fee Tier</label>
           <div className="grid grid-cols-4 gap-2">
             {[0.01, 0.05, 0.3, 1.0].map((fee) => (
-              <span>Balance: {parseFloat(getTokenBalance(token2)).toFixed(4)}</span>
+              <button
                 key={fee}
                 onClick={() => setFeeTier(fee)}
                 className={`p-3 border rounded-lg text-center transition-colors ${

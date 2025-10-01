@@ -336,13 +336,13 @@ const SwapInterface: React.FC = () => {
         <motion.button
           onClick={handleSwap}
           disabled={!isConnected || !fromAmount || !toAmount || isSwapping}
-          className={`w-full mt-6 py-4 rounded-xl font-semibold text-lg transition-all ${
+          className={`w-full mt-6 py-4 rounded-xl font-semibold transition-all ${
             !isConnected || !fromAmount || !toAmount || isSwapping
               ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
               : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
           }`}
-          whileHover={!isSwapping ? { scale: 1.02 } : {}}
-          whileTap={!isSwapping ? { scale: 0.98 } : {}}
+          whileHover={!isConnected || !fromAmount || !toAmount || isSwapping ? {} : { scale: 1.02 }}
+          whileTap={!isConnected || !fromAmount || !toAmount || isSwapping ? {} : { scale: 0.98 }}
         >
           {isSwapping ? (
             <div className="flex items-center justify-center space-x-2">

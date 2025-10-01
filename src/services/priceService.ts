@@ -128,7 +128,11 @@ class PriceService {
     GHOST: { symbol: 'GHOST', price: 2.25, changePercent24h: 7.1, volume24h: 125000, marketCap: 45000000 },
     TROLL: { symbol: 'TROLL', price: 0.000045, changePercent24h: 7.1, volume24h: 2500000, marketCap: 900000 },
     HTH: { symbol: 'HTH', price: 0.00012, changePercent24h: 3.5, volume24h: 150000, marketCap: 1200000 },
-    RTM: { symbol: 'RTM', price: 0.00085, changePercent24h: 2.8, volume24h: 350000, marketCap: 8500000 }
+    RTM: { symbol: 'RTM', price: 0.00085, changePercent24h: 2.8, volume24h: 350000, marketCap: 8500000 },
+    BNB: { symbol: 'BNB', price: 310, changePercent24h: 1.8, volume24h: 2500000, marketCap: 47000000000 },
+    MATIC: { symbol: 'MATIC', price: 0.42, changePercent24h: 3.2, volume24h: 850000, marketCap: 4200000000 },
+    AVAX: { symbol: 'AVAX', price: 24.5, changePercent24h: 2.1, volume24h: 420000, marketCap: 9500000000 },
+    OP: { symbol: 'OP', price: 1.85, changePercent24h: 4.7, volume24h: 180000, marketCap: 1900000000 }
   };
 
   async getPrice(symbol: string): Promise<PriceData | null> {

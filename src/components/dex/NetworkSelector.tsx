@@ -44,7 +44,14 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
       'ETHO': '🔷',
       'Altcoinchain': '🔗',
       'DOGEchain': '🐕',
-      'Fantom': '👻'
+      'Fantom': '👻',
+      'BSC': '🔶',
+      'Ethereum': '💎',
+      'Polygon': '🔷',
+      'Avalanche': '🔺',
+      'Arbitrum': '🔵',
+      'Optimism': '🔴',
+      'Base': '🟦'
     };
     return iconMap[network.name] || '🔗';
   };

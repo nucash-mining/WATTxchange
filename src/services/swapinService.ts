@@ -188,6 +188,118 @@ class SwapinService {
         tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
       }
     });
+
+    // Binance Smart Chain
+    this.networks.set(56, {
+      name: 'BSC',
+      chainId: 56,
+      rpcUrl: 'https://bsc-dataseed.binance.org',
+      nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+      blockExplorerUrl: 'https://bscscan.com',
+      contracts: {
+        wToken: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
+
+    // Polygon
+    this.networks.set(137, {
+      name: 'Polygon',
+      chainId: 137,
+      rpcUrl: 'https://polygon-rpc.com',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      blockExplorerUrl: 'https://polygonscan.com',
+      contracts: {
+        wToken: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
+
+    // Ethereum Mainnet
+    this.networks.set(1, {
+      name: 'Ethereum',
+      chainId: 1,
+      rpcUrl: 'https://ethereum.publicnode.com',
+      nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://etherscan.io',
+      contracts: {
+        wToken: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
+
+    // Avalanche
+    this.networks.set(43114, {
+      name: 'Avalanche',
+      chainId: 43114,
+      rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
+      nativeCurrency: { name: 'AVAX', symbol: 'AVAX', decimals: 18 },
+      blockExplorerUrl: 'https://snowtrace.io',
+      contracts: {
+        wToken: '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
+
+    // Arbitrum
+    this.networks.set(42161, {
+      name: 'Arbitrum',
+      chainId: 42161,
+      rpcUrl: 'https://arb1.arbitrum.io/rpc',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://arbiscan.io',
+      contracts: {
+        wToken: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
+
+    // Optimism
+    this.networks.set(10, {
+      name: 'Optimism',
+      chainId: 10,
+      rpcUrl: 'https://mainnet.optimism.io',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://optimistic.etherscan.io',
+      contracts: {
+        wToken: '0x4200000000000000000000000000000000000006',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
+
+    // Base
+    this.networks.set(8453, {
+      name: 'Base',
+      chainId: 8453,
+      rpcUrl: 'https://mainnet.base.org',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://basescan.org',
+      contracts: {
+        wToken: '0x4200000000000000000000000000000000000006',
+        factory: '0x347aAc6D939f98854110Ff48dC5B7beB52D86445',
+        router: '0xae168Ce47cebca9abbC5107a58df0532f1afa4d6',
+        multicall: '0x426b13031851947ce04C51670a6E9C622B18aa3C',
+        tokenMultisender: '0x5a03b79b6F4cbb1eC8276a87b74a9304D05442C7'
+      }
+    });
   }
 
   getNetwork(chainId: number): SwapinNetwork | null {

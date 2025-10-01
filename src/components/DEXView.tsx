@@ -230,15 +230,16 @@ const DEXView: React.FC = () => {
             <Network className="w-6 h-6 text-blue-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-blue-400 mb-2">Multi-Chain DEX Integration</h3>
+            <h3 className="text-lg font-semibold text-blue-400 mb-2">Multi-Chain DEX Integration (15 Networks)</h3>
             <p className="text-slate-300 mb-3">
-              Powered by Swapin.co's Uniswap V2 compatible contracts deployed across 10 different blockchains. 
+              Powered by Swapin.co's Uniswap V2 compatible contracts deployed across 15 different blockchains. 
               Trade seamlessly between networks with consistent contract addresses and familiar interfaces.
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-3 text-sm">
               {[
-                'EGAZ', 'PlanQ', 'OctaSpace', 'PartyChain', 'EGEM', 
-                'ETHO', 'Altcoinchain', 'DOGEchain', 'Fantom'
+                'Ethereum', 'BSC', 'Polygon', 'Avalanche', 'Arbitrum', 
+                'Optimism', 'Base', 'Fantom', 'EGAZ', 'PlanQ', 
+                'OctaSpace', 'Altcoinchain', 'DOGEchain', 'ETHO', 'EGEM'
               ].map((network) => (
                 <div key={network} className="bg-slate-800/50 rounded px-2 py-1 text-center">
                   {network}
@@ -249,6 +250,7 @@ const DEXView: React.FC = () => {
               <p>• Factory: 0x347aAc6D939f98854110Ff48dC5B7beB52D86445</p>
               <p>• Router: 0xae168Ce47cebca9abbC5107a58df0532f1afa4d6</p>
               <p>• Deployer: 0xE01A6a52Ef245FDeA587735aFe60a1C96152A48D</p>
+              <p>• Cross-chain compatibility with Axelar Network integration</p>
             </div>
           </div>
         </div>

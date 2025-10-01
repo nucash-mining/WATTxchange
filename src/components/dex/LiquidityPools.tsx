@@ -239,7 +239,14 @@ const LiquidityPools: React.FC = () => {
       'Altcoinchain': '🔗',
       'DOGEchain': '🐕',
       'Fantom': '👻',
-      'Multi-Chain': '🌍'
+      'Multi-Chain': '🌍',
+      'BSC': '🔶',
+      'Ethereum': '💎',
+      'Polygon': '🔷',
+      'Avalanche': '🔺',
+      'Arbitrum': '🔵',
+      'Optimism': '🔴',
+      'Base': '🟦'
     };
     return iconMap[network] || '🔗';
   };

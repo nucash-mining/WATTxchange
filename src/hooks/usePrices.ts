@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { priceService, PriceData } from '../services/priceService';
 
-export const usePrices = (symbols: string[], refreshInterval: number = 30000) => {
+export const usePrices = (symbols: string[] = ['ALT', 'BTC', 'ETH', 'LTC', 'XMR', 'DOGE', 'GHOST', 'TROLL', 'HTH', 'RTM', 'BNB', 'MATIC', 'AVAX', 'OP'], refreshInterval: number = 30000) => {
   const [prices, setPrices] = useState<Map<string, PriceData>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

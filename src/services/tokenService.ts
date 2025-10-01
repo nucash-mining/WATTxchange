@@ -287,6 +287,220 @@ class TokenService {
         chainId: 137
       }
     ],
+    BSC: [
+      {
+        symbol: 'BNB',
+        name: 'Binance Coin',
+        decimals: 18,
+        logo: '/BNB logo.png',
+        isNative: true,
+        chainId: 56
+      },
+      {
+        symbol: 'USDT',
+        name: 'Tether USD',
+        address: '0x55d398326f99059fF775485246999027B3197955',
+        decimals: 18,
+        logo: '/USDT logo.png',
+        isNative: false,
+        chainId: 56
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+        decimals: 18,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 56
+      },
+      {
+        symbol: 'WATT',
+        name: 'WATT Token',
+        address: '0x0000000000000000000000000000000000000000',
+        decimals: 18,
+        logo: '/WATT logo.png',
+        isNative: false,
+        chainId: 56
+      }
+    ],
+    Ethereum: [
+      {
+        symbol: 'ETH',
+        name: 'Ethereum',
+        decimals: 18,
+        logo: '/ETH logo.png',
+        isNative: true,
+        chainId: 1
+      },
+      {
+        symbol: 'USDT',
+        name: 'Tether USD',
+        address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        decimals: 6,
+        logo: '/USDT logo.png',
+        isNative: false,
+        chainId: 1
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0xA0b86a33E6776c4e527ab19B35c33b879c96B684',
+        decimals: 6,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 1
+      },
+      {
+        symbol: 'WBTC',
+        name: 'Wrapped Bitcoin',
+        address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+        decimals: 8,
+        logo: '/BTC logo.png',
+        isNative: false,
+        chainId: 1
+      }
+    ],
+    Polygon: [
+      {
+        symbol: 'MATIC',
+        name: 'Polygon',
+        decimals: 18,
+        logo: '/MATIC logo.png',
+        isNative: true,
+        chainId: 137
+      },
+      {
+        symbol: 'USDT',
+        name: 'Tether USD',
+        address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+        decimals: 6,
+        logo: '/USDT logo.png',
+        isNative: false,
+        chainId: 137
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+        decimals: 6,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 137
+      },
+      {
+        symbol: 'WATT',
+        name: 'WATT Token',
+        address: '0xE960d5076cd3169C343Ee287A2c3380A222e5839',
+        decimals: 18,
+        logo: '/WATT logo.png',
+        isNative: false,
+        chainId: 137
+      }
+    ],
+    Avalanche: [
+      {
+        symbol: 'AVAX',
+        name: 'Avalanche',
+        decimals: 18,
+        logo: '/AVAX logo.png',
+        isNative: true,
+        chainId: 43114
+      },
+      {
+        symbol: 'USDT',
+        name: 'Tether USD',
+        address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7',
+        decimals: 6,
+        logo: '/USDT logo.png',
+        isNative: false,
+        chainId: 43114
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
+        decimals: 6,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 43114
+      }
+    ],
+    Arbitrum: [
+      {
+        symbol: 'ETH',
+        name: 'Ethereum',
+        decimals: 18,
+        logo: '/ETH logo.png',
+        isNative: true,
+        chainId: 42161
+      },
+      {
+        symbol: 'USDT',
+        name: 'Tether USD',
+        address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+        decimals: 6,
+        logo: '/USDT logo.png',
+        isNative: false,
+        chainId: 42161
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+        decimals: 6,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 42161
+      }
+    ],
+    Optimism: [
+      {
+        symbol: 'ETH',
+        name: 'Ethereum',
+        decimals: 18,
+        logo: '/ETH logo.png',
+        isNative: true,
+        chainId: 10
+      },
+      {
+        symbol: 'USDT',
+        name: 'Tether USD',
+        address: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+        decimals: 6,
+        logo: '/USDT logo.png',
+        isNative: false,
+        chainId: 10
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+        decimals: 6,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 10
+      }
+    ],
+    Base: [
+      {
+        symbol: 'ETH',
+        name: 'Ethereum',
+        decimals: 18,
+        logo: '/ETH logo.png',
+        isNative: true,
+        chainId: 8453
+      },
+      {
+        symbol: 'USDC',
+        name: 'USD Coin',
+        address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        decimals: 6,
+        logo: '/USDC logo.png',
+        isNative: false,
+        chainId: 8453
+      }
+    ],
     RTM: [
       {
         symbol: 'RTM',

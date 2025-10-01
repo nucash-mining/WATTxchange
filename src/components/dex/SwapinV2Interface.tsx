@@ -290,7 +290,14 @@ const SwapinV2Interface: React.FC = () => {
                 network.name === 'ETHO' ? '🔷' :
                 network.name === 'Altcoinchain' ? '🔗' :
                 network.name === 'DOGEchain' ? '🐕' :
-                network.name === 'Fantom' ? '👻' : '🌍'
+                network.name === 'Fantom' ? '👻' :
+                network.name === 'BSC' ? '🔶' :
+                network.name === 'Ethereum' ? '💎' :
+                network.name === 'Polygon' ? '🔷' :
+                network.name === 'Avalanche' ? '🔺' :
+                network.name === 'Arbitrum' ? '🔵' :
+                network.name === 'Optimism' ? '🔴' :
+                network.name === 'Base' ? '🟦' : '🌍'
               }</span>
               <span>{network.name}</span>
             </button>

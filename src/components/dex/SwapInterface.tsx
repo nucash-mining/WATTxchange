@@ -274,4 +274,87 @@ const SwapInterface: React.FC = () => {
           {/* Swap Button */}
           <div className="flex justify-center">
             <motion.button
-              onClick={handleSwap
+              onClick={handleSwapTokens}
+              className="p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <ArrowUpDown className="w-5 h-5" />
+            </motion.button>
+          </div>
+
+          {/* To Token */}
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-400">To</span>
+              <span className="text-sm text-slate-400">Balance: 0.00</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <input
+                type="number"
+                value={toAmount}
+                onChange={(e) => setToAmount(e.target.value)}
+                placeholder="0.0"
+                className="flex-1 bg-transparent text-2xl font-bold outline-none"
+                readOnly
+              />
+              
+              <TokenSelector
+                selectedToken={toToken}
+                onSelectToken={setToToken}
+                excludeToken={fromToken}
+                chainId={selectedNetwork?.chainId || 2330}
+              />
+            </div>
+          </div>
+
+          {/* Swap Execution Button */}
+          <motion.button
+            onClick={handleSwap}
+            disabled={!fromAmount || !selectedNetwork || isSwapping}
+            className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
+              !fromAmount || !selectedNetwork || isSwapping
+                ? 'bg-slate-700/30 text-slate-500 cursor-not-allowed'
+                : isConnected
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white'
+            }`}
+            whileHover={{ scale: isSwapping ? 1 : 1.02 }}
+            whileTap={{ scale: isSwapping ? 1 : 0.98 }}
+          >
+            {isSwapping ? (
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Swapping...</span>
+              </div>
+            ) : !isConnected ? (
+              'Connect Wallet'
+            ) : (
+              `Swap ${fromToken} for ${toToken}`
+            )}
+          </motion.button>
+
+          {/* Transaction Details */}
+          {fromAmount && toAmount && (
+            <div className="bg-slate-900/30 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Exchange Rate</span>
+                <span>1 {fromToken} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(4)} {toToken}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Slippage Tolerance</span>
+                <span>{slippage}%</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Network Fee</span>
+                <span>~$2.50</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SwapInterface;

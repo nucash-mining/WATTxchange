@@ -185,206 +185,206 @@ const ContractDeployment: React.FC = () => {
         <CrossChainDeployment />
       ) : (
         <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        className="flex items-center justify-between"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div>
-          <h3 className="text-2xl font-bold">Contract Deployment</h3>
-          <p className="text-slate-400 mt-1">Deploy nuChain L2 smart contracts</p>
-        </div>
-        
-        <motion.button
-          onClick={deployAllContracts}
-          disabled={anyDeploying || allDeployed}
-          className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
-            allDeployed
-              ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-              : anyDeploying
-              ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
-          }`}
-          whileHover={!anyDeploying && !allDeployed ? { scale: 1.05 } : {}}
-          whileTap={!anyDeploying && !allDeployed ? { scale: 0.95 } : {}}
-        >
-          <Deploy className="w-5 h-5" />
-          <span>
-            {allDeployed ? 'All Deployed' : anyDeploying ? 'Deploying...' : 'Deploy All'}
-          </span>
-        </motion.button>
-      </motion.div>
-
-      {/* Deployment Progress */}
-      <motion.div
-        className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-semibold">Deployment Progress</h4>
-          <div className="text-sm text-slate-400">
-            {Object.values(deploymentStatus).filter(s => s === 'deployed').length} / {contracts.length} deployed
-          </div>
-        </div>
-        
-        <div className="bg-slate-900/50 rounded-full h-3 mb-4">
-          <div 
-            className="bg-gradient-to-r from-blue-500 to-emerald-500 h-3 rounded-full transition-all duration-500"
-            style={{ 
-              width: `${(Object.values(deploymentStatus).filter(s => s === 'deployed').length / contracts.length) * 100}%` 
-            }}
-          />
-        </div>
-        
-        <div className="grid grid-cols-5 gap-2">
-          {contracts.map((contract, index) => (
-            <div key={contract.id} className="text-center">
-              <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${
-                deploymentStatus[contract.id] === 'deployed' ? 'bg-emerald-400' :
-                deploymentStatus[contract.id] === 'deploying' ? 'bg-blue-400 animate-pulse' :
-                deploymentStatus[contract.id] === 'failed' ? 'bg-red-400' : 'bg-slate-600'
-              }`} />
-              <p className="text-xs text-slate-400">{contract.name.split(' ')[0]}</p>
+          {/* Header */}
+          <motion.div
+            className="flex items-center justify-between"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div>
+              <h3 className="text-2xl font-bold">Contract Deployment</h3>
+              <p className="text-slate-400 mt-1">Deploy nuChain L2 smart contracts</p>
             </div>
-          ))}
-        </div>
-      </motion.div>
+            
+            <motion.button
+              onClick={deployAllContracts}
+              disabled={anyDeploying || allDeployed}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                allDeployed
+                  ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                  : anyDeploying
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              whileHover={!anyDeploying && !allDeployed ? { scale: 1.05 } : {}}
+              whileTap={!anyDeploying && !allDeployed ? { scale: 0.95 } : {}}
+            >
+              <Deploy className="w-5 h-5" />
+              <span>
+                {allDeployed ? 'All Deployed' : anyDeploying ? 'Deploying...' : 'Deploy All'}
+              </span>
+            </motion.button>
+          </motion.div>
 
-      {/* Contract Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {contracts.map((contract, index) => {
-          const status = deploymentStatus[contract.id];
-          const address = deployedAddresses[contract.id];
-          const canDeploy = contract.dependencies.every(dep => deploymentStatus[dep] === 'deployed');
-          
-          return (
+          {/* Deployment Progress */}
+          <motion.div
+            className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold">Deployment Progress</h4>
+              <div className="text-sm text-slate-400">
+                {Object.values(deploymentStatus).filter(s => s === 'deployed').length} / {contracts.length} deployed
+              </div>
+            </div>
+            
+            <div className="bg-slate-900/50 rounded-full h-3 mb-4">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-emerald-500 h-3 rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${(Object.values(deploymentStatus).filter(s => s === 'deployed').length / contracts.length) * 100}%` 
+                }}
+              />
+            </div>
+            
+            <div className="grid grid-cols-5 gap-2">
+              {contracts.map((contract, index) => (
+                <div key={contract.id} className="text-center">
+                  <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${
+                    deploymentStatus[contract.id] === 'deployed' ? 'bg-emerald-400' :
+                    deploymentStatus[contract.id] === 'deploying' ? 'bg-blue-400 animate-pulse' :
+                    deploymentStatus[contract.id] === 'failed' ? 'bg-red-400' : 'bg-slate-600'
+                  }`} />
+                  <p className="text-xs text-slate-400">{contract.name.split(' ')[0]}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Contract Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {contracts.map((contract, index) => {
+              const status = deploymentStatus[contract.id];
+              const address = deployedAddresses[contract.id];
+              const canDeploy = contract.dependencies.every(dep => deploymentStatus[dep] === 'deployed');
+              
+              return (
+                <motion.div
+                  key={contract.id}
+                  className={`backdrop-blur-xl rounded-xl p-6 border transition-all duration-300 ${getStatusColor(status)}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{contract.icon}</span>
+                      <div>
+                        <h4 className="font-semibold">{contract.name}</h4>
+                        <p className="text-xs text-slate-400">Gas: {contract.gasEstimate}</p>
+                      </div>
+                    </div>
+                    {getStatusIcon(status)}
+                  </div>
+
+                  <p className="text-sm text-slate-300 mb-4">{contract.description}</p>
+
+                  {contract.dependencies.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-slate-400 mb-2">Dependencies:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {contract.dependencies.map(dep => (
+                          <span
+                            key={dep}
+                            className={`text-xs px-2 py-1 rounded ${
+                              deploymentStatus[dep] === 'deployed'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-slate-700/50 text-slate-400'
+                            }`}
+                          >
+                            {contracts.find(c => c.id === dep)?.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {address && (
+                    <div className="mb-4 p-3 bg-slate-900/50 rounded-lg">
+                      <p className="text-xs text-slate-400 mb-1">Contract Address:</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-xs font-mono text-slate-300 flex-1 truncate">{address}</p>
+                        <button
+                          onClick={() => copyAddress(address)}
+                          className="p-1 hover:bg-slate-700/50 rounded transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                        <button className="p-1 hover:bg-slate-700/50 rounded transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <motion.button
+                    onClick={() => deployContract(contract.id)}
+                    disabled={!canDeploy || status === 'deploying' || status === 'deployed'}
+                    className={`w-full py-2 rounded-lg font-medium transition-colors ${
+                      status === 'deployed'
+                        ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                        : status === 'deploying'
+                        ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                        : canDeploy
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    }`}
+                    whileHover={canDeploy && status === 'pending' ? { scale: 1.02 } : {}}
+                    whileTap={canDeploy && status === 'pending' ? { scale: 0.98 } : {}}
+                  >
+                    {status === 'deployed' ? 'Deployed' :
+                     status === 'deploying' ? 'Deploying...' :
+                     status === 'failed' ? 'Failed - Retry' :
+                     canDeploy ? 'Deploy' : 'Waiting for Dependencies'}
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Network Configuration */}
+          {allDeployed && (
             <motion.div
-              key={contract.id}
-              className={`backdrop-blur-xl rounded-xl p-6 border transition-all duration-300 ${getStatusColor(status)}`}
+              className="bg-gradient-to-r from-emerald-600/10 to-blue-600/10 border border-emerald-500/30 rounded-xl p-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -2 }}
+              transition={{ delay: 0.5 }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{contract.icon}</span>
-                  <div>
-                    <h4 className="font-semibold">{contract.name}</h4>
-                    <p className="text-xs text-slate-400">Gas: {contract.gasEstimate}</p>
+              <div className="flex items-start space-x-4">
+                <CheckCircle className="w-6 h-6 text-emerald-400 mt-1" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-emerald-400 mb-2">Deployment Complete!</h3>
+                  <p className="text-slate-300 mb-4">
+                    All nuChain L2 contracts have been successfully deployed. The network is now ready for:
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold text-blue-400 mb-2">Available Features</h4>
+                      <ul className="space-y-1 text-slate-300">
+                        <li>• Validator staking and delegation</li>
+                        <li>• NFT mining pool creation</li>
+                        <li>• Hardware component NFT mining</li>
+                        <li>• zkRollup transaction batching</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-blue-400 mb-2">Next Steps</h4>
+                      <ul className="space-y-1 text-slate-300">
+                        <li>• Add nuChain network to wallet</li>
+                        <li>• Bridge tokens from Altcoinchain</li>
+                        <li>• Start validator or join mining pool</li>
+                        <li>• Configure NFT mining rigs</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
-                {getStatusIcon(status)}
               </div>
-
-              <p className="text-sm text-slate-300 mb-4">{contract.description}</p>
-
-              {contract.dependencies.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs text-slate-400 mb-2">Dependencies:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {contract.dependencies.map(dep => (
-                      <span
-                        key={dep}
-                        className={`text-xs px-2 py-1 rounded ${
-                          deploymentStatus[dep] === 'deployed'
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'bg-slate-700/50 text-slate-400'
-                        }`}
-                      >
-                        {contracts.find(c => c.id === dep)?.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {address && (
-                <div className="mb-4 p-3 bg-slate-900/50 rounded-lg">
-                  <p className="text-xs text-slate-400 mb-1">Contract Address:</p>
-                  <div className="flex items-center space-x-2">
-                    <p className="text-xs font-mono text-slate-300 flex-1 truncate">{address}</p>
-                    <button
-                      onClick={() => copyAddress(address)}
-                      className="p-1 hover:bg-slate-700/50 rounded transition-colors"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                    <button className="p-1 hover:bg-slate-700/50 rounded transition-colors">
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <motion.button
-                onClick={() => deployContract(contract.id)}
-                disabled={!canDeploy || status === 'deploying' || status === 'deployed'}
-                className={`w-full py-2 rounded-lg font-medium transition-colors ${
-                  status === 'deployed'
-                    ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                    : status === 'deploying'
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                    : canDeploy
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                }`}
-                whileHover={canDeploy && status === 'pending' ? { scale: 1.02 } : {}}
-                whileTap={canDeploy && status === 'pending' ? { scale: 0.98 } : {}}
-              >
-                {status === 'deployed' ? 'Deployed' :
-                 status === 'deploying' ? 'Deploying...' :
-                 status === 'failed' ? 'Failed - Retry' :
-                 canDeploy ? 'Deploy' : 'Waiting for Dependencies'}
-              </motion.button>
             </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Network Configuration */}
-      {allDeployed && (
-        <motion.div
-          className="bg-gradient-to-r from-emerald-600/10 to-blue-600/10 border border-emerald-500/30 rounded-xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="flex items-start space-x-4">
-            <CheckCircle className="w-6 h-6 text-emerald-400 mt-1" />
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-emerald-400 mb-2">Deployment Complete!</h3>
-              <p className="text-slate-300 mb-4">
-                All nuChain L2 contracts have been successfully deployed. The network is now ready for:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <h4 className="font-semibold text-blue-400 mb-2">Available Features</h4>
-                  <ul className="space-y-1 text-slate-300">
-                    <li>• Validator staking and delegation</li>
-                    <li>• NFT mining pool creation</li>
-                    <li>• Hardware component NFT mining</li>
-                    <li>• zkRollup transaction batching</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-400 mb-2">Next Steps</h4>
-                  <ul className="space-y-1 text-slate-300">
-                    <li>• Add nuChain network to wallet</li>
-                    <li>• Bridge tokens from Altcoinchain</li>
-                    <li>• Start validator or join mining pool</li>
-                    <li>• Configure NFT mining rigs</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </div>
+          )}
+        </div>
       )}
     </div>
   );

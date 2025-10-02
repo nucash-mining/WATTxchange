@@ -54,17 +54,41 @@ export const useWallet = () => {
 
   const refreshBalances = useCallback(async (provider: ethers.BrowserProvider, address: string) => {
     try {
-      // Fetch ETH balance
-      const ethBalance = await provider.getBalance(address);
+      const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
       
-      // Mock ALT and WATT balances - in a real app, these would be fetched from token contracts
-      // For now, we'll simulate some balance values
-      const altBalance = '0'; // This would be fetched from ALT token contract
-      const wattBalance = '0'; // This would be fetched from WATT token contract
+      // Fetch native balance (ETH, ALT, etc.)
+      const nativeBalance = await provider.getBalance(address);
+      
+      let altBalance = '0';
+      let wattBalance = '0';
+      
+      if (chainId === 2330) {
+        // On Altcoinchain, native balance is ALT
+        altBalance = ethers.formatEther(nativeBalance);
+        
+        // Fetch WATT token balance
+        try {
+          const wattContract = new ethers.Contract(
+            '0x6645143e49B3a15d8F205658903a55E520444698',
+            ['function balanceOf(address) view returns (uint256)'],
+            provider
+          );
+          const wattBalanceWei = await wattContract.balanceOf(address);
+          wattBalance = ethers.formatEther(wattBalanceWei);
+        } catch (error) {
+          console.error('Failed to fetch WATT balance:', error);
+          wattBalance = '0';
+        }
+      } else {
+        // On other networks, native balance is ETH/BNB/etc.
+        altBalance = '0';
+        wattBalance = '0';
+      }
       
       setWallet(prev => ({
         ...prev,
-        balance: ethers.formatEther(ethBalance),
+        balance: ethers.formatEther(nativeBalance),
         altBalance,
         wattBalance,
       }));

@@ -6,6 +6,7 @@ interface WalletState {
   balance: string;
   altBalance: string;
   wattBalance: string;
+  tokenBalances: Record<string, string>;
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
@@ -20,6 +21,7 @@ export const useWallet = () => {
     balance: '0',
     altBalance: '0',
     wattBalance: '0',
+    tokenBalances: {},
     isConnected: false,
     isConnecting: false,
     error: null,
@@ -139,6 +141,7 @@ export const useWallet = () => {
       balance: '0',
       altBalance: '0',
       wattBalance: '0',
+      tokenBalances: {},
       isConnected: false,
       isConnecting: false,
       error: null,
@@ -326,7 +329,6 @@ export const useWallet = () => {
     refreshBalances,
     signTransaction,
     isWalletAvailable,
-    tokenBalances,
-    getTokenBalance: (symbol: string) => tokenBalances[symbol] || '0'
+    getTokenBalance: (symbol: string) => wallet.tokenBalances[symbol] || '0'
   };
 };

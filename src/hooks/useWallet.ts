@@ -323,7 +323,14 @@ export const useWallet = () => {
 
       // Listen for chain changes
       const handleChainChanged = (chainId: string) => {
-        setWallet(prev => ({ ...prev, chainId: parseInt(chainId, 16) }));
+        const newChainId = parseInt(chainId, 16);
+        setWallet(prev => ({ ...prev, chainId: newChainId }));
+        
+        // Refresh balances when chain changes
+        if (wallet.provider && wallet.address) {
+          refreshBalances(wallet.provider, wallet.address);
+          refreshTokenBalances(wallet.provider, wallet.address);
+        }
       };
 
       ethereum.on('accountsChanged', handleAccountsChanged);

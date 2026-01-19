@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WATTx Oracle Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-bolt"></i>
+                    <span>WATTx</span>
+                </div>
+                <span class="version">v1.0.7</span>
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-item active" data-page="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li class="nav-item" data-page="mining">
+                    <i class="fas fa-hammer"></i>
+                    <span>Mining Pool</span>
+                </li>
+                <li class="nav-item" data-page="node">
+                    <i class="fas fa-server"></i>
+                    <span>Node Status</span>
+                </li>
+                <li class="nav-item" data-page="wallet">
+                    <i class="fas fa-wallet"></i>
+                    <span>Wallet</span>
+                </li>
+                <li class="nav-item" data-page="masternodes">
+                    <i class="fas fa-network-wired"></i>
+                    <span>Masternodes</span>
+                </li>
+                <li class="nav-item" data-page="bridge">
+                    <i class="fas fa-bridge"></i>
+                    <span>Bridge</span>
+                </li>
+                <li class="nav-item" data-page="dex">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>DEX</span>
+                </li>
+                <li class="nav-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="connection-status">
+                    <span class="status-dot connected"></span>
+                    <span>Connected</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="network-badge">
+                        <span class="badge mainnet">Mainnet</span>
+                    </div>
+                    <button class="btn-icon" id="refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn-icon" id="notifications-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Page -->
+            <div class="page active" id="dashboard-page">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-cubes"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Block Height</span>
+                            <span class="stat-value" id="block-height">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Network Hashrate</span>
+                            <span class="stat-value" id="network-hashrate">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Pool Miners</span>
+                            <span class="stat-value" id="pool-miners">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-network-wired"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Connections</span>
+                            <span class="stat-value" id="connections">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <h3>Hashrate History</h3>
+                            <select class="time-select">
+                                <option value="1h">1 Hour</option>
+                                <option value="24h" selected>24 Hours</option>
+                                <option value="7d">7 Days</option>
+                            </select>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="hashrate-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <h3>Difficulty</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="difficulty-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Panels -->
+                <div class="panels-row">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-server"></i> Node Info</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="info-row">
+                                <span>Chain</span>
+                                <span id="chain-name">mainnet</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Difficulty</span>
+                                <span id="difficulty">--</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Sync Progress</span>
+                                <div class="progress-bar">
+                                    <div class="progress" id="sync-progress" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <span>Disk Usage</span>
+                                <span id="disk-usage" class="warning">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-hammer"></i> Pool Status</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="info-row">
+                                <span>Pool Hashrate</span>
+                                <span id="pool-hashrate">0 H/s</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Workers</span>
+                                <span id="pool-workers">0</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Blocks Found</span>
+                                <span id="blocks-found">0</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Pool Fee</span>
+                                <span>1%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-plug"></i> Services</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="service-row">
+                                <span><i class="fas fa-circle status-ok"></i> WATTx Daemon</span>
+                                <span class="service-port">:3889</span>
+                            </div>
+                            <div class="service-row">
+                                <span><i class="fas fa-circle status-ok"></i> ElectrumX</span>
+                                <span class="service-port">:50001</span>
+                            </div>
+                            <div class="service-row">
+                                <span><i class="fas fa-circle status-ok"></i> Stratum</span>
+                                <span class="service-port">:3333</span>
+                            </div>
+                            <div class="service-row">
+                                <span><i class="fas fa-circle status-ok"></i> KDF (DEX)</span>
+                                <span class="service-port">:7783</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Blocks -->
+                <div class="table-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-cube"></i> Recent Blocks</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Height</th>
+                                <th>Hash</th>
+                                <th>Time</th>
+                                <th>Txs</th>
+                                <th>Size</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-blocks">
+                            <tr>
+                                <td colspan="5" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mining Pool Page -->
+            <div class="page" id="mining-page">
+                <div class="page-header">
+                    <h2>Mining Pool</h2>
+                    <p>Connect your miners to earn WATTx rewards</p>
+                </div>
+
+                <!-- Mining Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Pool Hashrate</span>
+                            <span class="stat-value" id="mining-pool-hashrate">0 H/s</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Active Miners</span>
+                            <span class="stat-value" id="mining-miners">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-cube"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Blocks Found</span>
+                            <span class="stat-value" id="mining-blocks">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Paid</span>
+                            <span class="stat-value" id="mining-paid">0 WTX</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="connection-card">
+                    <h3><i class="fas fa-plug"></i> How to Connect</h3>
+                    <div class="connection-info">
+                        <div class="connection-item">
+                            <label>Stratum URL</label>
+                            <div class="copy-field">
+                                <code>stratum+tcp://129.80.40.193:3333</code>
+                                <button class="copy-btn" onclick="copyToClipboard('stratum+tcp://129.80.40.193:3333')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="connection-item">
+                            <label>Algorithm</label>
+                            <code>RandomX (rx/0)</code>
+                        </div>
+                        <div class="connection-item">
+                            <label>Worker Format</label>
+                            <code>YOUR_WATTX_ADDRESS.WORKER_NAME</code>
+                        </div>
+                    </div>
+
+                    <div class="ports-table">
+                        <h4>Available Ports</h4>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Port</th>
+                                    <th>Difficulty</th>
+                                    <th>Recommended For</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>3333</code></td>
+                                    <td>5,000</td>
+                                    <td>Low-end CPU (1-4 cores)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>4444</code></td>
+                                    <td>25,000</td>
+                                    <td>Mid-range CPU (4-8 cores)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>5555</code></td>
+                                    <td>100,000</td>
+                                    <td>High-end CPU (8+ cores)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="xmrig-config">
+                        <h4>XMRig Configuration</h4>
+                        <pre><code>{
+    "pools": [
+        {
+            "url": "129.80.40.193:3333",
+            "user": "YOUR_WATTX_ADDRESS",
+            "pass": "x",
+            "algo": "rx/0",
+            "keepalive": true
+        }
+    ]
+}</code></pre>
+                        <button class="btn btn-primary" onclick="downloadXmrigConfig()">
+                            <i class="fas fa-download"></i> Download Config
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Miner Lookup -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-search"></i> Miner Lookup</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="input-group">
+                            <input type="text" id="miner-address" placeholder="Enter your WATTx address...">
+                            <button class="btn btn-primary" onclick="lookupMiner()">
+                                <i class="fas fa-search"></i> Lookup
+                            </button>
+                        </div>
+                        <div id="miner-stats" class="miner-stats hidden">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Node Status Page -->
+            <div class="page" id="node-page">
+                <div class="page-header">
+                    <h2>Node Status</h2>
+                    <p>WATTx blockchain node information</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-cubes"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Block Height</span>
+                            <span class="stat-value" id="node-height">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Uptime</span>
+                            <span class="stat-value" id="node-uptime">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-network-wired"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Peers</span>
+                            <span class="stat-value" id="node-peers">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-memory"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Memory</span>
+                            <span class="stat-value" id="node-memory">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panels-row">
+                    <div class="panel wide">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-info-circle"></i> Blockchain Info</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Chain</label>
+                                    <span id="node-chain">mainnet</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Best Block Hash</label>
+                                    <span id="node-bestblock" class="mono">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Difficulty</label>
+                                    <span id="node-difficulty">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Chain Work</label>
+                                    <span id="node-chainwork" class="mono">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Verification Progress</label>
+                                    <span id="node-verification">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Pruned</label>
+                                    <span id="node-pruned">No</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peer List -->
+                <div class="table-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-users"></i> Connected Peers</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Address</th>
+                                <th>Version</th>
+                                <th>Height</th>
+                                <th>Ping</th>
+                                <th>Direction</th>
+                            </tr>
+                        </thead>
+                        <tbody id="peer-list">
+                            <tr>
+                                <td colspan="5" class="loading">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Wallet Page -->
+            <div class="page" id="wallet-page">
+                <div class="page-header">
+                    <h2>Wallet</h2>
+                    <p>Manage your WATTx wallet</p>
+                </div>
+
+                <div class="wallet-overview">
+                    <div class="balance-card">
+                        <div class="balance-info">
+                            <span class="balance-label">Total Balance</span>
+                            <span class="balance-value" id="wallet-balance">0.00000000 WTX</span>
+                            <span class="balance-usd" id="wallet-usd">≈ $0.00 USD</span>
+                        </div>
+                        <div class="balance-actions">
+                            <button class="btn btn-primary" onclick="showSendModal()">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                            <button class="btn btn-secondary" onclick="showReceiveModal()">
+                                <i class="fas fa-qrcode"></i> Receive
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panels-row">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-list"></i> Addresses</h3>
+                            <button class="btn btn-small" onclick="generateNewAddress()">
+                                <i class="fas fa-plus"></i> New
+                            </button>
+                        </div>
+                        <div class="panel-body">
+                            <div id="address-list" class="address-list">
+                                <div class="address-item">
+                                    <span class="address mono">No wallet loaded</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction History -->
+                <div class="table-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-history"></i> Transaction History</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Address</th>
+                                <th>Time</th>
+                                <th>Confirmations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tx-history">
+                            <tr>
+                                <td colspan="5" class="loading">No wallet loaded</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Masternodes Page -->
+            <div class="page" id="masternodes-page">
+                <div class="page-header">
+                    <h2>Masternodes</h2>
+                    <p>Network masternode management</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Masternodes</span>
+                            <span class="stat-value" id="mn-total">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Enabled</span>
+                            <span class="stat-value" id="mn-enabled">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Collateral Required</span>
+                            <span class="stat-value">1,000,000 HTH</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">ROI (Annual)</span>
+                            <span class="stat-value" id="mn-roi">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-plus-circle"></i> Register Masternode</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p class="info-text">
+                            To run a masternode, you need exactly 1,000,000 HTH as collateral.
+                            Bridge masternodes have an additional 90-day lock period for liquidity removal.
+                        </p>
+                        <div class="form-group">
+                            <label>Collateral TX ID</label>
+                            <input type="text" placeholder="Transaction ID of your 1M HTH collateral">
+                        </div>
+                        <div class="form-group">
+                            <label>Masternode IP:Port</label>
+                            <input type="text" placeholder="e.g., 192.168.1.100:9999">
+                        </div>
+                        <div class="form-group">
+                            <label>BLS Public Key</label>
+                            <input type="text" placeholder="Your BLS public key">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary">
+                                <i class="fas fa-server"></i> Register Masternode
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bridge Page -->
+            <div class="page" id="bridge-page">
+                <div class="page-header">
+                    <h2>Cross-Chain Bridge</h2>
+                    <p>Bridge HTH to other networks</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Locked</span>
+                            <span class="stat-value" id="bridge-locked">0 HTH</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">24h Volume</span>
+                            <span class="stat-value" id="bridge-volume">0 HTH</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Avg Bridge Time</span>
+                            <span class="stat-value">~15 min</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Bridge Validators</span>
+                            <span class="stat-value" id="bridge-validators">5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bridge Form -->
+                <div class="bridge-card">
+                    <div class="bridge-form">
+                        <div class="bridge-side">
+                            <label>From</label>
+                            <select id="bridge-from">
+                                <option value="hth">HTH (Native)</option>
+                                <option value="eth">wHTH (Ethereum)</option>
+                                <option value="bsc">wHTH (BSC)</option>
+                                <option value="sol">xHTH (Solana)</option>
+                            </select>
+                            <input type="number" id="bridge-amount" placeholder="Amount">
+                            <span class="balance-hint">Balance: <span id="bridge-from-balance">0</span></span>
+                        </div>
+
+                        <div class="bridge-arrow">
+                            <button class="swap-btn" onclick="swapBridgeDirection()">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                        </div>
+
+                        <div class="bridge-side">
+                            <label>To</label>
+                            <select id="bridge-to">
+                                <option value="eth">wHTH (Ethereum)</option>
+                                <option value="bsc">wHTH (BSC)</option>
+                                <option value="sol">xHTH (Solana)</option>
+                                <option value="xrp">xHTH (XRP)</option>
+                            </select>
+                            <input type="text" id="bridge-destination" placeholder="Destination Address">
+                        </div>
+                    </div>
+
+                    <div class="bridge-details">
+                        <div class="detail-row">
+                            <span>Bridge Fee</span>
+                            <span>0.1%</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>You will receive</span>
+                            <span id="bridge-receive">0 wHTH</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Estimated Time</span>
+                            <span>~15 minutes</span>
+                        </div>
+                    </div>
+
+                    <div class="bridge-privacy">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="private-bridge">
+                            <span>Private Bridge (uses Monero stealth addresses)</span>
+                        </label>
+                    </div>
+
+                    <button class="btn btn-primary btn-large" onclick="initiateBridge()">
+                        <i class="fas fa-bridge"></i> Bridge Tokens
+                    </button>
+                </div>
+
+                <!-- Supported Networks -->
+                <div class="networks-grid">
+                    <div class="network-card">
+                        <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="Ethereum">
+                        <span>Ethereum</span>
+                        <span class="network-status active">Active</span>
+                    </div>
+                    <div class="network-card">
+                        <img src="https://cryptologos.cc/logos/bnb-bnb-logo.png" alt="BSC">
+                        <span>BSC</span>
+                        <span class="network-status active">Active</span>
+                    </div>
+                    <div class="network-card">
+                        <img src="https://cryptologos.cc/logos/solana-sol-logo.png" alt="Solana">
+                        <span>Solana</span>
+                        <span class="network-status active">Active</span>
+                    </div>
+                    <div class="network-card">
+                        <img src="https://cryptologos.cc/logos/xrp-xrp-logo.png" alt="XRP">
+                        <span>XRP Ledger</span>
+                        <span class="network-status coming">Coming Soon</span>
+                    </div>
+                    <div class="network-card">
+                        <img src="https://cryptologos.cc/logos/polygon-matic-logo.png" alt="Polygon">
+                        <span>Polygon</span>
+                        <span class="network-status active">Active</span>
+                    </div>
+                    <div class="network-card">
+                        <img src="https://cryptologos.cc/logos/monero-xmr-logo.png" alt="Monero">
+                        <span>Monero (Private)</span>
+                        <span class="network-status active">Active</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEX Page -->
+            <div class="page" id="dex-page">
+                <div class="page-header">
+                    <h2>Decentralized Exchange</h2>
+                    <p>Atomic swaps powered by Komodo DeFi</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">24h Volume</span>
+                            <span class="stat-value" id="dex-volume">$0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Available Pairs</span>
+                            <span class="stat-value" id="dex-pairs">12</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">HTH Price</span>
+                            <span class="stat-value" id="hth-price">$0.0234</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-water"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Liquidity</span>
+                            <span class="stat-value" id="dex-liquidity">$0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Swap Interface -->
+                <div class="swap-card">
+                    <div class="swap-header">
+                        <h3>Swap</h3>
+                        <button class="btn-icon" onclick="showSwapSettings()">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="swap-form">
+                        <div class="swap-input">
+                            <div class="swap-input-header">
+                                <span>You Pay</span>
+                                <span>Balance: <span id="swap-from-balance">0</span></span>
+                            </div>
+                            <div class="swap-input-row">
+                                <input type="number" id="swap-amount" placeholder="0.0">
+                                <button class="token-select" id="swap-from-token">
+                                    <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="">
+                                    <span>WTX</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="swap-divider">
+                            <button class="swap-direction-btn" onclick="swapTokens()">
+                                <i class="fas fa-arrow-down"></i>
+                            </button>
+                        </div>
+
+                        <div class="swap-input">
+                            <div class="swap-input-header">
+                                <span>You Receive</span>
+                                <span>Balance: <span id="swap-to-balance">0</span></span>
+                            </div>
+                            <div class="swap-input-row">
+                                <input type="number" id="swap-receive" placeholder="0.0" readonly>
+                                <button class="token-select" id="swap-to-token">
+                                    <img src="https://cryptologos.cc/logos/usd-coin-usdc-logo.png" alt="">
+                                    <span>KMD</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="swap-details">
+                        <div class="detail-row">
+                            <span>Rate</span>
+                            <span id="swap-rate">1 WTX = 0.0234 KMD</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Slippage Tolerance</span>
+                            <span>1%</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-large" onclick="executeSwap()">
+                        <i class="fas fa-exchange-alt"></i> Swap
+                    </button>
+                </div>
+
+                <!-- Order Book -->
+                <div class="orderbook-card">
+                    <div class="card-header">
+                        <h3>Order Book - WTX/KMD</h3>
+                    </div>
+                    <div class="orderbook">
+                        <div class="orderbook-side asks">
+                            <div class="orderbook-header">
+                                <span>Price</span>
+                                <span>Amount</span>
+                                <span>Total</span>
+                            </div>
+                            <div class="orderbook-rows" id="asks">
+                                <div class="order-row ask">
+                                    <span>0.0240</span>
+                                    <span>1,000</span>
+                                    <span>24.00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="orderbook-spread">
+                            <span>Spread: 0.0006 (2.5%)</span>
+                        </div>
+                        <div class="orderbook-side bids">
+                            <div class="orderbook-rows" id="bids">
+                                <div class="order-row bid">
+                                    <span>0.0234</span>
+                                    <span>2,500</span>
+                                    <span>58.50</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="settings-page">
+                <div class="page-header">
+                    <h2>Settings</h2>
+                    <p>Configure your dashboard</p>
+                </div>
+
+                <div class="settings-grid">
+                    <div class="settings-section">
+                        <h3><i class="fas fa-server"></i> Node Connection</h3>
+                        <div class="form-group">
+                            <label>RPC Host</label>
+                            <input type="text" id="rpc-host" value="127.0.0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>RPC Port</label>
+                            <input type="number" id="rpc-port" value="3889">
+                        </div>
+                        <div class="form-group">
+                            <label>RPC Username</label>
+                            <input type="text" id="rpc-user" value="wattxrpc">
+                        </div>
+                        <div class="form-group">
+                            <label>RPC Password</label>
+                            <input type="password" id="rpc-pass" value="wattxpass123">
+                        </div>
+                        <button class="btn btn-primary" onclick="testConnection()">
+                            <i class="fas fa-plug"></i> Test Connection
+                        </button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3><i class="fas fa-palette"></i> Appearance</h3>
+                        <div class="form-group">
+                            <label>Theme</label>
+                            <select id="theme-select">
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Currency</label>
+                            <select id="currency-select">
+                                <option value="usd">USD</option>
+                                <option value="eur">EUR</option>
+                                <option value="btc">BTC</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="auto-refresh" checked>
+                                <span>Auto-refresh data (30s)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3><i class="fas fa-bell"></i> Notifications</h3>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="notify-blocks" checked>
+                                <span>New block notifications</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="notify-payments" checked>
+                                <span>Payment notifications</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="notify-alerts">
+                                <span>System alerts</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3><i class="fas fa-shield-alt"></i> Security</h3>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="encrypt-wallet">
+                                <span>Encrypt wallet</span>
+                            </label>
+                        </div>
+                        <button class="btn btn-secondary" onclick="backupWallet()">
+                            <i class="fas fa-download"></i> Backup Wallet
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="send-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Send WTX</h3>
+                <button class="close-btn" onclick="closeModal('send-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Recipient Address</label>
+                    <input type="text" id="send-address" placeholder="Enter WATTx address">
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="send-amount" placeholder="0.00000000">
+                    <button class="max-btn" onclick="setMaxAmount()">MAX</button>
+                </div>
+                <div class="form-group">
+                    <label>Fee</label>
+                    <select id="send-fee">
+                        <option value="low">Low (0.00001 WTX)</option>
+                        <option value="medium" selected>Medium (0.0001 WTX)</option>
+                        <option value="high">High (0.001 WTX)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('send-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="sendTransaction()">
+                    <i class="fas fa-paper-plane"></i> Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="receive-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Receive WTX</h3>
+                <button class="close-btn" onclick="closeModal('receive-modal')">&times;</button>
+            </div>
+            <div class="modal-body center">
+                <div id="qr-code" class="qr-code"></div>
+                <div class="address-display">
+                    <code id="receive-address">Loading...</code>
+                    <button class="copy-btn" onclick="copyAddress()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

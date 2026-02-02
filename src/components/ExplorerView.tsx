@@ -44,29 +44,29 @@ const ExplorerView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  // Explorer endpoints - unified API at api.wattxchange.app
+  // Explorer endpoints - eIquidus explorers
   const explorerEndpoints = {
     WTX: {
-      api: 'https://api.wattxchange.app/wtx',
-      apiDisplay: 'https://api.wattxchange.app/wtx',
+      api: 'https://wtx-explorer.wattxchange.app',
+      apiDisplay: 'https://wtx-explorer.wattxchange.app',
       electrum: 'electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:3889'
     },
     HTH: {
-      api: 'https://api.wattxchange.app/hth',
-      apiDisplay: 'https://api.wattxchange.app/hth',
+      api: 'https://hth-explorer.wattxchange.app',
+      apiDisplay: 'https://hth-explorer.wattxchange.app',
       electrum: 'electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:65001'
     },
     FLOP: {
-      api: 'https://api.wattxchange.app/flop',
-      apiDisplay: 'https://api.wattxchange.app/flop',
+      api: 'https://flop-explorer.wattxchange.app',
+      apiDisplay: 'https://flop-explorer.wattxchange.app',
       electrum: 'flop-electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:9998'
     },
     ALT: {
-      api: 'https://api.wattxchange.app/bit',
-      apiDisplay: 'https://api.wattxchange.app/bit',
+      api: 'https://alt-explorer.wattxchange.app',
+      apiDisplay: 'https://alt-explorer.wattxchange.app',
       rpc: 'https://alt-rpc.wattxchange.app',
       ws: 'wss://alt-ws.wattxchange.app',
       chainId: 2330
@@ -99,7 +99,7 @@ const ExplorerView: React.FC = () => {
 
   const fetchNetworkStats = async () => {
     try {
-      const response = await fetch(`${explorerEndpoints[activeChain].api}/stats`);
+      const response = await fetch(`${explorerEndpoints[activeChain].api}/ext/getsummary`);
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
@@ -140,12 +140,12 @@ const ExplorerView: React.FC = () => {
       };
 
       setNetworkStats({
-        blockHeight: data.network?.blocks || data.network?.height || 0,
-        difficulty: formatDifficulty(data.network?.difficulty || 0),
-        hashrate: activeChain === 'ALT' ? 'N/A (PoS)' : formatHashrate(data.network?.networkHashPs || data.network?.hashrate),
+        blockHeight: data.blockcount || 0,
+        difficulty: formatDifficulty(data.difficulty || data.difficultyHybrid || 0),
+        hashrate: activeChain === 'ALT' ? 'N/A (PoS)' : formatHashrate(parseFloat(data.hashrate) || 0),
         totalSupply: getTotalSupply(activeChain),
-        circulatingSupply: `${((data.network?.blocks || 0) * getBlockReward(activeChain)).toLocaleString()} ${activeChain}`,
-        price: 'N/A'
+        circulatingSupply: data.supply ? `${data.supply.toLocaleString()} ${activeChain}` : `${((data.blockcount || 0) * getBlockReward(activeChain)).toLocaleString()} ${activeChain}`,
+        price: data.lastPrice ? `$${data.lastPrice.toFixed(6)}` : 'N/A'
       });
     } catch (error) {
       console.error('Failed to fetch network stats:', error);
@@ -171,26 +171,37 @@ const ExplorerView: React.FC = () => {
 
   const fetchRecentBlocks = async () => {
     try {
-      const response = await fetch(`${explorerEndpoints[activeChain].api}/blocks?limit=10`);
+      // eIquidus returns transactions, we extract unique blocks from them
+      const response = await fetch(`${explorerEndpoints[activeChain].api}/ext/getlasttxs/0/20`);
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
 
-      const blocks: Block[] = (data.blocks || []).map((block: any) => ({
-        height: block.height,
-        hash: block.hash,
-        time: block.time * 1000, // Convert to milliseconds
-        txCount: block.txCount || 1,
-        size: block.size || 0,
-        miner: block.miner || (() => {
-          switch (activeChain) {
-            case 'WTX': return 'RandomX Miner';
-            case 'HTH': return 'X25X Miner';
-            case 'FLOP': return 'Scrypt Miner';
-            case 'ALT': return 'Validator';
-          }
-        })()
-      }));
+      // Extract unique blocks from transactions
+      const seenBlocks = new Set<number>();
+      const blocks: Block[] = [];
+
+      for (const tx of (data || [])) {
+        if (!seenBlocks.has(tx.blockindex)) {
+          seenBlocks.add(tx.blockindex);
+          blocks.push({
+            height: tx.blockindex,
+            hash: tx.blockhash,
+            time: tx.timestamp * 1000,
+            txCount: 1,
+            size: 0,
+            miner: (() => {
+              switch (activeChain) {
+                case 'WTX': return 'RandomX Miner';
+                case 'HTH': return 'X25X Miner';
+                case 'FLOP': return 'Scrypt Miner';
+                case 'ALT': return 'Validator';
+              }
+            })()
+          });
+        }
+        if (blocks.length >= 10) break;
+      }
       setRecentBlocks(blocks);
     } catch (error) {
       console.error('Failed to fetch recent blocks:', error);
@@ -200,18 +211,18 @@ const ExplorerView: React.FC = () => {
 
   const fetchRecentTransactions = async () => {
     try {
-      const response = await fetch(`${explorerEndpoints[activeChain].api}/txs?limit=10`);
+      const response = await fetch(`${explorerEndpoints[activeChain].api}/ext/getlasttxs/0/10`);
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
 
-      const txs: Transaction[] = (data.transactions || []).map((tx: any) => ({
+      const txs: Transaction[] = (data || []).map((tx: any) => ({
         txid: tx.txid,
-        blockHeight: tx.blockHeight,
-        time: tx.blockTime * 1000, // Convert to milliseconds
-        value: parseFloat(tx.totalOutput) || 0,
-        fee: parseFloat(tx.fee) || 0,
-        confirmations: (networkStats?.blockHeight || 0) - tx.blockHeight + 1
+        blockHeight: tx.blockindex,
+        time: tx.timestamp * 1000,
+        value: parseFloat(tx.amount) || 0,
+        fee: 0,
+        confirmations: (networkStats?.blockHeight || 0) - tx.blockindex + 1
       }));
       setRecentTxs(txs);
     } catch (error) {

@@ -44,30 +44,29 @@ const ExplorerView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  // Explorer endpoints - using Vite proxy paths to avoid CORS issues
-  // The api paths are proxied through Vite dev server
+  // Explorer endpoints - unified API at api.wattxchange.app
   const explorerEndpoints = {
     WTX: {
-      api: '/api/wtx-explorer',  // Proxied to https://wtx-explorer.wattxchange.app/api
-      apiDisplay: 'https://wtx-explorer.wattxchange.app/api',
+      api: 'https://api.wattxchange.app/wtx',
+      apiDisplay: 'https://api.wattxchange.app/wtx',
       electrum: 'electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:3889'
     },
     HTH: {
-      api: '/api/hth-explorer',  // Proxied to https://hth-explorer.wattxchange.app/api
-      apiDisplay: 'https://hth-explorer.wattxchange.app/api',
+      api: 'https://api.wattxchange.app/hth',
+      apiDisplay: 'https://api.wattxchange.app/hth',
       electrum: 'electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:65001'
     },
     FLOP: {
-      api: '/api/flop-explorer',  // Proxied to https://flop-explorer.wattxchange.app/api
-      apiDisplay: 'https://flop-explorer.wattxchange.app/api',
+      api: 'https://api.wattxchange.app/flop',
+      apiDisplay: 'https://api.wattxchange.app/flop',
       electrum: 'flop-electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:9998'
     },
     ALT: {
-      api: '/api/alt-explorer',  // Proxied to https://alt-explorer.wattxchange.app/api
-      apiDisplay: 'https://alt-explorer.wattxchange.app/api',
+      api: 'https://api.wattxchange.app/bit',
+      apiDisplay: 'https://api.wattxchange.app/bit',
       rpc: 'https://alt-rpc.wattxchange.app',
       ws: 'wss://alt-ws.wattxchange.app',
       chainId: 2330

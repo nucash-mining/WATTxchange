@@ -125,7 +125,7 @@ const ExplorerView: React.FC = () => {
         switch (chain) {
           case 'WTX': return '21,000,000 WTX';
           case 'HTH': return '100,000,000 HTH';
-          case 'FLOP': return '100,000,000 FLOP';
+          case 'FLOP': return '∞ FLOP'; // Inflationary like Dogecoin
           case 'ALT': return '∞ ALT'; // EVM chain with no max supply
         }
       };
@@ -134,7 +134,7 @@ const ExplorerView: React.FC = () => {
         switch (chain) {
           case 'WTX': return 50;
           case 'HTH': return 10;
-          case 'FLOP': return 50;
+          case 'FLOP': return 10000; // Dogecoin-like block reward
           case 'ALT': return 2; // PoS block reward
         }
       };
@@ -154,7 +154,7 @@ const ExplorerView: React.FC = () => {
         switch (chain) {
           case 'WTX': return '21,000,000 WTX';
           case 'HTH': return '100,000,000 HTH';
-          case 'FLOP': return '100,000,000 FLOP';
+          case 'FLOP': return '∞ FLOP'; // Inflationary
           case 'ALT': return '∞ ALT';
         }
       };

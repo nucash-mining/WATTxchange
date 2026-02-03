@@ -460,17 +460,34 @@ const ExplorerView: React.FC = () => {
             </button>
           </div>
           <div className="divide-y divide-gray-800 max-h-96 overflow-y-auto">
-            {recentBlocks.map((block) => (
-              <div key={block.height} className="p-4 hover:bg-gray-800/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-yellow-400">#{block.height.toLocaleString()}</p>
-                    <div className="flex items-center space-x-2 mt-1">
+            {recentBlocks.map((block) => {
+              const getBlockBadgeStyle = (c: Chain) => {
+                switch (c) {
+                  case 'WTX': return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
+                  case 'HTH': return { bg: 'bg-green-500/20', text: 'text-green-400' };
+                  case 'FLOP': return { bg: 'bg-pink-500/20', text: 'text-pink-400' };
+                  case 'ALT': return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
+                }
+              };
+              const style = getBlockBadgeStyle(activeChain);
+              return (
+                <div key={block.height} className="p-4 hover:bg-gray-800/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${style.bg} ${style.text}`}>
+                        BK
+                      </div>
+                      <div>
+                        <p className={`font-semibold ${style.text}`}>#{block.height.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">{formatTime(block.time)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
                       <button
                         onClick={() => copyToClipboard(block.hash)}
                         className="text-sm text-gray-400 hover:text-white flex items-center space-x-1"
                       >
-                        <span>{truncateHash(block.hash)}</span>
+                        <span className="font-mono text-xs">{truncateHash(block.hash)}</span>
                         {copiedHash === block.hash ? (
                           <CheckCircle className="w-3 h-3 text-emerald-400" />
                         ) : (
@@ -479,13 +496,9 @@ const ExplorerView: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-400">{block.txCount} txns</p>
-                    <p className="text-xs text-gray-500">{formatTime(block.time)}</p>
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
 
@@ -507,30 +520,46 @@ const ExplorerView: React.FC = () => {
             </button>
           </div>
           <div className="divide-y divide-gray-800 max-h-96 overflow-y-auto">
-            {recentTxs.map((tx) => (
-              <div key={tx.txid} className="p-4 hover:bg-gray-800/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <button
-                      onClick={() => copyToClipboard(tx.txid)}
-                      className="font-medium text-emerald-400 hover:text-emerald-300 flex items-center space-x-1"
-                    >
-                      <span>{truncateHash(tx.txid, 10)}</span>
-                      {copiedHash === tx.txid ? (
-                        <CheckCircle className="w-3 h-3" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                    </button>
-                    <p className="text-sm text-gray-400 mt-1">Block #{tx.blockHeight.toLocaleString()}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{tx.value.toFixed(4)} {activeChain}</p>
-                    <p className="text-xs text-gray-500">{formatTime(tx.time)}</p>
+            {recentTxs.map((tx) => {
+              const getTxBadgeStyle = (c: Chain) => {
+                switch (c) {
+                  case 'WTX': return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
+                  case 'HTH': return { bg: 'bg-green-500/20', text: 'text-green-400' };
+                  case 'FLOP': return { bg: 'bg-pink-500/20', text: 'text-pink-400' };
+                  case 'ALT': return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
+                }
+              };
+              const style = getTxBadgeStyle(activeChain);
+              return (
+                <div key={tx.txid} className="p-4 hover:bg-gray-800/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${style.bg} ${style.text}`}>
+                        TX
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => copyToClipboard(tx.txid)}
+                          className={`font-mono text-sm hover:opacity-80 flex items-center space-x-1 ${style.text}`}
+                        >
+                          <span>{truncateHash(tx.txid, 10)}</span>
+                          {copiedHash === tx.txid ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-500">{formatTime(tx.time)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{tx.value.toFixed(4)} {activeChain}</p>
+                      <p className="text-xs text-gray-500">Block #{tx.blockHeight.toLocaleString()}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       </div>

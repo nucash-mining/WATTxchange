@@ -50,7 +50,7 @@ interface DifficultyData {
 }
 
 interface Props {
-  coin?: 'WTX' | 'HTH';
+  coin?: 'WTX' | 'HTH' | 'FLOP' | 'ALT';
 }
 
 const DifficultyMetrics: React.FC<Props> = ({ coin = 'WTX' }) => {
@@ -59,9 +59,17 @@ const DifficultyMetrics: React.FC<Props> = ({ coin = 'WTX' }) => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const apiEndpoint = coin === 'WTX'
-    ? '/api/wtx-explorer/difficulty'
-    : '/api/hth-explorer/difficulty';
+  const getApiEndpoint = (c: string) => {
+    switch (c) {
+      case 'WTX': return '/api/wtx-explorer/difficulty';
+      case 'HTH': return '/api/hth-explorer/difficulty';
+      case 'FLOP': return '/api/flop-explorer/difficulty';
+      case 'ALT': return '/api/alt-explorer/difficulty';
+      default: return '/api/wtx-explorer/difficulty';
+    }
+  };
+
+  const apiEndpoint = getApiEndpoint(coin);
 
   const fetchData = async () => {
     try {
@@ -110,9 +118,27 @@ const DifficultyMetrics: React.FC<Props> = ({ coin = 'WTX' }) => {
 
   if (!data) return null;
 
-  const coinColor = coin === 'WTX' ? 'yellow' : 'blue';
-  const gradientFrom = coin === 'WTX' ? 'from-yellow-600' : 'from-blue-600';
-  const gradientTo = coin === 'WTX' ? 'to-emerald-600' : 'to-purple-600';
+  const getCoinStyle = (c: string) => {
+    switch (c) {
+      case 'WTX': return { color: 'yellow', gradientFrom: 'from-yellow-600', gradientTo: 'to-emerald-600' };
+      case 'HTH': return { color: 'green', gradientFrom: 'from-green-500', gradientTo: 'to-yellow-400' };
+      case 'FLOP': return { color: 'pink', gradientFrom: 'from-pink-500', gradientTo: 'to-yellow-400' };
+      case 'ALT': return { color: 'blue', gradientFrom: 'from-blue-500', gradientTo: 'to-slate-600' };
+      default: return { color: 'yellow', gradientFrom: 'from-yellow-600', gradientTo: 'to-emerald-600' };
+    }
+  };
+
+  const getAlgorithmLabel = (c: string) => {
+    switch (c) {
+      case 'WTX': return 'RandomX Mining Power';
+      case 'HTH': return 'X25X Mining Power';
+      case 'FLOP': return 'Scrypt Mining Power';
+      case 'ALT': return 'PoW/PoS Hybrid';
+      default: return 'Mining Power';
+    }
+  };
+
+  const { color: coinColor, gradientFrom, gradientTo } = getCoinStyle(coin);
 
   return (
     <div className="space-y-6">
@@ -160,7 +186,7 @@ const DifficultyMetrics: React.FC<Props> = ({ coin = 'WTX' }) => {
           <div className="text-center">
             <p className="text-white/70 text-sm mb-1">Network Hashrate</p>
             <p className="text-3xl font-bold text-white">{data.pow.hashrateFormatted}</p>
-            <p className="text-white/60 text-xs mt-1">RandomX Mining Power</p>
+            <p className="text-white/60 text-xs mt-1">{getAlgorithmLabel(coin)}</p>
           </div>
           <div className="text-center">
             <p className="text-white/70 text-sm mb-1">Staking Participation</p>

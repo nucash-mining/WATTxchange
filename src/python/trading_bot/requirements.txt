@@ -1,0 +1,16 @@
+# Trading Bot Dependencies
+hummingbot==1.16.0
+ccxt==4.1.13
+pandas==2.1.4
+numpy==1.26.3
+matplotlib==3.8.2
+python-dotenv==1.0.0
+websocket-client==1.7.0
+requests==2.31.0
+cryptography==41.0.7
+pyjwt==2.8.0
+sqlalchemy==2.0.25
+aiohttp==3.9.1
+fastapi==0.109.2
+uvicorn==0.27.0
+pydantic==2.5.3

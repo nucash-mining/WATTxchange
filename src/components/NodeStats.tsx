@@ -22,7 +22,8 @@ import {
   Radio,
   Map,
   Eye,
-  ArrowUpDown
+  ArrowUpDown,
+  ExternalLink
 } from 'lucide-react';
 import { nodeStatsService, NodeStats as NodeStatsType, OracleNode, PeerInfo, NETWORKS } from '../services/nodeStatsService';
 import toast from 'react-hot-toast';
@@ -362,6 +363,132 @@ const NetworkStatsCard: React.FC<{ stats: NodeStatsType; isOwn: boolean }> = ({ 
   );
 };
 
+// Mining Pools Section Component
+interface CoinEntry {
+  ticker: string;
+  name: string;
+  algo: string;
+  port: number;
+  status: 'live' | 'soon';
+  logo: string;
+  hash: string;
+}
+
+const MINING_COINS: CoinEntry[] = [
+  { ticker: 'XMR',  name: 'Monero',       algo: 'RandomX',   port: 3334, status: 'live', logo: 'https://assets.coingecko.com/coins/images/69/large/monero_logo.png',                                    hash: 'xmr'  },
+  { ticker: 'ALT',  name: 'Altcoinchain', algo: 'Ethash',    port: 3333, status: 'live', logo: 'https://avatars.githubusercontent.com/u/115709361?v=4',                                                   hash: 'alt'  },
+  { ticker: 'LTC',  name: 'Litecoin',     algo: 'Scrypt',    port: 3337, status: 'soon', logo: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png',                                          hash: 'ltc'  },
+  { ticker: 'BTC',  name: 'Bitcoin',      algo: 'SHA-256d',  port: 3336, status: 'soon', logo: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png',                                           hash: 'btc'  },
+  { ticker: 'OCTA', name: 'Octaspace',    algo: 'Ethash',    port: 3333, status: 'soon', logo: 'https://avatars.githubusercontent.com/u/47415994?v=4',                                                    hash: 'octa' },
+  { ticker: 'DASH', name: 'Dash',         algo: 'X11',       port: 3340, status: 'soon', logo: 'https://assets.coingecko.com/coins/images/19/large/dash-logo.png',                                        hash: 'dash' },
+  { ticker: 'ZEN',  name: 'Horizen',      algo: 'Equihash',  port: 3341, status: 'soon', logo: 'https://assets.coingecko.com/coins/images/691/large/horizen.png',                                         hash: 'zen'  },
+  { ticker: 'ZEC',  name: 'Zcash',        algo: 'Equihash',  port: 3341, status: 'soon', logo: 'https://assets.coingecko.com/coins/images/486/large/circle-zcash-color.png',                              hash: 'zec'  },
+  { ticker: 'BTCZ', name: 'BitcoinZ',     algo: 'Equihash',  port: 3341, status: 'soon', logo: 'https://avatars.githubusercontent.com/u/33205606?s=200&v=4',                                              hash: 'btcz' },
+  { ticker: 'KAS',  name: 'Kaspa',        algo: 'kHeavyHash', port: 3342, status: 'soon', logo: 'https://assets.coingecko.com/coins/images/25751/large/kaspa-icon-exchanges.png',                         hash: 'kas'  },
+  { ticker: 'BIT',  name: 'Bitnet',       algo: 'SHA-256d',  port: 3343, status: 'soon', logo: 'https://avatars.githubusercontent.com/u/121768826?v=4',                                                   hash: 'bit'  },
+];
+
+const MiningPoolsSection: React.FC = () => {
+  return (
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-yellow-400 mb-1">WATTx Merged Mining Hub</h3>
+          <p className="text-slate-400">Mine any supported coin and earn WTX simultaneously.</p>
+        </div>
+        <a
+          href="https://mm.wattxchange.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center space-x-2 px-5 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
+        >
+          <span>Open Mining Hub</span>
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+
+      {/* Section header */}
+      <div>
+        <h3 className="text-xl font-semibold flex items-center space-x-2">
+          <Cpu className="w-5 h-5 text-yellow-400" />
+          <span>Supported Coins</span>
+        </h3>
+        <p className="text-slate-400 text-sm mt-1">Connect once, earn on two chains simultaneously</p>
+      </div>
+
+      {/* Coin grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {MINING_COINS.map((coin, i) => (
+          <motion.div
+            key={coin.ticker}
+            className="relative bg-slate-800/50 border border-slate-700/50 rounded-xl p-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            {/* Algorithm badge */}
+            <span className="absolute top-3 right-3 px-2 py-0.5 bg-slate-700/70 text-slate-300 text-xs rounded-full border border-slate-600/50">
+              {coin.algo}
+            </span>
+
+            {/* Coin identity */}
+            <div className="flex items-center space-x-3 mb-3">
+              <img
+                src={coin.logo}
+                alt={coin.name}
+                className="w-10 h-10 rounded-full object-cover bg-slate-700"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div>
+                <p className="font-bold text-white leading-tight">{coin.name}</p>
+                <p className="text-xs text-slate-400">{coin.ticker}</p>
+              </div>
+            </div>
+
+            {/* Port */}
+            <div className="bg-slate-900/50 rounded-lg px-3 py-2 mb-3 font-mono text-xs text-slate-300">
+              stratum.wattxchange.app : {coin.port}
+            </div>
+
+            {/* Status + link */}
+            <div className="flex items-center justify-between">
+              {coin.status === 'live' ? (
+                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-medium">
+                  Live
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-full text-xs font-medium">
+                  Coming Soon
+                </span>
+              )}
+              <a
+                href={`https://mm.wattxchange.app#${coin.hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-yellow-400 hover:text-yellow-300 flex items-center space-x-1 transition-colors"
+              >
+                <span>View Setup</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Footer info */}
+      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-sm text-slate-400">
+        All merged mining is handled through WATTx's built-in merged stratum. Miners connect once and earn the parent coin + WTX simultaneously. No extra configuration required.
+      </div>
+    </motion.div>
+  );
+};
+
 // Main Component
 const NodeStatsView: React.FC = () => {
   const [oracleNodes, setOracleNodes] = useState<OracleNode[]>([]);
@@ -371,6 +498,7 @@ const NodeStatsView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'our-nodes' | 'public'>('all');
+  const [activeSection, setActiveSection] = useState<'network' | 'mining'>('network');
 
   const loadData = useCallback(async () => {
     console.log('[NodeStats] Starting data load...');
@@ -428,16 +556,21 @@ const NodeStatsView: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <motion.div
-        className="flex items-center justify-between"
+        className="space-y-4"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div>
-          <h2 className="text-3xl font-bold">Network Statistics</h2>
-          <p className="text-slate-400 mt-1">Real-time blockchain network data</p>
-        </div>
+        {/* Title row + refresh */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold">
+              {activeSection === 'network' ? 'Network Statistics' : 'Mining Pools'}
+            </h2>
+            <p className="text-slate-400 mt-1">
+              {activeSection === 'network' ? 'Real-time blockchain network data' : 'Merged mining on WATTx infrastructure'}
+            </p>
+          </div>
 
-        <div className="flex items-center space-x-3">
           <motion.button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -447,23 +580,44 @@ const NodeStatsView: React.FC = () => {
           >
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
           </motion.button>
+        </div>
 
+        {/* Top-level section tabs */}
+        <div className="flex items-center space-x-3">
           <div className="flex bg-slate-800/50 rounded-lg p-1">
-            {(['all', 'our-nodes', 'public'] as const).map((f) => (
+            {(['network', 'mining'] as const).map((section) => (
               <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                  filter === f ? 'bg-yellow-600 text-white' : 'text-slate-400 hover:text-white'
+                key={section}
+                onClick={() => setActiveSection(section)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  activeSection === section ? 'bg-yellow-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                {f === 'all' ? 'All' : f === 'our-nodes' ? 'Our Nodes' : 'Public'}
+                {section === 'network' ? 'Network Stats' : 'Mining Pools'}
               </button>
             ))}
           </div>
+
+          {/* Filter tabs — only visible in network section */}
+          {activeSection === 'network' && (
+            <div className="flex bg-slate-800/50 rounded-lg p-1">
+              {(['all', 'our-nodes', 'public'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    filter === f ? 'bg-yellow-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {f === 'all' ? 'All' : f === 'our-nodes' ? 'Our Nodes' : 'Public'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </motion.div>
 
+      {activeSection === 'network' && (<>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <motion.div
@@ -666,6 +820,9 @@ const NodeStatsView: React.FC = () => {
           </div>
         </div>
       </motion.div>
+      </>)}
+
+      {activeSection === 'mining' && <MiningPoolsSection />}
     </div>
   );
 };

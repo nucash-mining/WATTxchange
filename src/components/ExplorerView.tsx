@@ -44,29 +44,29 @@ const ExplorerView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  // Explorer endpoints - unified API at api.wattxchange.app
+  // Explorer endpoints - eIquidus explorers
   const explorerEndpoints = {
     WTX: {
-      api: 'https://api.wattxchange.app/wtx',
-      apiDisplay: 'https://api.wattxchange.app/wtx',
+      api: 'https://wtx-explorer.wattxchange.app',
+      apiDisplay: 'https://wtx-explorer.wattxchange.app',
       electrum: 'electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:3889'
     },
     HTH: {
-      api: 'https://api.wattxchange.app/hth',
-      apiDisplay: 'https://api.wattxchange.app/hth',
+      api: 'https://hth-explorer.wattxchange.app',
+      apiDisplay: 'https://hth-explorer.wattxchange.app',
       electrum: 'electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:65001'
     },
     FLOP: {
-      api: 'https://api.wattxchange.app/flop',
-      apiDisplay: 'https://api.wattxchange.app/flop',
+      api: 'https://flop-explorer.wattxchange.app',
+      apiDisplay: 'https://flop-explorer.wattxchange.app',
       electrum: 'flop-electrum.wattxchange.app:50002',
       rpc: '129.80.40.193:9998'
     },
     ALT: {
-      api: 'https://api.wattxchange.app/bit',
-      apiDisplay: 'https://api.wattxchange.app/bit',
+      api: 'https://alt-explorer.wattxchange.app',
+      apiDisplay: 'https://alt-explorer.wattxchange.app',
       rpc: 'https://alt-rpc.wattxchange.app',
       ws: 'wss://alt-ws.wattxchange.app',
       chainId: 2330
@@ -99,7 +99,7 @@ const ExplorerView: React.FC = () => {
 
   const fetchNetworkStats = async () => {
     try {
-      const response = await fetch(`${explorerEndpoints[activeChain].api}/stats`);
+      const response = await fetch(`${explorerEndpoints[activeChain].api}/ext/getsummary`);
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
@@ -140,12 +140,12 @@ const ExplorerView: React.FC = () => {
       };
 
       setNetworkStats({
-        blockHeight: data.network?.blocks || data.network?.height || 0,
-        difficulty: formatDifficulty(data.network?.difficulty || 0),
-        hashrate: activeChain === 'ALT' ? 'N/A (PoS)' : formatHashrate(data.network?.networkHashPs || data.network?.hashrate),
+        blockHeight: data.blockcount || 0,
+        difficulty: formatDifficulty(data.difficulty || data.difficultyHybrid || 0),
+        hashrate: activeChain === 'ALT' ? 'N/A (PoS)' : formatHashrate(parseFloat(data.hashrate) || 0),
         totalSupply: getTotalSupply(activeChain),
-        circulatingSupply: `${((data.network?.blocks || 0) * getBlockReward(activeChain)).toLocaleString()} ${activeChain}`,
-        price: 'N/A'
+        circulatingSupply: data.supply ? `${data.supply.toLocaleString()} ${activeChain}` : `${((data.blockcount || 0) * getBlockReward(activeChain)).toLocaleString()} ${activeChain}`,
+        price: data.lastPrice ? `$${data.lastPrice.toFixed(6)}` : 'N/A'
       });
     } catch (error) {
       console.error('Failed to fetch network stats:', error);
@@ -171,26 +171,37 @@ const ExplorerView: React.FC = () => {
 
   const fetchRecentBlocks = async () => {
     try {
-      const response = await fetch(`${explorerEndpoints[activeChain].api}/blocks?limit=10`);
+      // eIquidus returns transactions, we extract unique blocks from them
+      const response = await fetch(`${explorerEndpoints[activeChain].api}/ext/getlasttxs/0/20`);
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
 
-      const blocks: Block[] = (data.blocks || []).map((block: any) => ({
-        height: block.height,
-        hash: block.hash,
-        time: block.time * 1000, // Convert to milliseconds
-        txCount: block.txCount || 1,
-        size: block.size || 0,
-        miner: block.miner || (() => {
-          switch (activeChain) {
-            case 'WTX': return 'RandomX Miner';
-            case 'HTH': return 'X25X Miner';
-            case 'FLOP': return 'Scrypt Miner';
-            case 'ALT': return 'Validator';
-          }
-        })()
-      }));
+      // Extract unique blocks from transactions
+      const seenBlocks = new Set<number>();
+      const blocks: Block[] = [];
+
+      for (const tx of (data || [])) {
+        if (!seenBlocks.has(tx.blockindex)) {
+          seenBlocks.add(tx.blockindex);
+          blocks.push({
+            height: tx.blockindex,
+            hash: tx.blockhash,
+            time: tx.timestamp * 1000,
+            txCount: 1,
+            size: 0,
+            miner: (() => {
+              switch (activeChain) {
+                case 'WTX': return 'RandomX Miner';
+                case 'HTH': return 'X25X Miner';
+                case 'FLOP': return 'Scrypt Miner';
+                case 'ALT': return 'Validator';
+              }
+            })()
+          });
+        }
+        if (blocks.length >= 10) break;
+      }
       setRecentBlocks(blocks);
     } catch (error) {
       console.error('Failed to fetch recent blocks:', error);
@@ -200,18 +211,18 @@ const ExplorerView: React.FC = () => {
 
   const fetchRecentTransactions = async () => {
     try {
-      const response = await fetch(`${explorerEndpoints[activeChain].api}/txs?limit=10`);
+      const response = await fetch(`${explorerEndpoints[activeChain].api}/ext/getlasttxs/0/10`);
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
 
-      const txs: Transaction[] = (data.transactions || []).map((tx: any) => ({
+      const txs: Transaction[] = (data || []).map((tx: any) => ({
         txid: tx.txid,
-        blockHeight: tx.blockHeight,
-        time: tx.blockTime * 1000, // Convert to milliseconds
-        value: parseFloat(tx.totalOutput) || 0,
-        fee: parseFloat(tx.fee) || 0,
-        confirmations: (networkStats?.blockHeight || 0) - tx.blockHeight + 1
+        blockHeight: tx.blockindex,
+        time: tx.timestamp * 1000,
+        value: parseFloat(tx.amount) || 0,
+        fee: 0,
+        confirmations: (networkStats?.blockHeight || 0) - tx.blockindex + 1
       }));
       setRecentTxs(txs);
     } catch (error) {
@@ -449,17 +460,34 @@ const ExplorerView: React.FC = () => {
             </button>
           </div>
           <div className="divide-y divide-gray-800 max-h-96 overflow-y-auto">
-            {recentBlocks.map((block) => (
-              <div key={block.height} className="p-4 hover:bg-gray-800/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-yellow-400">#{block.height.toLocaleString()}</p>
-                    <div className="flex items-center space-x-2 mt-1">
+            {recentBlocks.map((block) => {
+              const getBlockBadgeStyle = (c: Chain) => {
+                switch (c) {
+                  case 'WTX': return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
+                  case 'HTH': return { bg: 'bg-green-500/20', text: 'text-green-400' };
+                  case 'FLOP': return { bg: 'bg-pink-500/20', text: 'text-pink-400' };
+                  case 'ALT': return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
+                }
+              };
+              const style = getBlockBadgeStyle(activeChain);
+              return (
+                <div key={block.height} className="p-4 hover:bg-gray-800/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${style.bg} ${style.text}`}>
+                        BK
+                      </div>
+                      <div>
+                        <p className={`font-semibold ${style.text}`}>#{block.height.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">{formatTime(block.time)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
                       <button
                         onClick={() => copyToClipboard(block.hash)}
                         className="text-sm text-gray-400 hover:text-white flex items-center space-x-1"
                       >
-                        <span>{truncateHash(block.hash)}</span>
+                        <span className="font-mono text-xs">{truncateHash(block.hash)}</span>
                         {copiedHash === block.hash ? (
                           <CheckCircle className="w-3 h-3 text-emerald-400" />
                         ) : (
@@ -468,13 +496,9 @@ const ExplorerView: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-400">{block.txCount} txns</p>
-                    <p className="text-xs text-gray-500">{formatTime(block.time)}</p>
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
 
@@ -496,30 +520,46 @@ const ExplorerView: React.FC = () => {
             </button>
           </div>
           <div className="divide-y divide-gray-800 max-h-96 overflow-y-auto">
-            {recentTxs.map((tx) => (
-              <div key={tx.txid} className="p-4 hover:bg-gray-800/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <button
-                      onClick={() => copyToClipboard(tx.txid)}
-                      className="font-medium text-emerald-400 hover:text-emerald-300 flex items-center space-x-1"
-                    >
-                      <span>{truncateHash(tx.txid, 10)}</span>
-                      {copiedHash === tx.txid ? (
-                        <CheckCircle className="w-3 h-3" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                    </button>
-                    <p className="text-sm text-gray-400 mt-1">Block #{tx.blockHeight.toLocaleString()}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{tx.value.toFixed(4)} {activeChain}</p>
-                    <p className="text-xs text-gray-500">{formatTime(tx.time)}</p>
+            {recentTxs.map((tx) => {
+              const getTxBadgeStyle = (c: Chain) => {
+                switch (c) {
+                  case 'WTX': return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
+                  case 'HTH': return { bg: 'bg-green-500/20', text: 'text-green-400' };
+                  case 'FLOP': return { bg: 'bg-pink-500/20', text: 'text-pink-400' };
+                  case 'ALT': return { bg: 'bg-blue-500/20', text: 'text-blue-400' };
+                }
+              };
+              const style = getTxBadgeStyle(activeChain);
+              return (
+                <div key={tx.txid} className="p-4 hover:bg-gray-800/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${style.bg} ${style.text}`}>
+                        TX
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => copyToClipboard(tx.txid)}
+                          className={`font-mono text-sm hover:opacity-80 flex items-center space-x-1 ${style.text}`}
+                        >
+                          <span>{truncateHash(tx.txid, 10)}</span>
+                          {copiedHash === tx.txid ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-500">{formatTime(tx.time)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{tx.value.toFixed(4)} {activeChain}</p>
+                      <p className="text-xs text-gray-500">Block #{tx.blockHeight.toLocaleString()}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       </div>

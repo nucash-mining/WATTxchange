@@ -111,30 +111,31 @@ function App() {
         isMobile={isMobile}
       />
       <div className="flex">
-        {/* Sidebar - Always visible */}
-        <div className="w-64 bg-gray-900/95 backdrop-blur-xl border-r border-gray-800">
-          <Sidebar 
-            currentView={currentView} 
-            onViewChange={(view: ViewType) => {
-              setCurrentView(view);
-            }} 
-          />
-        </div>
-
+        {/* Sidebar — desktop only */}
+        {!isMobile && (
+          <div className="w-64 flex-shrink-0 bg-gray-900/95 backdrop-blur-xl border-r border-gray-800 min-h-[calc(100vh-64px)]">
+            <Sidebar
+              currentView={currentView}
+              onViewChange={(view: ViewType) => setCurrentView(view)}
+            />
+          </div>
+        )}
 
         {/* Main Content */}
-        <div className="flex-1">
-          {isMobile ? (
-            <MobileNavbar 
-              currentView={currentView}
-              onViewChange={setCurrentView}
-            />
-          ) : null}
-          <main className="p-6">
+        <div className="flex-1 min-w-0">
+          <main className={`${isMobile ? 'p-3 pb-20' : 'p-6'}`}>
             {renderView()}
           </main>
         </div>
       </div>
+
+      {/* Mobile bottom nav — rendered outside the flex row so it stays fixed */}
+      {isMobile && (
+        <MobileNavbar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+      )}
       
       <Toaster 
         position="top-right"

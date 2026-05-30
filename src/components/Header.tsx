@@ -30,23 +30,23 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
               <Menu className="w-5 h-5" />
             </button>
           )}
-          <div className="relative">
-            <img 
-              src="/WATTxchange logo.png" 
-              alt="WATT Token" 
-              className={isMobile ? "w-12 h-12" : "w-32 h-32"} 
+          <div className="relative flex-shrink-0">
+            <img
+              src="/WATTxchange logo.png"
+              alt="WATT Token"
+              className={isMobile ? "w-9 h-9" : "w-12 h-12"}
             />
             <motion.div
-              className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full"
+              className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full"
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
           </div>
-          <div>
-            <h1 className={`${isMobile ? "text-2xl" : "text-8xl"} font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent`}>
+          <div className="min-w-0">
+            <h1 className={`${isMobile ? "text-xl" : "text-3xl"} font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent leading-tight whitespace-nowrap`}>
               WATTxchange
             </h1>
-            <p className={`${isMobile ? "text-sm" : "text-2xl"} text-gray-400`}>Multi-Chain DeFi Hub</p>
+            <p className={`${isMobile ? "text-xs" : "text-sm"} text-gray-400 leading-tight`}>Multi-Chain DeFi Hub</p>
           </div>
         </motion.div>
 

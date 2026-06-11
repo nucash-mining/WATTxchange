@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu } from 'lucide-react';
+import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins } from 'lucide-react';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 interface SidebarProps {
   currentView: string;
-  onViewChange: (view: 'wallet' | 'dex' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool') => void;
+  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool') => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
@@ -17,6 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'explorer', label: 'Explorer', icon: Search },
     { id: 'pool', label: 'Mining Pools', icon: Cpu },
     { id: 'dex', label: 'DEX', icon: TrendingUp },
+    { id: 'defi', label: 'DeFi Hub', icon: Coins },
     { id: 'mining', label: 'Mining Game', icon: Gamepad2 },
     { id: 'nuchain', label: 'nuChain L2', icon: Zap },
     { id: 'marketplace', label: 'Tech Marketplace', icon: ShoppingCart },
@@ -34,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           return (
             <motion.button
               key={item.id}
-              onClick={() => onViewChange(item.id as 'wallet' | 'nodes' | 'dex' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool')}
+              onClick={() => onViewChange(item.id as 'wallet' | 'nodes' | 'dex' | 'defi' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive
                   ? item.id === 'nuchain'

@@ -4,6 +4,58 @@ import { Server, Activity, Shield, Cpu, RefreshCw, Settings, Play, Square, Wifi 
 import RPCNodeManager from './wallet/RPCNodeManager';
 import RealNodeConnectionModal from './nodes/RealNodeConnectionModal';
 import toast from 'react-hot-toast';
+import { NODE_ENDPOINTS, ORACLE_HOST, type NodeEndpoint } from '../config/nodeEndpoints';
+
+/** Map each Nodes tab to its symbol in the nodeEndpoints registry. */
+const TAB_TO_SYMBOL: Record<string, string> = {
+  bitcoin: 'BTC',
+  ethereum: 'ALT', // EVM node hosted on the Oracle fleet
+  litecoin: 'LTC',
+  monero: 'XMR',
+  altcoin: 'ALT',
+  ghost: 'GHOST',
+  troll: 'TROLL',
+  hth: 'HTH',
+  raptoreum: 'RTM',
+};
+
+/**
+ * Resolve the live network endpoint for a tab from nodeEndpoints.ts.
+ * Returns the real Oracle Cloud host/IP + RPC, ElectrumX and explorer info so
+ * the Nodes page reflects the actual fleet rather than mock data.
+ */
+const getNodeNetwork = (
+  node: string,
+  fallbackRpcPort: number
+): {
+  endpoint?: NodeEndpoint;
+  host: string;
+  isOracle: boolean;
+  rpc: string;
+  electrum?: string;
+  electrumReady: boolean;
+  explorer?: string;
+} => {
+  const endpoint = NODE_ENDPOINTS[TAB_TO_SYMBOL[node]];
+  const electrumUrl = endpoint?.electrum?.[0]?.url;
+  // A native/EVM RPC means we run the full node ourselves. Coins with only a
+  // public Electrum server (BTC/LTC/DOGE) are NOT on our Oracle fleet — for
+  // those, don't fabricate an Oracle RPC. Coins with no registry entry but a
+  // known daemon (e.g. Monero) fall back to the Oracle host + port.
+  const realRpc = endpoint?.nativeRpc || endpoint?.evmRpc;
+  const rpc = realRpc || (electrumUrl ? undefined : `${ORACLE_HOST}:${fallbackRpcPort}`);
+  const hostSource = rpc || electrumUrl || ORACLE_HOST;
+  const host = hostSource.replace(/^https?:\/\//, '').split(/[:/]/)[0];
+  return {
+    endpoint,
+    host,
+    isOracle: host === ORACLE_HOST || host.endsWith('.wattxchange.app'),
+    rpc,
+    electrum: electrumUrl,
+    electrumReady: !!endpoint?.electrumReady,
+    explorer: endpoint?.explorer,
+  };
+};
 
 const NodesView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'bitcoin' | 'ethereum' | 'litecoin' | 'monero' | 'altcoin' | 'ghost' | 'troll' | 'hth' | 'raptoreum'>('bitcoin');
@@ -425,6 +477,60 @@ const NodesView: React.FC = () => {
             <div>
               <h4 className="font-medium text-yellow-400 mb-3">Connection Details</h4>
               <div className="space-y-2 text-sm">
+                {(() => {
+                  const net = getNodeNetwork(activeTab, getNodeDetails(activeTab).rpcPort);
+                  return (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Host:</span>
+                        <span className="font-mono flex items-center gap-2">
+                          {net.host}
+                          {net.isOracle && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                              Oracle Cloud
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      {net.rpc && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Node RPC:</span>
+                          <span className="font-mono text-emerald-300">{net.rpc}</span>
+                        </div>
+                      )}
+                      {net.electrum && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">ElectrumX:</span>
+                          <span className="font-mono flex items-center gap-2">
+                            {net.electrum}
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] border ${
+                                net.electrumReady
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                              }`}
+                            >
+                              {net.electrumReady ? 'live' : 'pending'}
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                      {net.explorer && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Explorer:</span>
+                          <a
+                            href={net.explorer}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-mono text-blue-400 hover:underline truncate max-w-[60%] text-right"
+                          >
+                            {net.explorer.replace(/^https?:\/\//, '')}
+                          </a>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 <div className="flex justify-between">
                   <span className="text-slate-400">RPC Port:</span>
                   <span>{getNodeDetails(activeTab).rpcPort}</span>

@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Shim Node's `process.env` in the browser. Several services reference
+  // `process.env.X || 'default'` at module top-level; without this, the first
+  // one evaluated throws `ReferenceError: process is not defined` and takes
+  // down the whole bundle (blank page). Empty object → fallbacks apply.
+  define: {
+    'process.env': {},
+  },
   server: {
     port: 5173,
     host: true,

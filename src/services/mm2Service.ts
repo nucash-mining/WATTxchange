@@ -7,6 +7,9 @@
  * API Documentation: https://developers.komodoplatform.com/basic-docs/atomicdex-api-20/
  */
 
+import { WATTXCHANGE_COINS, getCoinConfig, electrumFor } from '../config/mm2Coins';
+import { getEndpoint, tradeableCoins } from '../config/nodeEndpoints';
+
 interface MM2Config {
   gui: string;
   netid: number;
@@ -833,6 +836,171 @@ class MM2Service {
     };
 
     return statusMap[eventType] || eventType;
+  }
+
+  // ---------------------------------------------------------------------------
+  // WATTxchange wiring — drive the full coin set + swap lifecycle on our nodes.
+  // ---------------------------------------------------------------------------
+
+  /** Coins tradeable right now (EVM coins + UTXO coins with live ElectrumX). */
+  getTradeableCoins(): string[] {
+    return tradeableCoins();
+  }
+
+  /** Full WATTxchange coin set (includes coins still pending ElectrumX). */
+  getWattxchangeCoins(): string[] {
+    return WATTXCHANGE_COINS.map((c) => c.coin);
+  }
+
+  /**
+   * Enable a coin using the WATTxchange node endpoints automatically:
+   * - UTXO/QTUM coins are enabled over their ElectrumX servers.
+   * - ETH/ERC20 coins are enabled over the chain's EVM RPC (requires the
+   *   etomic swap contract address via VITE_<COIN>_SWAP_CONTRACT).
+   */
+  async enableCoinAuto(coin: string): Promise<Balance | null> {
+    const cfg = getCoinConfig(coin);
+    const endpoint = getEndpoint(coin);
+    if (!cfg || !endpoint) {
+      console.error(`enableCoinAuto: ${coin} not in WATTxchange config`);
+      return null;
+    }
+
+    if (cfg.protocol.type === 'ETH' || cfg.protocol.type === 'ERC20') {
+      const rpc = endpoint.evmRpc;
+      if (!rpc) {
+        console.error(`enableCoinAuto: no EVM RPC for ${coin}`);
+        return null;
+      }
+      const swapContract =
+        (import.meta as any).env?.[`VITE_${coin.toUpperCase()}_SWAP_CONTRACT`];
+      if (!swapContract) {
+        console.warn(
+          `enableCoinAuto: VITE_${coin.toUpperCase()}_SWAP_CONTRACT not set — ` +
+            `${coin} atomic swaps need the etomic swap contract deployed on chain.`
+        );
+      }
+      const response = await this.rpcCall<Balance>('enable', {
+        coin,
+        urls: [rpc],
+        swap_contract_address: swapContract,
+        fallback_swap_contract: swapContract,
+        tx_history: true
+      });
+      if ('error' in response) {
+        console.error(`Failed to enable ${coin}:`, response.error);
+        return null;
+      }
+      return response as Balance;
+    }
+
+    // UTXO / QTUM — needs a live ElectrumX server.
+    const servers = electrumFor(coin);
+    if (!endpoint.electrumReady || servers.length === 0) {
+      console.error(
+        `enableCoinAuto: ${coin} has no live ElectrumX yet (see electrumx/README.md)`
+      );
+      return null;
+    }
+    return this.enableCoin(coin, { electrumServers: servers, txHistory: true });
+  }
+
+  /** Withdraw + broadcast in one step. Returns the broadcast tx hash. */
+  async withdraw(
+    coin: string,
+    to: string,
+    amount: string | 'max'
+  ): Promise<{ txHash: string } | null> {
+    try {
+      const withdrawParams =
+        amount === 'max'
+          ? { coin, to, max: true }
+          : { coin, to, amount };
+      const wres = await this.rpcCall<{ tx_hex: string }>('withdraw', withdrawParams);
+      if ('error' in wres) {
+        console.error(`withdraw ${coin} failed:`, wres.error);
+        return null;
+      }
+      const txHex = (wres as { tx_hex: string }).tx_hex;
+      const sres = await this.rpcCall<{ tx_hash: string }>('send_raw_transaction', {
+        coin,
+        tx_hex: txHex
+      });
+      if ('error' in sres) {
+        console.error(`send_raw_transaction ${coin} failed:`, sres.error);
+        return null;
+      }
+      return { txHash: (sres as { tx_hash: string }).tx_hash };
+    } catch (error) {
+      console.error(`withdraw error for ${coin}:`, error);
+      return null;
+    }
+  }
+
+  /** Address kdf derived for an enabled coin. */
+  async getMyAddress(coin: string): Promise<string | null> {
+    const balance = await this.getBalance(coin);
+    return balance?.address ?? null;
+  }
+
+  /**
+   * Place a taker trade (immediate swap against the orderbook).
+   * `side: 'buy'` acquires `base` paying `rel`; `'sell'` sells `base` for `rel`.
+   * Returns the swap uuid to track via waitForSwap().
+   */
+  async startTrade(
+    side: 'buy' | 'sell',
+    base: string,
+    rel: string,
+    price: string,
+    volume: string
+  ): Promise<string | null> {
+    const res =
+      side === 'buy'
+        ? await this.buy(base, rel, price, volume)
+        : await this.sell(base, rel, price, volume);
+    return res?.result?.uuid ?? null;
+  }
+
+  /**
+   * Poll a swap to completion. Resolves with the final status, calling
+   * `onUpdate` on each state change. The HTLC escrow logic is handled by kdf:
+   * it only releases each leg once the counterparty's on-chain payment is
+   * confirmed and the secret is revealed.
+   */
+  async waitForSwap(
+    uuid: string,
+    options: {
+      onUpdate?: (status: SwapStatus, human: string) => void;
+      pollMs?: number;
+      timeoutMs?: number;
+    } = {}
+  ): Promise<{ status: SwapStatus | null; success: boolean }> {
+    const pollMs = options.pollMs ?? 5000;
+    const timeoutMs = options.timeoutMs ?? 60 * 60 * 1000; // swaps can take a while
+    const started = Date.now();
+    let lastEvent = '';
+
+    while (Date.now() - started < timeoutMs) {
+      const status = await this.getSwapStatus(uuid);
+      if (status) {
+        const last = status.events[status.events.length - 1];
+        const eventType = last?.event?.type || '';
+        if (eventType !== lastEvent) {
+          lastEvent = eventType;
+          options.onUpdate?.(status, this.formatSwapStatus(status));
+        }
+        if (eventType === 'Finished') {
+          // Success unless a terminal error event is present.
+          const hadError = status.events.some(
+            (e) => !!e.event?.type && status.error_events.includes(e.event.type)
+          );
+          return { status, success: !hadError };
+        }
+      }
+      await new Promise((r) => setTimeout(r, pollMs));
+    }
+    return { status: await this.getSwapStatus(uuid), success: false };
   }
 }
 

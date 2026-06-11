@@ -1,0 +1,65 @@
+{
+  "_comment": "Single source of truth for WATTxchange kdf/mm2 coin parameters. Consumed by src/config/mm2Coins.ts (app) AND scripts/mm2/genConfig.mjs (daemon coins file). 'verified' is app-only and stripped from the kdf coins file. Address bytes for coins with verified:false MUST be confirmed against the live node via electrumx/derive-params.sh.",
+  "coins": [
+    {
+      "coin": "WTX", "name": "wattx", "fname": "WATTx", "rpcport": 3889,
+      "pubtype": 73, "p2shtype": 75, "wiftype": 128, "txfee": 100000,
+      "mm2": 1, "required_confirmations": 3, "avg_blocktime": 128,
+      "protocol": { "type": "QTUM" }, "verified": true
+    },
+    {
+      "coin": "TROLL", "name": "trollcoin", "fname": "Trollcoin", "rpcport": 9666,
+      "pubtype": 66, "p2shtype": 5, "wiftype": 153, "txfee": 100000,
+      "mm2": 1, "required_confirmations": 6, "avg_blocktime": 60,
+      "protocol": { "type": "UTXO" }, "verified": true
+    },
+    {
+      "coin": "HTH", "name": "helpthehomeless", "fname": "Help The Homeless Coin", "rpcport": 13777,
+      "pubtype": 100, "p2shtype": 40, "wiftype": 228, "txfee": 100000,
+      "mm2": 1, "required_confirmations": 6, "avg_blocktime": 60,
+      "protocol": { "type": "UTXO" }, "verified": true
+    },
+    {
+      "coin": "RTM", "name": "raptoreum", "fname": "Raptoreum", "rpcport": 9998,
+      "pubtype": 60, "p2shtype": 16, "wiftype": 128, "txfee": 10000,
+      "mm2": 1, "required_confirmations": 6, "avg_blocktime": 120,
+      "protocol": { "type": "UTXO" }, "verified": false
+    },
+    {
+      "coin": "GHOST", "name": "ghost", "fname": "Ghost", "rpcport": 51725,
+      "pubtype": 38, "p2shtype": 97, "wiftype": 166, "txfee": 100000,
+      "mm2": 1, "required_confirmations": 6, "avg_blocktime": 120,
+      "protocol": { "type": "UTXO" }, "verified": false
+    },
+    {
+      "coin": "FLOP", "name": "flopcoin", "fname": "Flopcoin", "rpcport": 32552,
+      "pubtype": 35, "p2shtype": 5, "wiftype": 176, "txfee": 100000000,
+      "mm2": 1, "required_confirmations": 6, "avg_blocktime": 60,
+      "protocol": { "type": "UTXO" }, "verified": false
+    },
+    {
+      "coin": "ALT", "name": "altcoinchain", "fname": "Altcoinchain", "rpcport": 80,
+      "pubtype": 0, "p2shtype": 0, "wiftype": 0, "txfee": 0,
+      "mm2": 1, "required_confirmations": 3, "avg_blocktime": 13, "decimals": 18,
+      "protocol": { "type": "ETH" }, "chain_id": 2330, "verified": true
+    },
+    {
+      "coin": "BTC", "name": "bitcoin", "fname": "Bitcoin", "rpcport": 8332,
+      "pubtype": 0, "p2shtype": 5, "wiftype": 128, "txfee": 10000,
+      "mm2": 1, "required_confirmations": 2, "avg_blocktime": 600,
+      "protocol": { "type": "UTXO" }, "verified": true
+    },
+    {
+      "coin": "LTC", "name": "litecoin", "fname": "Litecoin", "rpcport": 9332,
+      "pubtype": 48, "p2shtype": 50, "wiftype": 176, "txfee": 100000,
+      "mm2": 1, "required_confirmations": 3, "avg_blocktime": 150,
+      "protocol": { "type": "UTXO" }, "verified": true
+    },
+    {
+      "coin": "DOGE", "name": "dogecoin", "fname": "Dogecoin", "rpcport": 22555,
+      "pubtype": 30, "p2shtype": 22, "wiftype": 158, "txfee": 100000000,
+      "mm2": 1, "required_confirmations": 3, "avg_blocktime": 60,
+      "protocol": { "type": "UTXO" }, "verified": true
+    }
+  ]
+}

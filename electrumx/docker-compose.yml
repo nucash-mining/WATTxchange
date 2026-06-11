@@ -1,0 +1,84 @@
+# WATTxchange ElectrumX fleet — RTM, GHOST, TROLL, HTH.
+#
+# WTX and FLOP already have ElectrumX servers; this brings the remaining four
+# online so all UTXO coins are tradeable on the mm2-powered DeFi Hub.
+#
+# Per coin you must:
+#   1. Run its full node with txindex=1, server=1, and RPC reachable.
+#   2. Fill env/<coin>.env with the node's RPC user/pass/host/port.
+#   3. Point DNS <coin>-electrum.wattxchange.app at this host and open the ports.
+#
+# Bring up one at a time on first sync:  docker compose up -d troll-electrumx
+
+services:
+  troll-electrumx:
+    build: { context: ., dockerfile: Dockerfile }
+    container_name: troll-electrumx
+    restart: unless-stopped
+    env_file: env/troll.env
+    environment:
+      - COIN=Trollcoin
+      - NET=mainnet
+      - REPORT_HOST=troll-electrum.wattxchange.app
+      - DB_DIRECTORY=/data/electrumx
+      - SERVICES=tcp://:50001,ssl://:50002,rpc://:8000
+    ports: ["50011:50001", "50012:50002"]
+    volumes: ["troll-data:/data"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  hth-electrumx:
+    build: { context: ., dockerfile: Dockerfile }
+    container_name: hth-electrumx
+    restart: unless-stopped
+    env_file: env/hth.env
+    environment:
+      - COIN=HelpTheHomeless
+      - NET=mainnet
+      - REPORT_HOST=hth-electrum.wattxchange.app
+      - DB_DIRECTORY=/data/electrumx
+      - SERVICES=tcp://:50001,ssl://:50002,rpc://:8000
+    ports: ["50021:50001", "50022:50002"]
+    volumes: ["hth-data:/data"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  # Raptoreum needs a coin-specific ElectrumX fork (special/DIP2 tx format).
+  rtm-electrumx:
+    build: { context: ., dockerfile: rtm/Dockerfile }
+    container_name: rtm-electrumx
+    restart: unless-stopped
+    env_file: env/rtm.env
+    environment:
+      - COIN=Raptoreum
+      - NET=mainnet
+      - REPORT_HOST=rtm-electrum.wattxchange.app
+      - DB_DIRECTORY=/data/electrumx
+      - SERVICES=tcp://:50001,ssl://:50002,rpc://:8000
+    ports: ["50031:50001", "50032:50002"]
+    volumes: ["rtm-data:/data"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  # GHOST is a Particl fork (cold-staking outputs) — Particl ElectrumX fork.
+  ghost-electrumx:
+    build: { context: ., dockerfile: ghost/Dockerfile }
+    container_name: ghost-electrumx
+    restart: unless-stopped
+    env_file: env/ghost.env
+    environment:
+      - COIN=Ghost
+      - NET=mainnet
+      - REPORT_HOST=ghost-electrum.wattxchange.app
+      - DB_DIRECTORY=/data/electrumx
+      - SERVICES=tcp://:50001,ssl://:50002,rpc://:8000
+    ports: ["50041:50001", "50042:50002"]
+    volumes: ["ghost-data:/data"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+volumes:
+  troll-data:
+  hth-data:
+  rtm-data:
+  ghost-data:
+
+networks:
+  default:
+    name: wattxchange-electrumx

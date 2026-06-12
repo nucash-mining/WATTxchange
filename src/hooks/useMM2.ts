@@ -82,6 +82,25 @@ interface UseMM2Return extends MM2State {
   // Configuration
   getSupportedCoins: () => CoinConfig[];
   getWATTxConfig: () => CoinConfig;
+
+  /** Coins with a live ElectrumX (UTXO) or EVM RPC — actually swappable now. */
+  tradeableCoins: string[];
+  /** Full WATTxchange coin set (includes coins still pending ElectrumX). */
+  wattxchangeCoins: string[];
+
+  /**
+   * Place a taker atomic swap and track it to completion. Returns the swap
+   * uuid immediately via `onStarted`; resolves once the HTLC swap finishes.
+   */
+  executeSwap: (params: {
+    side: 'buy' | 'sell';
+    base: string;
+    rel: string;
+    price: string;
+    volume: string;
+    onStarted?: (uuid: string) => void;
+    onUpdate?: (status: SwapStatus, human: string) => void;
+  }) => Promise<{ uuid: string | null; success: boolean }>;
 }
 
 export function useMM2(options: UseMM2Options = {}): UseMM2Return {
@@ -181,7 +200,9 @@ export function useMM2(options: UseMM2Options = {}): UseMM2Return {
     setState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      const balance = await mm2Service.enableCoin(coin);
+      // Use the config-driven path: resolves ElectrumX servers (UTXO/QTUM) or
+      // EVM RPC (ETH/ERC20) automatically from the WATTxchange node registry.
+      const balance = await mm2Service.enableCoinAuto(coin);
 
       if (balance) {
         setState(prev => ({
@@ -466,6 +487,47 @@ export function useMM2(options: UseMM2Options = {}): UseMM2Return {
     return mm2Service.getWATTxConfig();
   }, []);
 
+  // Config-driven coin lists (stable — derived from the node registry).
+  const tradeableCoins = useRef<string[]>(mm2Service.getTradeableCoins()).current;
+  const wattxchangeCoins = useRef<string[]>(mm2Service.getWattxchangeCoins()).current;
+
+  // Place a taker swap and track it to completion.
+  const executeSwap = useCallback(async (params: {
+    side: 'buy' | 'sell';
+    base: string;
+    rel: string;
+    price: string;
+    volume: string;
+    onStarted?: (uuid: string) => void;
+    onUpdate?: (status: SwapStatus, human: string) => void;
+  }): Promise<{ uuid: string | null; success: boolean }> => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    try {
+      const uuid = await mm2Service.startTrade(
+        params.side, params.base, params.rel, params.price, params.volume
+      );
+      setState(prev => ({ ...prev, isLoading: false }));
+      if (!uuid) {
+        setState(prev => ({ ...prev, error: 'Failed to start swap' }));
+        return { uuid: null, success: false };
+      }
+      params.onStarted?.(uuid);
+      await refreshSwaps();
+      const { success } = await mm2Service.waitForSwap(uuid, {
+        onUpdate: params.onUpdate
+      });
+      await refreshSwaps();
+      return { uuid, success };
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Swap failed'
+      }));
+      return { uuid: null, success: false };
+    }
+  }, [refreshSwaps]);
+
   // Auto-connect on mount
   useEffect(() => {
     if (autoConnect) {
@@ -517,7 +579,10 @@ export function useMM2(options: UseMM2Options = {}): UseMM2Return {
     getSwapStatus,
     refreshSwaps,
     getSupportedCoins,
-    getWATTxConfig
+    getWATTxConfig,
+    tradeableCoins,
+    wattxchangeCoins,
+    executeSwap
   };
 }
 

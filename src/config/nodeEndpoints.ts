@@ -14,7 +14,7 @@
 
 /** Oracle Cloud host running the WATTxchange full-node fleet. */
 export const ORACLE_HOST =
-  (import.meta as any).env?.VITE_ORACLE_HOST || '129.80.40.193';
+  import.meta.env?.VITE_ORACLE_HOST || '129.80.40.193';
 
 export type CoinProtocol = 'UTXO' | 'QTUM' | 'ETH' | 'ERC20';
 
@@ -49,8 +49,9 @@ export interface NodeEndpoint {
   explorer?: string;
 }
 
-const env = (key: string): string | undefined =>
-  (import.meta as any).env?.[key];
+const importMetaEnv: Record<string, string | undefined> = import.meta.env || {};
+
+const env = (key: string): string | undefined => importMetaEnv[key];
 
 /**
  * Per-coin endpoint defaults, sourced from the live WATTxchange node fleet.

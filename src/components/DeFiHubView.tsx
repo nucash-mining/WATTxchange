@@ -22,6 +22,7 @@ import {
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { wattxBridgeService, type BridgeQuote, type PoolStats } from '../services/wattxBridgeService';
+import MM2SwapInterface from './dex/MM2SwapInterface';
 
 // Virtual Boy inspired CSS styles
 const vbStyles = {
@@ -225,7 +226,7 @@ const DeFiHubView: React.FC = () => {
   const [recipient, setRecipient] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isBridging, setIsBridging] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bridge' | 'liquidity' | 'history' | 'status'>('bridge');
+  const [activeTab, setActiveTab] = useState<'bridge' | 'swap' | 'liquidity' | 'history' | 'status'>('bridge');
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [balances, setBalances] = useState({
@@ -691,7 +692,7 @@ const DeFiHubView: React.FC = () => {
 
         {/* Tab Navigation */}
         <div className="flex border border-red-900">
-          {['bridge', 'liquidity', 'history', 'status'].map(tab => (
+          {['bridge', 'swap', 'liquidity', 'history', 'status'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
@@ -1028,6 +1029,17 @@ const DeFiHubView: React.FC = () => {
                   <p className="text-red-900 text-xs mt-2">Bridge history will appear here</p>
                 </div>
               </VBCard>
+            </motion.div>
+          )}
+
+          {activeTab === 'swap' && (
+            <motion.div
+              key="swap"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+            >
+              <MM2SwapInterface />
             </motion.div>
           )}
 

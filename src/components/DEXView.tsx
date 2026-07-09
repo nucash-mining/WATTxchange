@@ -10,7 +10,7 @@ import LiquidityPools from './dex/LiquidityPools';
 import SwapInterface from './dex/SwapInterface';
 import SwapinV2Interface from './dex/SwapinV2Interface';
 import CrossChainBridge from './dex/AxelarBridgeInterface';
-import PerpetualTrading from './dex/PerpetualTrading';
+import TradingTerminal from './dex/TradingTerminal';
 import ExchangeApiManager from './dex/ExchangeApiManager';
 import EnhancedAtomicSwapInterface from './swap/EnhancedAtomicSwapInterface';
 import NavigatorPerpInterface from './dex/NavigatorPerpInterface';
@@ -20,7 +20,7 @@ import { MoneroBridgeInterface } from './bridge/MoneroBridgeInterface';
 const DEXView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'navigator' | 'sonic' | 'monero'
-  >('uniswap');
+  >('perps');
   const { getPrice } = usePrices(['ALT', 'BTC', 'ETH']);
   const [showApiManager, setShowApiManager] = useState(false);
   const { isConnected, connectWallet } = useWallet();
@@ -85,6 +85,16 @@ const DEXView: React.FC = () => {
           
           <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
             <button
+              onClick={() => setActiveTab('perps')}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'perps'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Trade
+            </button>
+            <button
               onClick={() => setActiveTab('uniswap')}
               className={`px-4 py-2 rounded-md transition-colors ${
                 activeTab === 'uniswap'
@@ -113,16 +123,6 @@ const DEXView: React.FC = () => {
               }`}
             >
               Spot
-            </button>
-            <button
-              onClick={() => setActiveTab('perps')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                activeTab === 'perps'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Perpetuals
             </button>
             <button
               onClick={() => setActiveTab('pools')}
@@ -188,7 +188,8 @@ const DEXView: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Stats */}
+      {/* Stats (terminal tab has its own dense stats bar) */}
+      {activeTab !== 'perps' && (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
@@ -212,6 +213,7 @@ const DEXView: React.FC = () => {
           );
         })}
       </div>
+      )}
 
       {/* Wallet Connection Notice */}
       {!isConnected && (
@@ -261,7 +263,7 @@ const DEXView: React.FC = () => {
         )}
         {activeTab === 'pools' && <LiquidityPools />}
         {activeTab === 'bridge' && <CrossChainBridge />}
-        {activeTab === 'perps' && <PerpetualTrading />}
+        {activeTab === 'perps' && <TradingTerminal />}
         {activeTab === 'atomic' && <EnhancedAtomicSwapInterface />}
         {activeTab === 'navigator' && <NavigatorPerpInterface />}
         {activeTab === 'sonic' && <SonicBridgeInterface />}

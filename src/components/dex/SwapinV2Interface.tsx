@@ -47,6 +47,25 @@ const SwapinV2Interface: React.FC = () => {
   const [isSwapping, setIsSwapping] = useState(false);
   const [quoteRoute, setQuoteRoute] = useState<string[] | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [midRate, setMidRate] = useState<number | undefined>(undefined);
+
+  // Live mid rate for the selected pair (1 fromToken -> ? toToken), feeds the chart.
+  useEffect(() => {
+    let cancelled = false;
+    setMidRate(undefined);
+    if (!fromToken || !toToken || fromToken === toToken) return;
+    ammV2Service
+      .quote(fromToken, toToken, '1')
+      .then((q) => {
+        if (!cancelled) setMidRate(parseFloat(q.amountOut));
+      })
+      .catch(() => {
+        /* no route — chart falls back to priceService */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fromToken, toToken]);
 
 
   const networks = swapinService.getAllNetworks();
@@ -360,9 +379,13 @@ const SwapinV2Interface: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Swap Interface */}
+        {/* Swap Interface — chart left-center, swap card right */}
         {activeTab === 'swap' && (
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+          <div className="xl:col-span-3 order-2 xl:order-1">
+            <PriceChart symbol={`${fromToken}/${toToken}`} livePrice={midRate} />
+          </div>
+          <div className="xl:col-span-2 order-1 xl:order-2 bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold">Swap Tokens</h3>
               <motion.button
@@ -545,6 +568,7 @@ const SwapinV2Interface: React.FC = () => {
                 );
               })()}
             </div>
+          </div>
           </div>
         )}
 

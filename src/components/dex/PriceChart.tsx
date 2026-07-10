@@ -6,6 +6,9 @@ import { usePrices } from '../../hooks/usePrices';
 interface PriceChartProps {
   symbol?: string;
   interval?: string;
+  /** Real on-chain rate (quote units per 1 base unit). When set, the chart
+   *  anchors to this instead of priceService and the header shows it live. */
+  livePrice?: number;
 }
 
 type Timeframe = '15m' | '1h' | '4h' | '1d' | '1w';
@@ -47,7 +50,7 @@ function buildSeries(basePrice: number, change24h: number, tf: Timeframe) {
   return candles;
 }
 
-const PriceChart: React.FC<PriceChartProps> = ({ symbol = 'ALT/USDT', interval = '1d' }) => {
+const PriceChart: React.FC<PriceChartProps> = ({ symbol = 'ALT/USDT', interval = '1d', livePrice }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>(
@@ -89,6 +92,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol = 'ALT/USDT', interval =
     });
 
     const basePrice =
+      livePrice ||
       priceData?.price ||
       (baseSymbol === 'ALT' ? 0.000173 :
        baseSymbol === 'WATT' ? 2.0 :
@@ -126,17 +130,29 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol = 'ALT/USDT', interval =
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe, baseSymbol, priceData]);
+  }, [symbol, timeframe, baseSymbol, priceData, livePrice]);
 
   return (
     <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-4">
           <h3 className="text-lg font-semibold">{symbol} Chart</h3>
-          <div className={`flex items-center space-x-1 ${change.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-            {change.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            <span className="text-sm font-medium">{change.value}</span>
-          </div>
+          {livePrice ? (
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-slate-200">
+                {livePrice.toLocaleString(undefined, { maximumSignificantDigits: 6 })} {symbol.split('/')[1] ?? ''}
+              </span>
+              <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-600/20 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">Live pool rate</span>
+              </span>
+            </div>
+          ) : (
+            <div className={`flex items-center space-x-1 ${change.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {change.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <span className="text-sm font-medium">{change.value}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           {(['15m', '1h', '4h', '1d', '1w'] as Timeframe[]).map((tf) => (

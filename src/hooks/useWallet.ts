@@ -189,7 +189,7 @@ export const useWallet = () => {
           symbol: 'ALT',
           decimals: 18,
         },
-        rpcUrls: ['https://99.248.100.186:8645/'],
+        rpcUrls: ['https://rpc.wattxchange.app'],
         blockExplorerUrls: ['https://alt-exp.outsidethebox.top/'],
       };
 

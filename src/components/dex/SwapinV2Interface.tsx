@@ -16,9 +16,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
-import { usePrices } from '../../hooks/usePrices';
 import { swapinService } from '../../services/swapinService';
-import { tokenService } from '../../services/tokenService';
+import { ammV2Service } from '../../services/ammV2Service';
 import PriceChart from './PriceChart';
 import PoolCard from './PoolCard';
 import PositionCard from './PositionCard';
@@ -28,7 +27,7 @@ import toast from 'react-hot-toast';
 import TokenSelector from './TokenSelector';
 
 const SwapinV2Interface: React.FC = () => {
-  const { isConnected, address, chainId, signTransaction, connectWallet, getTokenBalance } = useWallet();
+  const { isConnected, address, chainId, signer, switchToAltcoinchain, connectWallet, getTokenBalance } = useWallet();
   const [activeTab, setActiveTab] = useState<'swap' | 'pools' | 'positions'>('swap');
   const [selectedNetwork, setSelectedNetwork] = useState<number | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<string>('ALT-WATT');
@@ -46,10 +45,9 @@ const SwapinV2Interface: React.FC = () => {
   const [selectedPool, setSelectedPool] = useState<any>(null);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const [isSwapping, setIsSwapping] = useState(false);
+  const [quoteRoute, setQuoteRoute] = useState<string[] | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
-  const { getPrice, formatPrice, formatChange } = usePrices(['ALT', 'WATT', 'AltPEPE', 'AltPEPI', 'SCAM', 'SWAPD', 'MALT']);
-  const altPrice = getPrice('ALT');
-  const wattPrice = getPrice('WATT');
 
   const networks = swapinService.getAllNetworks();
   const currentNetwork = networks.find(n => n.chainId === selectedNetwork);
@@ -69,26 +67,52 @@ const SwapinV2Interface: React.FC = () => {
     }
   }, [selectedNetwork]);
 
-  // Update token amounts when input changes
+  // Update token amounts when input changes (debounced; on-chain quote per change)
   useEffect(() => {
-    if (fromAmount && fromToken && toToken) {
-      calculateSwapAmount();
+    if (!(fromAmount && parseFloat(fromAmount) > 0 && fromToken && toToken)) {
+      setToAmount('');
+      setQuoteRoute(null);
+      setQuoteError(null);
+      return;
     }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const q = await ammV2Service.quote(fromToken, toToken, fromAmount);
+        if (cancelled) return;
+        setToAmount(parseFloat(q.amountOut).toFixed(6));
+        setQuoteRoute(q.pathSymbols);
+        setQuoteError(null);
+      } catch (error: any) {
+        if (cancelled) return;
+        console.error('Quote failed:', error);
+        setToAmount('');
+        setQuoteRoute(null);
+        setQuoteError(
+          /No liquidity route/i.test(error?.message || '')
+            ? `No liquidity route for ${fromToken} → ${toToken}`
+            : 'Quote unavailable (RPC error)'
+        );
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [fromAmount, fromToken, toToken]);
 
   const loadPools = async () => {
     try {
-      // Get pools from the service
-      const poolsData = await swapinService.getTradingPairs(selectedNetwork || 2330);
+      const poolsData = await ammV2Service.getPools();
       setPools(poolsData.map(pool => ({
-        id: `${pool.token0}-${pool.token1}`,
-        token0: pool.symbol0,
-        token1: pool.symbol1,
+        id: pool.pairAddress,
+        token0: pool.token0,
+        token1: pool.token1,
         fee: 0.3,
-        liquidity: `$${(parseFloat(pool.reserve0) * (altPrice?.price || 0.000173) + parseFloat(pool.reserve1) * (wattPrice?.price || 2.0)).toLocaleString()}`,
-        volume24h: `$${(Math.random() * 1000000).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-        apr: parseFloat((Math.random() * 30 + 10).toFixed(1)),
-        hooks: ['Dynamic Fee', 'MEV Protection']
+        liquidity: `${parseFloat(pool.reserve0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${pool.token0} / ${parseFloat(pool.reserve1).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${pool.token1}`,
+        volume24h: '—',
+        apr: 0,
+        hooks: []
       })));
     } catch (error) {
       console.error('Failed to load pools:', error);
@@ -98,80 +122,34 @@ const SwapinV2Interface: React.FC = () => {
 
   const loadPositions = async () => {
     try {
-      // Mock positions data
-      if (isConnected) {
-        setPositions([
-          {
-            id: 'pos-1',
-            pool: {
-              id: 'alt-watt-0.3',
-              token0: 'ALT',
-              token1: 'WATT',
-              fee: 0.3,
-              liquidity: '1,234,567',
-              volume24h: '$45,678',
-              apr: 24.5,
-              hooks: ['Dynamic Fee', 'MEV Protection']
-            },
-            liquidity: '12,345',
-            token0Amount: '1,000',
-            token1Amount: '1,500',
-            uncollectedFees: '$23.45',
-            inRange: true,
-            tickLower: -887220,
-            tickUpper: 887220
-          }
-        ]);
-      } else {
+      if (!isConnected || !address) {
         setPositions([]);
+        return;
       }
+      const onchain = await ammV2Service.getPositions(address);
+      setPositions(onchain.map(pos => ({
+        id: pos.pairAddress,
+        pool: {
+          id: pos.pairAddress,
+          token0: pos.token0,
+          token1: pos.token1,
+          fee: 0.3,
+          liquidity: '—',
+          volume24h: '—',
+          apr: 0,
+          hooks: []
+        },
+        liquidity: parseFloat(pos.lpBalance).toFixed(6),
+        token0Amount: pos.token0Amount,
+        token1Amount: pos.token1Amount,
+        uncollectedFees: '—',
+        inRange: true,
+        tickLower: 0,
+        tickUpper: 0
+      })));
     } catch (error) {
       console.error('Failed to load positions:', error);
       toast.error('Failed to load positions');
-    }
-  };
-
-  const calculateSwapAmount = async () => {
-    try {
-      // Calculate price based on token pair
-      let rate = 1.0;
-      
-      if (fromToken === 'ALT' && toToken === 'WATT') {
-        rate = 1.5;
-      } else if (fromToken === 'WATT' && toToken === 'ALT') {
-        rate = 0.667;
-      } else if (fromToken === 'ALT' && toToken === 'AltPEPE') {
-        rate = 0.5;
-      } else if (fromToken === 'AltPEPE' && toToken === 'ALT') {
-        rate = 2.0;
-      } else if (fromToken === 'ALT' && toToken === 'AltPEPI') {
-        rate = 0.667;
-      } else if (fromToken === 'AltPEPI' && toToken === 'ALT') {
-        rate = 1.5;
-      } else if (fromToken === 'ALT' && toToken === 'SCAM') {
-        rate = 0.25;
-      } else if (fromToken === 'SCAM' && toToken === 'ALT') {
-        rate = 4.0;
-      } else if (fromToken === 'ALT' && toToken === 'SWAPD') {
-        rate = 0.75;
-      } else if (fromToken === 'SWAPD' && toToken === 'ALT') {
-        rate = 1.333;
-      } else if (fromToken === 'ALT' && toToken === 'MALT') {
-        rate = 0.8;
-      } else if (fromToken === 'MALT' && toToken === 'ALT') {
-        rate = 1.25;
-      } else if (fromToken === 'AltPEPE' && toToken === 'WATT') {
-        rate = 1.5;
-      } else if (fromToken === 'WATT' && toToken === 'AltPEPE') {
-        rate = 0.667;
-      }
-      
-      const calculatedAmount = parseFloat(fromAmount) * rate;
-      if (!isNaN(calculatedAmount)) {
-        setToAmount(calculatedAmount.toFixed(6));
-      }
-    } catch (error) {
-      console.error('Failed to calculate swap amount:', error);
     }
   };
 
@@ -195,31 +173,43 @@ const SwapinV2Interface: React.FC = () => {
       return;
     }
 
+    if (quoteError || !toAmount) {
+      toast.error(quoteError || 'No quote available');
+      return;
+    }
+
+    if (!signer) {
+      toast.error('Wallet signer unavailable — reconnect your wallet');
+      return;
+    }
+
+    // Live trading runs on Altcoinchain; prompt a network switch if needed.
+    if (chainId !== 2330) {
+      const switched = await switchToAltcoinchain();
+      if (!switched) {
+        toast.error('Please switch your wallet to Altcoinchain (2330)');
+        return;
+      }
+    }
+
     setIsSwapping(true);
     try {
-      // Create transaction details for signing
-      const transactionDetails = {
-        type: 'swap',
+      const txHash = await ammV2Service.swap(
+        signer,
         fromToken,
         toToken,
         fromAmount,
-        toAmount,
-        slippage
-      };
-
-      // Request permission to sign the transaction
-      const signed = await signTransaction(transactionDetails);
-      
-      if (signed) {
-        toast.success('Swap completed successfully!');
-        setFromAmount('');
-        setToAmount('');
-      } else {
-        toast.error('Swap cancelled or failed');
-      }
-    } catch (error) {
+        parseFloat(slippage) || 0.5
+      );
+      toast.success(`Swap confirmed: ${txHash.slice(0, 10)}…`);
+      setFromAmount('');
+      setToAmount('');
+    } catch (error: any) {
       console.error('Swap failed:', error);
-      toast.error('Swap failed. Please try again.');
+      const msg = error?.shortMessage || error?.reason || error?.message || '';
+      toast.error(
+        /user rejected|denied/i.test(msg) ? 'Swap cancelled in wallet' : `Swap failed: ${msg.slice(0, 120)}`
+      );
     } finally {
       setIsSwapping(false);
     }
@@ -281,24 +271,22 @@ const SwapinV2Interface: React.FC = () => {
                   : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-300'
               }`}
             >
-              <span className="text-xl">{
-                network.name === 'EGAZ' ? '⚡' :
-                network.name === 'PlanQ' ? '🌐' :
-                network.name === 'OctaSpace' ? '🐙' :
-                network.name === 'PartyChain' ? '🎉' :
-                network.name === 'EGEM' ? '💎' :
-                network.name === 'ETHO' ? '🔷' :
-                network.name === 'Altcoinchain' ? '🔗' :
-                network.name === 'DOGEchain' ? '🐕' :
-                network.name === 'Fantom' ? '👻' :
-                network.name === 'BSC' ? '🔶' :
-                network.name === 'Ethereum' ? '💎' :
-                network.name === 'Polygon' ? '🔷' :
-                network.name === 'Avalanche' ? '🔺' :
-                network.name === 'Arbitrum' ? '🔵' :
-                network.name === 'Optimism' ? '🔴' :
-                network.name === 'Base' ? '🟦' : '🌍'
-              }</span>
+              {(() => {
+                const logos: Record<string, string> = {
+                  'Altcoinchain': 'Altcoinchain logo.png', 'ETHO': 'ETHO logo.png',
+                  'OctaSpace': 'OCTA logo.png', 'Ethereum': 'ETH logo.png', 'DOGEchain': 'DOGEchain logo.png',
+                };
+                const colors: Record<string, string> = {
+                  'EGAZ': 'bg-yellow-500', 'PlanQ': 'bg-teal-500', 'PartyChain': 'bg-pink-500',
+                  'EGEM': 'bg-emerald-500', 'Fantom': 'bg-blue-600', 'BSC': 'bg-yellow-600',
+                  'Polygon': 'bg-purple-600', 'Avalanche': 'bg-red-500', 'Arbitrum': 'bg-blue-400',
+                  'Optimism': 'bg-red-400', 'Base': 'bg-blue-500',
+                };
+                const logo = logos[network.name];
+                return logo
+                  ? <img src={`${import.meta.env.BASE_URL}${logo}`} alt={network.name} className="w-6 h-6 object-contain rounded-full" />
+                  : <div className={`w-6 h-6 rounded-full ${colors[network.name] || 'bg-slate-600'} flex items-center justify-center text-white text-[10px] font-bold uppercase`}>{network.name.slice(0, 3)}</div>;
+              })()}
               <span>{network.name}</span>
             </button>
           ))}
@@ -500,8 +488,16 @@ const SwapinV2Interface: React.FC = () => {
                 </div>
               </div>
 
+              {/* Quote error */}
+              {quoteError && fromAmount && (
+                <div className="bg-red-600/10 border border-red-500/30 rounded-lg p-3 flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <span className="text-sm text-red-400">{quoteError}</span>
+                </div>
+              )}
+
               {/* Swap Details */}
-              {fromAmount && toAmount && (
+              {fromAmount && toAmount && !quoteError && (
                 <div className="bg-slate-900/50 rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-400">Rate</span>
@@ -512,36 +508,42 @@ const SwapinV2Interface: React.FC = () => {
                     <span>{slippage}%</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Network Fee</span>
-                    <span>~$0.50</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
                     <span className="text-slate-400">Route</span>
                     <div className="flex items-center space-x-1">
-                      <span>{fromToken}</span>
-                      <ArrowRight className="w-3 h-3" />
-                      <span>{toToken}</span>
+                      {(quoteRoute ?? [fromToken, toToken]).map((sym, i, arr) => (
+                        <React.Fragment key={`${sym}-${i}`}>
+                          <span>{sym}</span>
+                          {i < arr.length - 1 && <ArrowRight className="w-3 h-3" />}
+                        </React.Fragment>
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Swap Button */}
-              <motion.button
-                onClick={handleSwap}
-                disabled={isSwapping || !fromAmount || parseFloat(fromAmount) <= 0 || !isConnected}
-                className={`w-full py-4 rounded-lg font-semibold transition-colors ${
-                  !isSwapping && fromAmount && parseFloat(fromAmount) > 0 && isConnected
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                }`}
-                whileHover={!isSwapping && fromAmount && parseFloat(fromAmount) > 0 && isConnected ? { scale: 1.02 } : {}}
-                whileTap={!isSwapping && fromAmount && parseFloat(fromAmount) > 0 && isConnected ? { scale: 0.98 } : {}}
-              >
-                {!isConnected ? 'Connect Wallet' : 
-                 isSwapping ? 'Signing Transaction...' :
-                 'Swap Tokens'}
-              </motion.button>
+              {(() => {
+                const canSwap = !isSwapping && !!fromAmount && parseFloat(fromAmount) > 0 &&
+                  isConnected && !!toAmount && !quoteError;
+                return (
+                  <motion.button
+                    onClick={handleSwap}
+                    disabled={!canSwap}
+                    className={`w-full py-4 rounded-lg font-semibold transition-colors ${
+                      canSwap
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    }`}
+                    whileHover={canSwap ? { scale: 1.02 } : {}}
+                    whileTap={canSwap ? { scale: 0.98 } : {}}
+                  >
+                    {!isConnected ? 'Connect Wallet' :
+                     isSwapping ? 'Confirming Transaction…' :
+                     quoteError ? 'No Route' :
+                     'Swap Tokens'}
+                  </motion.button>
+                );
+              })()}
             </div>
           </div>
         )}

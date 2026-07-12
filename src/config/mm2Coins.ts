@@ -15,6 +15,10 @@
  *   WTX   pub 73  p2sh 75  wif 128   (WATTx, QTUM fork — src/chainparams)
  *   TROLL pub 66  p2sh 5   wif 153   (TrollCoin-2.0/src/chainparams.cpp)
  *   HTH   pub 100 p2sh 40  wif 228   (helpthehomelesscoin/src/chainparams.cpp)
+ *   BITN  pub 25  p2sh 22  wif 158   (derived 2026-07-12 from live bitnetd
+ *         mainnet wallet: getnewaddress/createmultisig/dumpprivkey decode)
+ *   BTCZ  taddr 28 pub 184 p2sh 189 wif 128, txversion 4, overwintered 1
+ *         (derived 2026-07-12 from live bitcoinzd mainnet wallet, same method)
  *   BTC/LTC/DOGE/KMD — canonical, well-known.
  */
 
@@ -31,6 +35,12 @@ export interface KdfCoinConfig {
   wiftype: number;
   txfee: number;
   dust?: number;
+  /** Zcash-family two-byte address prefix (BTCZ t-addrs: 28). */
+  taddr?: number;
+  /** Zcash-family transaction version (BTCZ: 4). */
+  txversion?: number;
+  /** Zcash-family Overwinter/Sapling flag (BTCZ: 1). */
+  overwintered?: number;
   mm2: 1;
   required_confirmations: number;
   requires_notarization?: boolean;

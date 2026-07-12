@@ -23,7 +23,7 @@ export const BRIDGE_CHAINS = {
   altcoinchain: {
     id: 2330,
     name: 'Altcoinchain',
-    rpc: 'http://127.0.0.1:8545',
+    rpc: 'https://rpc.wattxchange.app',
     wattToken: '0x6645143e49B3a15d8F205658903a55E520444698',
     bridgePool: '0x0000000000000000000000000000000000000000', // Deploy and update
     explorer: 'https://explorer.altcoinchain.org',

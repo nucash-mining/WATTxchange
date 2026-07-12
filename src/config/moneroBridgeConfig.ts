@@ -57,7 +57,7 @@ export interface MoneroBridgeConfig {
 // Default configuration - UPDATE THESE VALUES AFTER DEPLOYMENT
 export const defaultMoneroBridgeConfig: MoneroBridgeConfig = {
   altcoinchain: {
-    rpcUrl: 'http://localhost:8545', // Update to your Altcoinchain RPC
+    rpcUrl: 'https://rpc.wattxchange.app', // Update to your Altcoinchain RPC
     chainId: 1337, // Update to Altcoinchain chain ID
     name: 'Altcoinchain',
     symbol: 'ALT',
@@ -75,8 +75,8 @@ export const defaultMoneroBridgeConfig: MoneroBridgeConfig = {
   },
   
   monero: {
-    walletRpcUrl: 'http://127.0.0.1:18083',
-    daemonRpcUrl: 'http://127.0.0.1:18081',
+    walletRpcUrl: 'http://127.0.0.1:18083', // wallet RPC stays local (holds keys)
+    daemonRpcUrl: 'https://xmr.wattxchange.app', // WATTxchange monerod restricted RPC
     depositAddress: '4AsjKppNcHfJPekAPKVMsecyVT1v35MVn4N6dsXYSVTZHWsmC66u3sDT5NYavm5udMXHf32Ntb4N2bJqhnN4Gfq2GKZYmMK',
     minConfirmations: 10,
     checkInterval: 30000 // 30 seconds

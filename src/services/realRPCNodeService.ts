@@ -638,10 +638,10 @@ export class RealRPCNodeService {
         port: 9332
       },
       monero: {
-        url: 'http://127.0.0.1:18081',
+        url: 'https://xmr.wattxchange.app', // WATTxchange monerod restricted RPC
         username: '',
         password: '',
-        port: 18081
+        port: 443
       },
       ghost: {
         url: 'http://localhost:51725',
@@ -668,7 +668,7 @@ export class RealRPCNodeService {
         port: 51728
       },
       altcoinchain: {
-        url: 'http://localhost:8545',
+        url: 'https://rpc.wattxchange.app',
         username: 'altcoinchain',
         password: 'altcoinchain',
         port: 8545

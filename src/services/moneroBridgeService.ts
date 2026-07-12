@@ -490,7 +490,7 @@ export class MoneroBridgeService {
 
 // Export singleton instance with safe defaults
 export const moneroBridgeService = new MoneroBridgeService({
-  altcoinchainRpcUrl: 'http://localhost:8545',
+  altcoinchainRpcUrl: 'https://rpc.wattxchange.app',
   wXMRTokenAddress: '0x0000000000000000000000000000000000000000', // Deploy first
   bridgeContractAddress: '0x0000000000000000000000000000000000000000', // Deploy first
   moneroWalletRpcUrl: 'http://127.0.0.1:18083',

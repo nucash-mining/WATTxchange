@@ -371,7 +371,7 @@ export class XMRWrappingService {
 // Export singleton instance
 export const xmrWrappingService = new XMRWrappingService({
   moneroWalletRpcUrl: 'http://127.0.0.1:18083/json_rpc',
-  altcoinchainRpcUrl: 'http://127.0.0.1:8545',
+  altcoinchainRpcUrl: 'https://rpc.wattxchange.app',
   wXMRTokenAddress: '0x2eb2230b406c73a34587d0aae4435ce4b548c296',
   bridgeContractAddress: '0xae2ee0decb301d0333d73e6a43b052ba994b5f5b',
   bridgeOperatorPrivateKey: '0x672ade68c928d8e963dc6a58885f02d49e0bd559',

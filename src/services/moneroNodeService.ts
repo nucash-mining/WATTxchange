@@ -32,6 +32,18 @@ class MoneroNodeService {
     // Initialize with nodes from xmr.ditatompel.com screenshot
     this.nodes = [
       {
+        id: 'wattxchange-xmr',
+        host: 'xmr.wattxchange.app',
+        port: 443,
+        networkType: 'MAINNET',
+        protocol: 'HTTPS',
+        status: 'Online',
+        availability: 100,
+        lastChecked: 'now',
+        location: 'WATTxchange node server',
+        flags: ['RESTRICTED-RPC', 'PRUNED']
+      },
+      {
         id: 'node2-monerodevs',
         host: 'node2.monerodevs.org',
         port: 38089,

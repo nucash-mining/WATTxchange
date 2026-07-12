@@ -16,7 +16,7 @@
 export const ORACLE_HOST =
   import.meta.env?.VITE_ORACLE_HOST || '129.80.40.193';
 
-export type CoinProtocol = 'UTXO' | 'QTUM' | 'ETH' | 'ERC20';
+export type CoinProtocol = 'UTXO' | 'QTUM' | 'ETH' | 'ERC20' | 'XMR';
 
 export interface ElectrumEndpoint {
   url: string;
@@ -63,9 +63,9 @@ export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
     name: 'WATTx',
     protocol: 'QTUM',
     nativeRpc: env('VITE_WTX_RPC') || `${ORACLE_HOST}:3889`,
+    // Live wattx-electrumx on the WATTxchange node server, WSS via Cloudflare tunnel.
     electrum: [
-      { url: env('VITE_WTX_ELECTRUM_TCP') || 'electrum.wattxchange.app:50001', protocol: 'TCP' },
-      { url: env('VITE_WTX_ELECTRUM_SSL') || 'electrum.wattxchange.app:50002', protocol: 'SSL' }
+      { url: env('VITE_WTX_ELECTRUM_WSS') || 'electrum-wtx.wattxchange.app:443', protocol: 'WSS' }
     ],
     electrumReady: true,
     explorer: env('VITE_WTX_EXPLORER') || 'https://wtx-explorer.wattxchange.app'
@@ -102,8 +102,13 @@ export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
     name: 'Help The Homeless Coin',
     protocol: 'UTXO',
     nativeRpc: env('VITE_HTH_RPC') || `${ORACLE_HOST}:13777`,
-    electrum: [{ url: env('VITE_HTH_ELECTRUM') || 'hth-electrum.wattxchange.app:50022', protocol: 'SSL' }],
-    electrumReady: false,
+    // Live hth-electrumx on the WATTxchange node server: WSS via Cloudflare
+    // tunnel (browser) + public SSL via the Oracle relay (mm2 native).
+    electrum: [
+      { url: env('VITE_HTH_ELECTRUM_WSS') || 'electrum-hth.wattxchange.app:443', protocol: 'WSS' },
+      { url: env('VITE_HTH_ELECTRUM') || 'electrumx.hth.foundation:50002', protocol: 'SSL' }
+    ],
+    electrumReady: true,
     explorer: env('VITE_HTH_EXPLORER') || 'https://hth-explorer.wattxchange.app'
   },
   FLOP: {
@@ -117,11 +122,41 @@ export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
     electrumReady: true,
     explorer: env('VITE_FLOP_EXPLORER') || 'https://flop-explorer.wattxchange.app'
   },
+  BITN: {
+    symbol: 'BITN',
+    name: 'Bitnet',
+    protocol: 'QTUM',
+    // Live bitnet-electrumx (qtum-electrumx fork) on the WATTxchange node server.
+    electrum: [
+      { url: env('VITE_BITN_ELECTRUM_WSS') || 'electrum-bitn.wattxchange.app:443', protocol: 'WSS' }
+    ],
+    electrumReady: true
+  },
+  BTCZ: {
+    symbol: 'BTCZ',
+    name: 'BitcoinZ',
+    protocol: 'UTXO',
+    // Live btcz-electrumx on the WATTxchange node server.
+    electrum: [
+      { url: env('VITE_BTCZ_ELECTRUM_WSS') || 'electrum-btcz.wattxchange.app:443', protocol: 'WSS' }
+    ],
+    electrumReady: true,
+    explorer: env('VITE_BTCZ_EXPLORER') || 'https://explorer.btcz.rocks'
+  },
+  XMR: {
+    symbol: 'XMR',
+    name: 'Monero',
+    protocol: 'XMR',
+    // monerod restricted RPC on the WATTxchange node server (HTTPS via tunnel).
+    // Monero has no ElectrumX — wallets talk to this restricted daemon RPC.
+    nativeRpc: env('VITE_XMR_RPC') || 'https://xmr.wattxchange.app',
+    explorer: env('VITE_XMR_EXPLORER') || 'https://xmrchain.net'
+  },
   ALT: {
     symbol: 'ALT',
     name: 'Altcoinchain',
     protocol: 'ETH',
-    evmRpc: env('VITE_ALT_RPC') || 'https://alt-rpc.wattxchange.app',
+    evmRpc: env('VITE_ALT_RPC') || 'https://rpc.wattxchange.app',
     evmWs: env('VITE_ALT_WS') || 'wss://alt-ws.wattxchange.app',
     explorer: env('VITE_ALT_EXPLORER') || 'https://alt-explorer.wattxchange.app'
   },
@@ -142,7 +177,12 @@ export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
     symbol: 'LTC',
     name: 'Litecoin',
     protocol: 'UTXO',
-    electrum: [{ url: 'electrum-ltc.bysh.me:50002', protocol: 'SSL' }],
+    // Own ltc-electrumx (WSS via tunnel; daemon may lag while initial sync
+    // completes) with public Electrum infrastructure as fallback.
+    electrum: [
+      { url: env('VITE_LTC_ELECTRUM_WSS') || 'electrum-ltc.wattxchange.app:443', protocol: 'WSS' },
+      { url: 'electrum-ltc.bysh.me:50002', protocol: 'SSL' }
+    ],
     electrumReady: true,
     explorer: 'https://litecoinspace.org'
   },
@@ -181,6 +221,12 @@ export function tradeableCoins(): string[] {
 /** UTXO coins whose ElectrumX still needs standing up (see electrumx/README.md). */
 export function pendingElectrumCoins(): string[] {
   return Object.values(NODE_ENDPOINTS)
-    .filter((e) => e.protocol !== 'ETH' && e.protocol !== 'ERC20' && !e.electrumReady)
+    .filter(
+      (e) =>
+        e.protocol !== 'ETH' &&
+        e.protocol !== 'ERC20' &&
+        e.protocol !== 'XMR' && // Monero has no ElectrumX by design
+        !e.electrumReady
+    )
     .map((e) => e.symbol);
 }

@@ -77,7 +77,7 @@ export class MoneroRpcService {
     walletRpcUsername?: string;
     walletRpcPassword?: string;
   }) {
-    this.rpcUrl = config.nodeRpcUrl || 'http://127.0.0.1:18081';
+    this.rpcUrl = config.nodeRpcUrl || 'https://xmr.wattxchange.app';
     this.rpcUsername = config.nodeRpcUsername || '';
     this.rpcPassword = config.nodeRpcPassword || '';
     this.walletRpcUrl = config.walletRpcUrl || 'http://127.0.0.1:18083';
@@ -339,7 +339,7 @@ export class MoneroRpcService {
 
 // Export singleton instance
 export const moneroRpcService = new MoneroRpcService({
-  nodeRpcUrl: process.env.MONERO_NODE_RPC_URL || 'http://127.0.0.1:18081',
+  nodeRpcUrl: process.env.MONERO_NODE_RPC_URL || 'https://xmr.wattxchange.app',
   walletRpcUrl: process.env.MONERO_WALLET_RPC_URL || 'http://127.0.0.1:18083',
   nodeRpcUsername: process.env.MONERO_NODE_RPC_USERNAME || '',
   nodeRpcPassword: process.env.MONERO_NODE_RPC_PASSWORD || '',

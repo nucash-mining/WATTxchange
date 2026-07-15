@@ -2,8 +2,9 @@
   "_comment": "Single source of truth for WATTxchange kdf/mm2 coin parameters. Consumed by src/config/mm2Coins.ts (app) AND scripts/mm2/genConfig.mjs (daemon coins file). 'verified' is app-only and stripped from the kdf coins file. Address bytes for coins with verified:false MUST be confirmed against the live node via electrumx/derive-params.sh.",
   "coins": [
     {
-      "coin": "WTX", "name": "wattx", "fname": "WATTx", "rpcport": 3889,
-      "pubtype": 73, "p2shtype": 75, "wiftype": 128, "txfee": 100000,
+      "coin": "WTX", "name": "wattx", "fname": "WATTx Testnet", "rpcport": 13889,
+      "pubtype": 135, "p2shtype": 137, "wiftype": 239, "txfee": 100000,
+      "is_testnet": true,
       "mm2": 1, "required_confirmations": 3, "avg_blocktime": 128,
       "protocol": { "type": "QTUM" }, "verified": true
     },

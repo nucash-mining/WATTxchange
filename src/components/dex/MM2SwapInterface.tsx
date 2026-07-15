@@ -57,6 +57,12 @@ const CoinBadges: React.FC<{ coin: string }> = ({ coin }) => {
           UNVERIFIED
         </span>
       )}
+      {(cfg?.is_testnet || ep?.testnet) && (
+        <span title="Live infrastructure runs this coin's TESTNET until mainnet launch"
+          className="text-[9px] px-1 py-0.5 rounded border border-orange-500 text-orange-400">
+          TESTNET
+        </span>
+      )}
       <span
         title={ready ? (isEvm ? 'EVM RPC live' : 'ElectrumX live') : 'Endpoint reserved — server not up yet'}
         className="text-[9px] px-1 py-0.5 rounded border"

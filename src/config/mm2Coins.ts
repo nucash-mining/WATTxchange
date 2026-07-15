@@ -12,7 +12,10 @@
  * bytes + genesis hash, then flip `verified: true` in mm2Coins.data.json.
  *
  * Verified from local sources:
- *   WTX   pub 73  p2sh 75  wif 128   (WATTx, QTUM fork — src/chainparams)
+ *   WTX   pub 135 p2sh 137 wif 239   (WATTx TESTNET — the live fleet runs
+ *         testnet until mainnet launch; p2pkh/p2sh confirmed 2026-07-15
+ *         against live wattxd, wif from src/chainparams. Mainnet bytes for
+ *         later: pub 73 p2sh 75 wif 128.)
  *   TROLL pub 66  p2sh 5   wif 153   (TrollCoin-2.0/src/chainparams.cpp)
  *   HTH   pub 100 p2sh 40  wif 228   (helpthehomelesscoin/src/chainparams.cpp)
  *   BITN  pub 25  p2sh 22  wif 158   (derived 2026-07-12 from live bitnetd
@@ -41,6 +44,8 @@ export interface KdfCoinConfig {
   txversion?: number;
   /** Zcash-family Overwinter/Sapling flag (BTCZ: 1). */
   overwintered?: number;
+  /** True when this entry targets the coin's testnet chain (e.g. WTX). */
+  is_testnet?: boolean;
   mm2: 1;
   required_confirmations: number;
   requires_notarization?: boolean;

@@ -47,6 +47,8 @@ export interface NodeEndpoint {
   evmWs?: string;
   /** Block explorer base URL. */
   explorer?: string;
+  /** True when the live infrastructure for this coin runs a TESTNET chain. */
+  testnet?: boolean;
 }
 
 const importMetaEnv: Record<string, string | undefined> = import.meta.env || {};
@@ -60,8 +62,11 @@ const env = (key: string): string | undefined => importMetaEnv[key];
 export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
   WTX: {
     symbol: 'WTX',
-    name: 'WATTx',
+    name: 'WATTx (Testnet)',
     protocol: 'QTUM',
+    // The live wattxd + wattx-electrumx fleet runs the WATTx TESTNET until
+    // mainnet launches — address bytes in mm2Coins.data.json match testnet.
+    testnet: true,
     nativeRpc: env('VITE_WTX_RPC') || `${ORACLE_HOST}:3889`,
     // Live wattx-electrumx on the WATTxchange node server, WSS via Cloudflare tunnel.
     electrum: [

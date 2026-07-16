@@ -1,0 +1,11 @@
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+libs = []
+solc_version = "0.8.19"
+# ALT (2330) and WATTx EVM are pre-Shanghai — no PUSH0. Paris keeps the same
+# bytecode deployable on every target chain (deterministic CREATE2 addresses).
+evm_version = "paris"
+optimizer = true
+optimizer_runs = 10000

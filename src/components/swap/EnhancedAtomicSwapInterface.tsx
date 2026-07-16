@@ -37,7 +37,7 @@ const EnhancedAtomicSwapInterface: React.FC<EnhancedAtomicSwapInterfaceProps> = 
   const [showPrivateKeys, setShowPrivateKeys] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<CrossChainSwapOrder | null>(null);
 
-  const supportedChains = ['BTC', 'LTC', 'GHOST', 'TROLL', 'HTH', 'RTM', 'ETH', 'ALT', 'WATT'];
+  const supportedChains = ['BTC', 'LTC', 'GHOST', 'TROLL', 'HTH', 'RTM', 'ETH', 'ALT', 'WATT', 'SOL'];
 
   useEffect(() => {
     loadUserOrders();
@@ -81,6 +81,16 @@ const EnhancedAtomicSwapInterface: React.FC<EnhancedAtomicSwapInterfaceProps> = 
     if (!fromAmount || !toAmount) {
       toast.error('Please fill in all fields');
       return;
+    }
+
+    // SOL legs settle through the on-chain HTLC program — refuse (rather than
+    // fall back to anything custodial) until it is deployed.
+    if (fromChain === 'SOL' || toChain === 'SOL') {
+      const { isSolanaHtlcAvailable } = await import('../../services/solanaHtlcService');
+      if (!isSolanaHtlcAvailable()) {
+        toast.error('SOL atomic swaps go live when the Solana HTLC program is deployed — no custodial fallback.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -156,23 +166,29 @@ const EnhancedAtomicSwapInterface: React.FC<EnhancedAtomicSwapInterfaceProps> = 
   const getChainIcon = (chain: string) => {
     switch (chain) {
       case 'BTC':
-        return <img src="/BTC logo.png" alt="BTC" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="BTC" className="w-6 h-6 object-contain" />;
       case 'ETH':
-        return <img src="/ETH logo.png" alt="ETH" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="ETH" className="w-6 h-6 object-contain" />;
       case 'LTC':
-        return <img src="/LTC logo.png" alt="LTC" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="LTC" className="w-6 h-6 object-contain" />;
       case 'ALT':
-        return <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'WATT':
-        return <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />;
       case 'GHOST':
-        return <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-6 h-6 object-contain" />;
       case 'TROLL':
-        return <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="TROLL" className="w-6 h-6 object-contain" />;
       case 'HTH':
-        return <img src="/HTH logo.webp" alt="HTH" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}HTH logo.webp`} alt="HTH" className="w-6 h-6 object-contain" />;
       case 'RTM':
-        return <img src="/RTM logo.png" alt="RTM" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}RTM logo.png`} alt="RTM" className="w-6 h-6 object-contain" />;
+      case 'SOL':
+        return (
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-emerald-400 flex items-center justify-center text-[10px] font-bold text-white">
+            S
+          </div>
+        );
       default:
         return <div className="w-6 h-6 bg-slate-600 rounded-full flex items-center justify-center text-xs">{chain[0]}</div>;
     }
@@ -497,7 +513,8 @@ const EnhancedAtomicSwapInterface: React.FC<EnhancedAtomicSwapInterfaceProps> = 
                          fromChain === 'GHOST' ? 'GHOST' :
                          fromChain === 'TROLL' ? 'Trollcoin' :
                          fromChain === 'HTH' ? 'Help The Homeless' :
-                         fromChain === 'RTM' ? 'Raptoreum' : fromChain}
+                         fromChain === 'RTM' ? 'Raptoreum' :
+                         fromChain === 'SOL' ? 'Solana' : fromChain}
                       </p>
                     </div>
                   </div>
@@ -522,7 +539,8 @@ const EnhancedAtomicSwapInterface: React.FC<EnhancedAtomicSwapInterfaceProps> = 
                          toChain === 'GHOST' ? 'GHOST' :
                          toChain === 'TROLL' ? 'Trollcoin' :
                          toChain === 'HTH' ? 'Help The Homeless' :
-                         toChain === 'RTM' ? 'Raptoreum' : toChain}
+                         toChain === 'RTM' ? 'Raptoreum' :
+                         toChain === 'SOL' ? 'Solana' : toChain}
                       </p>
                     </div>
                   </div>

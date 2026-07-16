@@ -74,7 +74,8 @@ class PriceService {
         'GHOST': 'GHOST',
         'TROLL': 'TROLL',
         'HTH': 'HTH',
-        'RTM': 'RTM'
+        'RTM': 'RTM',
+        'SOL': 'SOL'
       }
     },
     coinGecko: {
@@ -89,7 +90,8 @@ class PriceService {
         'GHOST': 'ghost',
         'TROLL': 'trollcoin',
         'HTH': 'help-the-homeless',
-        'RTM': 'raptoreum'
+        'RTM': 'raptoreum',
+        'SOL': 'solana'
       }
     },
     coinPaprika: {
@@ -104,7 +106,8 @@ class PriceService {
         'GHOST': 'ghost-ghost',
         'TROLL': 'troll-trollcoin',
         'HTH': 'hth-help-the-homeless',
-        'RTM': 'rtm-raptoreum'
+        'RTM': 'rtm-raptoreum',
+        'SOL': 'sol-solana'
       }
     },
     xeggex: {

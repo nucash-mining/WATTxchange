@@ -19,6 +19,8 @@ import { useWallet } from '../../hooks/useWallet';
 import { swapinService } from '../../services/swapinService';
 import { ammV2Service } from '../../services/ammV2Service';
 import PriceChart from './PriceChart';
+import PairMarkets from './PairMarkets';
+import { pairHistoryService, type PairInfo } from '../../services/pairHistoryService';
 import PoolCard from './PoolCard';
 import PositionCard from './PositionCard';
 import AddLiquidityModal from './AddLiquidityModal';
@@ -28,7 +30,7 @@ import TokenSelector from './TokenSelector';
 
 const SwapinV2Interface: React.FC = () => {
   const { isConnected, address, chainId, signer, switchToAltcoinchain, connectWallet, getTokenBalance } = useWallet();
-  const [activeTab, setActiveTab] = useState<'swap' | 'pools' | 'positions'>('swap');
+  const [activeTab, setActiveTab] = useState<'swap' | 'markets' | 'pools' | 'positions'>('swap');
   const [selectedNetwork, setSelectedNetwork] = useState<number | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<string>('ALT-WATT');
   const [fromToken, setFromToken] = useState<string>('ALT');
@@ -48,6 +50,39 @@ const SwapinV2Interface: React.FC = () => {
   const [quoteRoute, setQuoteRoute] = useState<string[] | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [midRate, setMidRate] = useState<number | undefined>(undefined);
+  const [chartPair, setChartPair] = useState<PairInfo | null>(null);
+  const [chartInvert, setChartInvert] = useState(false);
+
+  // Resolve the real on-chain pair for the selected tokens so the chart can
+  // show actual Sync-event history (ALT charts through wALT).
+  useEffect(() => {
+    let cancelled = false;
+    setChartPair(null);
+    setChartInvert(false);
+    if (!fromToken || !toToken || fromToken === toToken) return;
+    const norm = (s: string) => (s === 'ALT' ? 'wALT' : s);
+    pairHistoryService
+      .getAllPairs()
+      .then((pairs) => {
+        if (cancelled) return;
+        const a = norm(fromToken);
+        const b = norm(toToken);
+        const direct = pairs.find(
+          (p) =>
+            (p.symbol0 === a && p.symbol1 === b) ||
+            (p.symbol0 === b && p.symbol1 === a)
+        );
+        if (direct) {
+          setChartPair(direct);
+          // base of the chart = toToken-per-fromToken; pair-native is token1-per-token0
+          setChartInvert(direct.symbol0 !== a);
+        }
+      })
+      .catch(() => { /* chart falls back to live-rate series */ });
+    return () => {
+      cancelled = true;
+    };
+  }, [fromToken, toToken]);
 
   // Live mid rate for the selected pair (1 fromToken -> ? toToken), feeds the chart.
   useEffect(() => {
@@ -361,6 +396,16 @@ const SwapinV2Interface: React.FC = () => {
           Pools
         </button>
         <button
+          onClick={() => setActiveTab('markets')}
+          className={`px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'markets'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Markets
+        </button>
+        <button
           onClick={() => setActiveTab('positions')}
           className={`px-4 py-2 rounded-md transition-colors ${
             activeTab === 'positions'
@@ -383,7 +428,12 @@ const SwapinV2Interface: React.FC = () => {
         {activeTab === 'swap' && (
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
           <div className="xl:col-span-3 order-2 xl:order-1">
-            <PriceChart symbol={`${fromToken}/${toToken}`} livePrice={midRate} />
+            <PriceChart
+              symbol={`${fromToken}/${toToken}`}
+              livePrice={midRate}
+              pair={chartPair}
+              invert={chartInvert}
+            />
           </div>
           <div className="xl:col-span-2 order-1 xl:order-2 bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
             <div className="flex items-center justify-between mb-6">
@@ -620,8 +670,19 @@ const SwapinV2Interface: React.FC = () => {
             )}
 
             {/* Price Chart */}
-            <PriceChart symbol={`${fromToken}/${toToken}`} />
+            <PriceChart symbol={`${fromToken}/${toToken}`} pair={chartPair} invert={chartInvert} />
           </div>
+        )}
+
+        {/* Markets: every factory pair with its real on-chain chart */}
+        {activeTab === 'markets' && (
+          <PairMarkets
+            onTrade={(sym0, sym1) => {
+              setFromToken(sym0 === 'wALT' ? 'ALT' : sym0);
+              setToToken(sym1);
+              setActiveTab('swap');
+            }}
+          />
         )}
 
         {/* Positions Interface */}

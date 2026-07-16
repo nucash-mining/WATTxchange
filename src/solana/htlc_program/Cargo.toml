@@ -1,0 +1,15 @@
+[package]
+name = "wattxchange-htlc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+solana-program = "1.18"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+# Build:  cargo build-sbf
+# Deploy (immutable — no upgrade authority, matching the EVM vault's
+# no-admin trust model):
+#   solana program deploy --final target/deploy/wattxchange_htlc.so

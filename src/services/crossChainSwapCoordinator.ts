@@ -59,7 +59,13 @@ class CrossChainSwapCoordinator {
     { from: 'HTH', to: 'ETH' },
     { from: 'HTH', to: 'ALT' },
     { from: 'ETH', to: 'ALT' },
-    { from: 'ALT', to: 'ETH' }
+    { from: 'ALT', to: 'ETH' },
+    { from: 'SOL', to: 'ETH' },
+    { from: 'ETH', to: 'SOL' },
+    { from: 'SOL', to: 'ALT' },
+    { from: 'ALT', to: 'SOL' },
+    { from: 'BTC', to: 'SOL' },
+    { from: 'SOL', to: 'BTC' }
   ];
 
   constructor() {
@@ -88,6 +94,18 @@ class CrossChainSwapCoordinator {
 
   private async checkNodeConnections() {
     for (const [chain, status] of this.nodeStatus) {
+      // SOL has no local node — connectivity is the public cluster's health.
+      if (chain === 'SOL') {
+        try {
+          const { solanaService } = await import('./solanaService');
+          status.isConnected = await solanaService.isHealthy();
+          status.blockHeight = status.isConnected ? await solanaService.getSlot() : undefined;
+          status.lastPing = status.isConnected ? new Date() : undefined;
+        } catch {
+          status.isConnected = false;
+        }
+        continue;
+      }
       const nodes = rpcNodeService.getNodesBySymbol(chain);
       const connectedNode = nodes.find(node => node.isConnected);
       

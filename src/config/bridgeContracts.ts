@@ -16,7 +16,8 @@ export interface BridgeDeployment {
 }
 
 export const BRIDGE_DEPLOYMENTS: BridgeDeployment[] = [
-  { chainId: 2330, name: 'Altcoinchain', rpcUrl: 'https://rpc.wattxchange.app', nativeSymbol: 'ALT', factory: null, vault: null },
+  // Deployed 2026-07-17 by bridge deployer 0xE731A3d4D7C5cb642B5041392a4Eb6E966Dba11a (nonces 0/1).
+  { chainId: 2330, name: 'Altcoinchain', rpcUrl: 'https://rpc.wattxchange.app', nativeSymbol: 'ALT', factory: '0x80938eB385FA99861B56aE447E5a611A88700eE3', vault: '0x54117CAd2835B3D5B499f3acA03B1Ff643Af1955' },
   // WATTx EVM chainId matches its AuxPoW chain_id (22356) — verify against the
   // node's eth_chainId before deploying.
   { chainId: 22356, name: 'WATTx', rpcUrl: 'http://127.0.0.1:13889', nativeSymbol: 'WTX', factory: null, vault: null },

@@ -283,4 +283,82 @@ class PairHistoryService {
   }
 }
 
-export const pairHistoryService = new PairHistoryService();
+export type CandleLoader = (stepSec: number, maxCandles: number) => Promise<Candle[]>;
+
+class PairHistoryServiceExt extends PairHistoryService {
+  /** Every distinct token symbol seen across the factory's pairs. */
+  async allSymbols(): Promise<string[]> {
+    const pairs = await this.getAllPairs();
+    const set = new Set<string>();
+    for (const p of pairs) {
+      set.add(p.symbol0);
+      set.add(p.symbol1);
+    }
+    return [...set].sort();
+  }
+
+  private norm(sym: string): string {
+    return sym === 'ALT' ? 'wALT' : sym;
+  }
+
+  private async directPair(a: string, b: string): Promise<{ pair: PairInfo; invert: boolean } | null> {
+    const pairs = await this.getAllPairs();
+    const hit = pairs.find(
+      (p) => (p.symbol0 === a && p.symbol1 === b) || (p.symbol0 === b && p.symbol1 === a)
+    );
+    if (!hit) return null;
+    // getCandles(invert=false) charts token1-per-token0; we want b-per-a.
+    return { pair: hit, invert: hit.symbol0 !== a };
+  }
+
+  /** Candles priced as "wALT per 1 `sym`" from the sym/wALT pool. */
+  private async waltLeg(sym: string): Promise<{ pair: PairInfo; invert: boolean } | null> {
+    return this.directPair(sym, 'wALT');
+  }
+
+  /**
+   * A candle loader for ANY coin pair the DEX knows: direct pool history when
+   * one exists, otherwise a derived cross-rate through the two wALT legs
+   * (price b-per-a = (wALT per a) / (wALT per b)). Returns null only when no
+   * route exists at all. Prices follow the swap-UI convention: quote units of
+   * `to` per 1 `from`.
+   */
+  async candleLoaderFor(from: string, to: string): Promise<CandleLoader | null> {
+    const a = this.norm(from);
+    const b = this.norm(to);
+    if (a === b) return null;
+
+    const direct = await this.directPair(a, b);
+    if (direct) {
+      return (step, count) => this.getCandles(direct.pair, step, count, direct.invert);
+    }
+
+    const [legA, legB] = await Promise.all([this.waltLeg(a), this.waltLeg(b)]);
+    if (!legA || !legB) return null;
+
+    return async (step, count) => {
+      const [ca, cb] = await Promise.all([
+        this.getCandles(legA.pair, step, count, legA.invert),
+        this.getCandles(legB.pair, step, count, legB.invert),
+      ]);
+      const bByTime = new Map(cb.map((c) => [c.time, c]));
+      const out: Candle[] = [];
+      for (const c of ca) {
+        const d = bByTime.get(c.time);
+        if (!d || d.close <= 0 || d.open <= 0) continue;
+        const ratios = [c.open / d.open, c.close / d.close, c.high / d.low, c.low / d.high];
+        out.push({
+          time: c.time,
+          open: ratios[0],
+          close: ratios[1],
+          high: Math.max(...ratios),
+          low: Math.min(...ratios),
+          volume: c.volume, // base-token units from the `from` leg
+        });
+      }
+      return out;
+    };
+  }
+}
+
+export const pairHistoryService = new PairHistoryServiceExt();

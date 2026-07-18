@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, type IChartApi } from 'lightweight-charts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { usePrices } from '../../hooks/usePrices';
-import { pairHistoryService, type PairInfo, type Candle } from '../../services/pairHistoryService';
+import { pairHistoryService, type PairInfo, type Candle, type CandleLoader } from '../../services/pairHistoryService';
 
 interface PriceChartProps {
   symbol?: string;
@@ -15,6 +15,8 @@ interface PriceChartProps {
   pair?: PairInfo | null;
   /** Chart token0-per-token1 instead of the pair-native token1-per-token0. */
   invert?: boolean;
+  /** Custom candle source (e.g. derived cross-rate). Wins over `pair`. */
+  loader?: CandleLoader | null;
 }
 
 type Timeframe = '15m' | '1h' | '4h' | '1d' | '1w';
@@ -62,6 +64,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
   livePrice,
   pair,
   invert = false,
+  loader,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -75,14 +78,16 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const priceData = getPrice(baseSymbol);
   const change = formatChange(baseSymbol);
 
-  // Load the pair's real event history whenever pair/timeframe changes.
+  // Load the pair's real event history whenever pair/loader/timeframe changes.
   useEffect(() => {
     let cancelled = false;
     setOnchainCandles(null);
-    if (!pair) return;
+    if (!pair && !loader) return;
     const { count, step } = TIMEFRAME_CONFIG[timeframe];
-    pairHistoryService
-      .getCandles(pair, step, count, invert)
+    const fetchCandles = loader
+      ? loader(step, count)
+      : pairHistoryService.getCandles(pair!, step, count, invert);
+    fetchCandles
       .then((candles) => {
         if (!cancelled) setOnchainCandles(candles.length >= 2 ? candles : []);
       })
@@ -93,7 +98,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pair?.address, invert, timeframe]);
+  }, [pair?.address, invert, timeframe, loader]);
 
   const usingOnchain = !!(onchainCandles && onchainCandles.length >= 2);
 

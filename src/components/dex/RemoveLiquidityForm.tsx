@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Minus, RefreshCw, AlertTriangle, Info } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
+import { ammV2Service } from '../../services/ammV2Service';
 import toast from 'react-hot-toast';
 
 interface Position {
-  id: string;
+  id: string; // pair (LP token) address
   pool: {
     token0: string;
     token1: string;
@@ -17,6 +18,8 @@ interface Position {
   uncollectedFees: string;
 }
 
+const SLIPPAGE_PCT = 1;
+
 interface RemoveLiquidityFormProps {
   position: Position;
   onClose: () => void;
@@ -25,17 +28,16 @@ interface RemoveLiquidityFormProps {
 const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onClose }) => {
   const [removeAmount, setRemoveAmount] = useState(50); // percentage
   const [isLoading, setIsLoading] = useState(false);
-  const [collectFees, setCollectFees] = useState(true);
-  const { isConnected, switchToAltcoinchain, signTransaction } = useWallet();
+  const { isConnected, chainId, signer, switchToAltcoinchain } = useWallet();
 
   const getTokenIcon = (symbol: string) => {
     switch (symbol) {
       case 'ALT':
-        return <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'wALT':
-        return <img src="/Altcoinchain logo.png" alt="wALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="wALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'WATT':
-        return <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />;
       case 'AltPEPE':
         return <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>;
       case 'AltPEPI':
@@ -58,35 +60,36 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
       toast.error('Please connect your wallet');
       return;
     }
-    
-    setIsLoading(true);
-    
-    try {
-      // Create transaction details for signing
-      const transactionDetails = {
-        type: 'removeLiquidity',
-        positionId: position.id,
-        token0: position.pool.token0,
-        token1: position.pool.token1,
-        removePercentage: removeAmount,
-        collectFees
-      };
-
-      // Request permission to sign the transaction
-      const signed = await signTransaction(transactionDetails);
-      
-      if (signed) {
-        toast.success(`Removed ${removeAmount}% of your liquidity`);
-        if (collectFees) {
-          toast.success(`Collected ${position.uncollectedFees} in fees`);
-        }
-        onClose();
-      } else {
-        toast.error('Transaction cancelled or failed');
+    if (chainId !== 2330) {
+      const switched = await switchToAltcoinchain().catch(() => false);
+      if (!switched) {
+        toast.error('Please switch to Altcoinchain network');
+        return;
       }
-    } catch (error) {
+    }
+    if (!signer) {
+      toast.error('Wallet signer unavailable — reconnect your wallet');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const txHash = await ammV2Service.removeLiquidityByPct(
+        signer,
+        position.id,
+        removeAmount,
+        SLIPPAGE_PCT
+      );
+      toast.success(`Removed ${removeAmount}% of your liquidity — ${txHash.slice(0, 14)}…`);
+      onClose();
+    } catch (error: any) {
       console.error('Failed to remove liquidity:', error);
-      toast.error('Failed to remove liquidity');
+      const msg = error?.shortMessage || error?.reason || error?.message || '';
+      toast.error(
+        /user rejected|denied/i.test(msg)
+          ? 'Transaction cancelled in wallet'
+          : `Remove liquidity failed: ${msg.slice(0, 120)}`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -119,8 +122,8 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
             <p className="font-bold">{position.liquidity}</p>
           </div>
           <div>
-            <p className="text-slate-400 text-sm">Uncollected Fees</p>
-            <p className="font-bold text-emerald-400">{position.uncollectedFees}</p>
+            <p className="text-slate-400 text-sm">Fee Tier</p>
+            <p className="font-bold">0.3% (auto-compounds)</p>
           </div>
           <div>
             <p className="text-slate-400 text-sm">{position.pool.token0}</p>
@@ -180,17 +183,6 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
         </div>
       </div>
 
-      {/* Collect Fees Option */}
-      <div className="flex items-center space-x-2">
-        <input 
-          type="checkbox" 
-          checked={collectFees} 
-          onChange={() => setCollectFees(!collectFees)}
-          className="rounded" 
-        />
-        <label className="text-sm">Collect {position.uncollectedFees} in uncollected fees</label>
-      </div>
-
       {/* Info */}
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <div className="flex items-start space-x-2">
@@ -198,8 +190,9 @@ const RemoveLiquidityForm: React.FC<RemoveLiquidityFormProps> = ({ position, onC
           <div>
             <p className="text-blue-400 font-medium">Removing Liquidity</p>
             <p className="text-sm text-slate-300 mt-1">
-              When you remove liquidity, your position tokens are burned and you receive the underlying assets back.
-              You can also collect any uncollected fees earned by your position.
+              When you remove liquidity, your LP tokens are burned and you receive both underlying
+              assets back. Trading fees have already compounded into your share — there is nothing
+              separate to collect on Uniswap V2 pools.
             </p>
           </div>
         </div>

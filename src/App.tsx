@@ -13,10 +13,11 @@ import SettingsView from './components/SettingsView';
 import NuChainView from './components/NuChainView';
 import ExplorerView from './components/ExplorerView';
 import DeFiHubView from './components/DeFiHubView';
+import BridgeView from './components/BridgeView';
 import MobileNavbar from './components/mobile/MobileNavbar';
 import { useDeviceDetect } from './hooks/useDeviceDetect';
 
-type ViewType = 'wallet' | 'nodes' | 'dex' | 'defi' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool';
+type ViewType = 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('wallet');
@@ -89,6 +90,8 @@ function App() {
         return <DEXView />;
       case 'defi':
         return <DeFiHubView />;
+      case 'bridge':
+        return <BridgeView />;
       case 'pool':
         return <MergedMiningView />;
       case 'mining':

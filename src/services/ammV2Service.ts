@@ -17,6 +17,9 @@ const ROUTER_ABI = [
   'function swapExactETHForTokens(uint256 amountOutMin, address[] path, address to, uint256 deadline) payable returns (uint256[] amounts)',
   'function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)',
   'function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)',
+  'function addLiquidity(address tokenA, address tokenB, uint256 amountADesired, uint256 amountBDesired, uint256 amountAMin, uint256 amountBMin, address to, uint256 deadline) returns (uint256 amountA, uint256 amountB, uint256 liquidity)',
+  'function addLiquidityETH(address token, uint256 amountTokenDesired, uint256 amountTokenMin, uint256 amountETHMin, address to, uint256 deadline) payable returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)',
+  'function removeLiquidity(address tokenA, address tokenB, uint256 liquidity, uint256 amountAMin, uint256 amountBMin, address to, uint256 deadline) returns (uint256 amountA, uint256 amountB)',
 ];
 
 const FACTORY_ABI = [
@@ -62,6 +65,16 @@ export interface AmmPool {
   reserve0: string;        // human units
   reserve1: string;
   midPrice: number;        // token1 per token0
+}
+
+export interface PairInfo {
+  pairAddress: string;
+  reserveA: string;        // human units, aligned to the symbolA argument
+  reserveB: string;
+  reserveAWei: bigint;
+  reserveBWei: bigint;
+  totalSupplyWei: bigint;
+  rate: number;            // symbolB per symbolA
 }
 
 export interface AmmPosition {
@@ -276,6 +289,159 @@ class AmmV2Service {
       })
     );
     return positions.filter((p): p is AmmPosition => p !== null);
+  }
+
+  /** ERC-20 address a symbol enters pools as (native ALT pools via wALT). */
+  private poolTokenAddress(symbol: string): string {
+    const addr = this.isNative(symbol) ? ALT_TOKENS.wALT : this.tokenAddress(symbol);
+    if (!addr) throw new Error(`Unknown token: ${symbol}`);
+    return addr;
+  }
+
+  /** Wallet balance in human units (native or ERC-20). */
+  async balanceOf(owner: string, symbol: string): Promise<string> {
+    if (this.isNative(symbol)) {
+      return ethers.formatEther(await this.provider.getBalance(owner));
+    }
+    const token = new ethers.Contract(this.poolTokenAddress(symbol), ERC20_ABI, this.provider);
+    return ethers.formatUnits(await token.balanceOf(owner), this.decimalsOf(symbol));
+  }
+
+  /**
+   * Reserves for the (symbolA, symbolB) pair, aligned to the argument order.
+   * Returns null when the pair does not exist yet (adding liquidity creates it).
+   */
+  async getPairInfo(symbolA: string, symbolB: string): Promise<PairInfo | null> {
+    const a = this.poolTokenAddress(symbolA);
+    const b = this.poolTokenAddress(symbolB);
+    if (a.toLowerCase() === b.toLowerCase()) throw new Error('ALT and wALT are the same pool token');
+    const pairAddress: string = await this.factory.getPair(a, b);
+    if (pairAddress === ethers.ZeroAddress) return null;
+    const pair = new ethers.Contract(pairAddress, PAIR_ABI, this.provider);
+    const [token0, reserves, totalSupplyWei]: [string, [bigint, bigint, number], bigint] =
+      await Promise.all([pair.token0(), pair.getReserves(), pair.totalSupply()]);
+    const aIs0 = token0.toLowerCase() === a.toLowerCase();
+    const reserveAWei = aIs0 ? reserves[0] : reserves[1];
+    const reserveBWei = aIs0 ? reserves[1] : reserves[0];
+    const reserveA = ethers.formatUnits(reserveAWei, this.decimalsOf(symbolA));
+    const reserveB = ethers.formatUnits(reserveBWei, this.decimalsOf(symbolB));
+    return {
+      pairAddress,
+      reserveA,
+      reserveB,
+      reserveAWei,
+      reserveBWei,
+      totalSupplyWei,
+      rate: parseFloat(reserveA) > 0 ? parseFloat(reserveB) / parseFloat(reserveA) : 0,
+    };
+  }
+
+  private async ensureAllowance(
+    signer: ethers.Signer,
+    tokenAddress: string,
+    owner: string,
+    amountWei: bigint
+  ): Promise<void> {
+    const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+    const allowance: bigint = await token.allowance(owner, SWAPIN_LIVE.UniswapV2Router02);
+    if (allowance < amountWei) {
+      const tx = await token.approve(SWAPIN_LIVE.UniswapV2Router02, amountWei);
+      await tx.wait();
+    }
+  }
+
+  /**
+   * Add liquidity to the (symbolA, symbolB) pool with the connected wallet.
+   * Native ALT goes through addLiquidityETH; a missing pair is created by the
+   * router at the implied price. Returns the confirmed tx hash.
+   */
+  async addLiquidity(
+    signer: ethers.Signer,
+    symbolA: string,
+    symbolB: string,
+    amountA: string,
+    amountB: string,
+    slippagePct: number,
+    deadlineMinutes = 30
+  ): Promise<string> {
+    const to = await signer.getAddress();
+    const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
+    const amountAWei = ethers.parseUnits(amountA, this.decimalsOf(symbolA));
+    const amountBWei = ethers.parseUnits(amountB, this.decimalsOf(symbolB));
+    if (amountAWei <= 0n || amountBWei <= 0n) throw new Error('Amounts must be positive');
+    const minFactor = BigInt(Math.floor((100 - slippagePct) * 1000));
+    const minA = (amountAWei * minFactor) / 100000n;
+    const minB = (amountBWei * minFactor) / 100000n;
+    const router = new ethers.Contract(SWAPIN_LIVE.UniswapV2Router02, ROUTER_ABI, signer);
+
+    const aNative = this.isNative(symbolA);
+    const bNative = this.isNative(symbolB);
+    if (aNative && bNative) throw new Error('Pick two different tokens');
+    if (aNative || bNative) {
+      const [tokenSym, tokenWei, tokenMin, ethWei, ethMin] = aNative
+        ? [symbolB, amountBWei, minB, amountAWei, minA]
+        : [symbolA, amountAWei, minA, amountBWei, minB];
+      const tokenAddr = this.poolTokenAddress(tokenSym);
+      if (tokenAddr.toLowerCase() === ALT_TOKENS.wALT.toLowerCase()) {
+        throw new Error('ALT/wALT is a 1:1 wrap, not a pool — use the swap tab to wrap');
+      }
+      await this.ensureAllowance(signer, tokenAddr, to, tokenWei);
+      const tx = await router.addLiquidityETH(tokenAddr, tokenWei, tokenMin, ethMin, to, deadline, {
+        value: ethWei,
+      });
+      await tx.wait();
+      return tx.hash;
+    }
+
+    const a = this.poolTokenAddress(symbolA);
+    const b = this.poolTokenAddress(symbolB);
+    if (a.toLowerCase() === b.toLowerCase()) throw new Error('Pick two different tokens');
+    await this.ensureAllowance(signer, a, to, amountAWei);
+    await this.ensureAllowance(signer, b, to, amountBWei);
+    const tx = await router.addLiquidity(a, b, amountAWei, amountBWei, minA, minB, to, deadline);
+    await tx.wait();
+    return tx.hash;
+  }
+
+  /**
+   * Burn a percentage of the wallet's LP tokens in a pair and withdraw both
+   * sides. Reads the exact LP balance on-chain (UI numbers are rounded).
+   * Returns the confirmed tx hash.
+   */
+  async removeLiquidityByPct(
+    signer: ethers.Signer,
+    pairAddress: string,
+    pct: number,
+    slippagePct: number,
+    deadlineMinutes = 30
+  ): Promise<string> {
+    if (!(pct > 0 && pct <= 100)) throw new Error('Percentage must be 1-100');
+    const owner = await signer.getAddress();
+    const pair = new ethers.Contract(pairAddress, PAIR_ABI, this.provider);
+    const [token0, token1, reserves, totalSupply, lpBalance]: [string, string, [bigint, bigint, number], bigint, bigint] =
+      await Promise.all([
+        pair.token0(),
+        pair.token1(),
+        pair.getReserves(),
+        pair.totalSupply(),
+        pair.balanceOf(owner),
+      ]);
+    if (lpBalance === 0n) throw new Error('No LP tokens in this pool');
+    const liquidity = (lpBalance * BigInt(Math.floor(pct * 100))) / 10000n;
+    if (liquidity === 0n) throw new Error('Amount too small');
+
+    // expected withdrawals at current reserves, minus slippage tolerance
+    const minFactor = BigInt(Math.floor((100 - slippagePct) * 1000));
+    const min0 = (((reserves[0] * liquidity) / totalSupply) * minFactor) / 100000n;
+    const min1 = (((reserves[1] * liquidity) / totalSupply) * minFactor) / 100000n;
+
+    // LP token is itself an ERC-20; router pulls it via allowance
+    await this.ensureAllowance(signer, pairAddress, owner, liquidity);
+    const router = new ethers.Contract(SWAPIN_LIVE.UniswapV2Router02, ROUTER_ABI, signer);
+    const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
+    const tx = await router.removeLiquidity(token0, token1, liquidity, min0, min1, owner, deadline);
+    await tx.wait();
+    return tx.hash;
   }
 }
 

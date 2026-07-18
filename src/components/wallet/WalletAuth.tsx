@@ -158,7 +158,7 @@ const WalletAuth: React.FC<WalletAuthProps> = ({ onAuthenticated }) => {
       >
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <img src="/WATTxchange logo.png" alt="WATTxchange" className="w-48 h-48" />
+            <img src={`${import.meta.env.BASE_URL}WATTxchange logo.png`} alt="WATTxchange" className="w-48 h-48" />
           </div>
           <h2 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent">
             WATTxchange

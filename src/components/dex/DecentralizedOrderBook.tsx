@@ -183,19 +183,19 @@ const DecentralizedOrderBook: React.FC<OrderBookProps> = ({
   const getChainIcon = (chain: string) => {
     switch (chain) {
       case 'BTC':
-        return <img src="/BTC logo.png" alt="BTC" className="w-5 h-5 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="BTC" className="w-5 h-5 object-contain" />;
       case 'ETH':
-        return <img src="/ETH logo.png" alt="ETH" className="w-5 h-5 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="ETH" className="w-5 h-5 object-contain" />;
       case 'LTC':
-        return <img src="/LTC logo.png" alt="LTC" className="w-5 h-5 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="LTC" className="w-5 h-5 object-contain" />;
       case 'ALT':
-        return <img src="/Altcoinchain logo.png" alt="ALT" className="w-5 h-5 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-5 h-5 object-contain rounded-full" />;
       case 'GHOST':
-        return <img src="/GHOST logo.png" alt="GHOST" className="w-5 h-5 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-5 h-5 object-contain" />;
       case 'TROLL':
-        return <img src="/TROLL logo.png" alt="TROLL" className="w-5 h-5 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="TROLL" className="w-5 h-5 object-contain" />;
       case 'HTH':
-        return <img src="/HTH logo.webp" alt="HTH" className="w-5 h-5 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}HTH logo.webp`} alt="HTH" className="w-5 h-5 object-contain" />;
       default:
         return <div className="w-5 h-5 bg-slate-600 rounded-full flex items-center justify-center text-xs">{chain[0]}</div>;
     }

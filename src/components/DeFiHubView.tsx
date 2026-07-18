@@ -66,7 +66,7 @@ const CHAINS = {
     id: 2330,
     name: 'ALTCOINCHAIN',
     symbol: 'ALT',
-    rpc: 'http://127.0.0.1:8545',
+    rpc: 'https://rpc.wattxchange.app',
     explorer: 'https://explorer.altcoinchain.org',
     color: '#ff6600',
     tokens: {

@@ -512,7 +512,7 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
                 : 'bg-slate-700/50 hover:bg-slate-600/50'
             }`}
           >
-            <img src="/MATIC logo.png" alt="Polygon" className="w-5 h-5" />
+            <img src={`${import.meta.env.BASE_URL}MATIC logo.png`} alt="Polygon" className="w-5 h-5" />
             <span>Polygon</span>
           </button>
           <button
@@ -523,7 +523,7 @@ const MiningRigConfigurator: React.FC<MiningRigConfiguratorProps> = ({ onRigCrea
                 : 'bg-slate-700/50 hover:bg-slate-600/50'
             }`}
           >
-            <img src="/Altcoinchain logo.png" alt="Altcoinchain" className="w-5 h-5 rounded-full" />
+            <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="Altcoinchain" className="w-5 h-5 rounded-full" />
             <span>Altcoinchain</span>
           </button>
         </div>

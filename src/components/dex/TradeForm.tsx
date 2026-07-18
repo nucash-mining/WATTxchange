@@ -48,49 +48,49 @@ const TradeForm: React.FC = () => {
       symbol: 'ALT', 
       name: 'Altcoin', 
       balance: '1,234.56',
-      icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />
     },
     { 
       symbol: 'BTC', 
       name: 'Bitcoin', 
       balance: '0.05432',
-      icon: () => <img src="/BTC logo.png" alt="BTC" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="BTC" className="w-6 h-6 object-contain" />
     },
     { 
       symbol: 'ETH', 
       name: 'Ethereum', 
       balance: '2.1847',
-      icon: () => <img src="/ETH logo.png" alt="ETH" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="ETH" className="w-6 h-6 object-contain" />
     },
     { 
       symbol: 'LTC', 
       name: 'Litecoin', 
       balance: '12.67',
-      icon: () => <img src="/LTC logo.png" alt="LTC" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="LTC" className="w-6 h-6 object-contain" />
     },
     { 
       symbol: 'XMR', 
       name: 'Monero', 
       balance: '5.234',
-      icon: () => <img src="/XMR logo.png" alt="XMR" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}XMR logo.png`} alt="XMR" className="w-6 h-6 object-contain" />
     },
     { 
       symbol: 'WATT', 
       name: 'WATT Token', 
       balance: '56.7',
-      icon: () => <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />
     },
     { 
       symbol: 'GHOST', 
       name: 'GHOST', 
       balance: '1,250.75',
-      icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-6 h-6 object-contain" />
     },
     { 
       symbol: 'TROLL', 
       name: 'Trollcoin', 
       balance: '15,420.69',
-      icon: () => <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />
+      icon: () => <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="TROLL" className="w-6 h-6 object-contain" />
     }
   ];
 

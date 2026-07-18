@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
           )}
           <div className="relative flex-shrink-0">
             <img
-              src="/WATTxchange logo.png"
+              src={`${import.meta.env.BASE_URL}WATTxchange logo.png`}
               alt="WATT Token"
               className={isMobile ? "w-9 h-9" : "w-12 h-12"}
             />

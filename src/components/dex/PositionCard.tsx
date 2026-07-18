@@ -43,11 +43,11 @@ const PositionCard: React.FC<PositionCardProps> = ({
   const getTokenIcon = (symbol: string) => {
     switch (symbol) {
       case 'ALT':
-        return <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'wALT':
-        return <img src="/Altcoinchain logo.png" alt="wALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="wALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'WATT':
-        return <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />;
       case 'AltPEPE':
         return <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>;
       case 'AltPEPI':

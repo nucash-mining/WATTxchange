@@ -661,9 +661,9 @@ const PerpetualTrading: React.FC = () => {
               />
 
               {/* Order Book */}
-              <PerpOrderBook 
-                market={selectedMarket}
-              />
+              <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50">
+                <PerpOrderBook market={selectedMarket} />
+              </div>
             </div>
           </div>
         )}

@@ -170,23 +170,23 @@ const UnifiedWalletInterface: React.FC<UnifiedWalletInterfaceProps> = ({ isOpen,
   const getChainIcon = (chain: string) => {
     switch (chain) {
       case 'BTC':
-        return <img src="/BTC logo.png" alt="BTC" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="BTC" className="w-6 h-6 object-contain" />;
       case 'ETH':
-        return <img src="/ETH logo.png" alt="ETH" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="ETH" className="w-6 h-6 object-contain" />;
       case 'LTC':
-        return <img src="/LTC logo.png" alt="LTC" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="LTC" className="w-6 h-6 object-contain" />;
       case 'ALT':
-        return <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'WATT':
-        return <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />;
       case 'GHOST':
-        return <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-6 h-6 object-contain" />;
       case 'TROLL':
-        return <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="TROLL" className="w-6 h-6 object-contain" />;
       case 'HTH':
-        return <img src="/HTH logo.webp" alt="HTH" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}HTH logo.webp`} alt="HTH" className="w-6 h-6 object-contain" />;
       case 'RTM':
-        return <img src="/RTM logo.png" alt="RTM" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}RTM logo.png`} alt="RTM" className="w-6 h-6 object-contain" />;
       default:
         return <div className="w-6 h-6 bg-slate-600 rounded-full flex items-center justify-center text-xs">{chain[0]}</div>;
     }

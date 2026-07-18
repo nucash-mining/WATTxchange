@@ -34,29 +34,29 @@ const NodeRewardDashboard: React.FC = () => {
     switch (blockchain.toLowerCase()) {
       case 'bitcoin':
       case 'btc':
-        return <img src="/BTC logo.png" alt="BTC" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="BTC" className="w-6 h-6 object-contain" />;
       case 'ethereum':
       case 'eth':
-        return <img src="/ETH logo.png" alt="ETH" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="ETH" className="w-6 h-6 object-contain" />;
       case 'litecoin':
       case 'ltc':
-        return <img src="/LTC logo.png" alt="LTC" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="LTC" className="w-6 h-6 object-contain" />;
       case 'monero':
       case 'xmr':
-        return <img src="/XMR logo.png" alt="XMR" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}XMR logo.png`} alt="XMR" className="w-6 h-6 object-contain" />;
       case 'altcoinchain':
       case 'alt':
-        return <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />;
       case 'ghost':
-        return <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-6 h-6 object-contain" />;
       case 'trollcoin':
       case 'troll':
-        return <img src="/TROLL logo.png" alt="TROLL" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="TROLL" className="w-6 h-6 object-contain" />;
       case 'hth':
-        return <img src="/HTH logo.webp" alt="HTH" className="w-6 h-6 object-contain" />;
+        return <img src={`${import.meta.env.BASE_URL}HTH logo.webp`} alt="HTH" className="w-6 h-6 object-contain" />;
       case 'raptoreum':
       case 'rtm':
-        return <img src="/RTM logo.png" alt="RTM" className="w-6 h-6 object-contain rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}RTM logo.png`} alt="RTM" className="w-6 h-6 object-contain rounded-full" />;
       default:
         return <Server className="w-6 h-6 text-slate-400" />;
     }

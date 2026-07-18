@@ -67,7 +67,7 @@ const ExplorerView: React.FC = () => {
     ALT: {
       api: 'https://alt-explorer.wattxchange.app',
       apiDisplay: 'https://alt-explorer.wattxchange.app',
-      rpc: 'https://alt-rpc.wattxchange.app',
+      rpc: 'https://rpc.wattxchange.app',
       ws: 'wss://alt-ws.wattxchange.app',
       chainId: 2330
     }

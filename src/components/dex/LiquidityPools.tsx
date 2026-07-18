@@ -33,8 +33,8 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'ALT',
       token2: 'WATT',
-      token1Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
-      token2Icon: () => <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />,
+      token1Icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      token2Icon: () => <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />,
       address: '0xb2F8e147d6a2570b19d1731401DDD5A4F62e2C33'
     },
     {
@@ -47,7 +47,7 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'ALT',
       token2: 'USDT',
-      token1Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      token1Icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
     },
     // EGAZ pools
@@ -115,7 +115,7 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'OCTA',
       token2: 'USDT',
-      token1Icon: () => <img src="/OCTA logo.png" alt="OCTA" className="w-6 h-6 object-contain rounded-full" />,
+      token1Icon: () => <img src={`${import.meta.env.BASE_URL}OCTA logo.png`} alt="OCTA" className="w-6 h-6 object-contain rounded-full" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
     },
     // Fantom pools
@@ -129,7 +129,7 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'FTM',
       token2: 'USDT',
-      token1Icon: () => <img src="/Fantom logo.png" alt="FTM" className="w-6 h-6 object-contain rounded-full" />,
+      token1Icon: () => <img src={`${import.meta.env.BASE_URL}Fantom logo.png`} alt="FTM" className="w-6 h-6 object-contain rounded-full" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
     },
     // GHOST pools
@@ -143,7 +143,7 @@ const LiquidityPools: React.FC = () => {
       myLiquidity: '$0',
       token1: 'GHOST',
       token2: 'USDT',
-      token1Icon: () => <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6 object-contain" />,
+      token1Icon: () => <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-6 h-6 object-contain" />,
       token2Icon: () => <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold">U</div>
     },
     // Altcoinchain custom pools
@@ -172,7 +172,7 @@ const LiquidityPools: React.FC = () => {
       token1: 'AltPEPE',
       token2: 'wALT',
       token1Icon: () => <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>,
-      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      token2Icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
       address: '0xB1297e255933E6c11bc72D6De2c911e4a05A18d8'
     },
     {
@@ -186,7 +186,7 @@ const LiquidityPools: React.FC = () => {
       token1: 'SCAM',
       token2: 'wALT',
       token1Icon: () => <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">S</div>,
-      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      token2Icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
       address: '0x4d40fa6da5495f74f61af89008035062a0f66730'
     },
     {
@@ -200,7 +200,7 @@ const LiquidityPools: React.FC = () => {
       token1: 'SWAPD',
       token2: 'wALT',
       token1Icon: () => <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-xs font-bold">S</div>,
-      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      token2Icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
       address: '0x044e22b6276424d0b6e014Fd9E259D03C7b031bb'
     },
     {
@@ -214,7 +214,7 @@ const LiquidityPools: React.FC = () => {
       token1: 'MALT',
       token2: 'wALT',
       token1Icon: () => <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold">M</div>,
-      token2Icon: () => <img src="/Altcoinchain logo.png" alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
+      token2Icon: () => <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="ALT" className="w-6 h-6 object-contain rounded-full" />,
       address: '0xb9707EBc943AD698852dca99dAB8C973e1CD6BD8'
     },
     {
@@ -228,7 +228,7 @@ const LiquidityPools: React.FC = () => {
       token1: 'AltPEPE',
       token2: 'WATT',
       token1Icon: () => <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold">P</div>,
-      token2Icon: () => <img src="/WATT logo.png" alt="WATT" className="w-6 h-6 object-contain" />,
+      token2Icon: () => <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className="w-6 h-6 object-contain" />,
       address: '0xdC1f931aeFba25d1ad442c7235D9AEbAf51C9D01'
     }
   ];

@@ -114,23 +114,23 @@ const NodesView: React.FC = () => {
   const getNodeIcon = (node: string) => {
     switch (node) {
       case 'bitcoin':
-        return <img src="/BTC logo.png" alt="Bitcoin" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="Bitcoin" className="w-6 h-6" />;
       case 'ethereum':
-        return <img src="/ETH logo.png" alt="Ethereum" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="Ethereum" className="w-6 h-6" />;
       case 'litecoin':
-        return <img src="/LTC logo.png" alt="Litecoin" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="Litecoin" className="w-6 h-6" />;
       case 'monero':
-        return <img src="/XMR logo.png" alt="Monero" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}XMR logo.png`} alt="Monero" className="w-6 h-6" />;
       case 'altcoin':
-        return <img src="/Altcoinchain logo.png" alt="Altcoinchain" className="w-6 h-6 rounded-full" />;
+        return <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="Altcoinchain" className="w-6 h-6 rounded-full" />;
       case 'ghost':
-        return <img src="/GHOST logo.png" alt="GHOST" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className="w-6 h-6" />;
       case 'troll':
-        return <img src="/TROLL logo.png" alt="Trollcoin" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="Trollcoin" className="w-6 h-6" />;
       case 'hth':
-        return <img src="/HTH logo.webp" alt="Help The Homeless" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}HTH logo.webp`} alt="Help The Homeless" className="w-6 h-6" />;
       case 'raptoreum':
-        return <img src="/RTM logo.png" alt="Raptoreum" className="w-6 h-6" />;
+        return <img src={`${import.meta.env.BASE_URL}RTM logo.png`} alt="Raptoreum" className="w-6 h-6" />;
       default:
         return <Server className="w-6 h-6" />;
     }

@@ -34,26 +34,33 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     setIsOpen(false);
   };
 
-  const getNetworkIcon = (network: SwapinNetwork) => {
-    const iconMap: Record<string, string> = {
-      'EGAZ': '⚡',
-      'PlanQ': '🌐',
-      'OctaSpace': '🐙',
-      'PartyChain': '🎉',
-      'EGEM': '💎',
-      'ETHO': '🔷',
-      'Altcoinchain': '🔗',
-      'DOGEchain': '🐕',
-      'Fantom': '👻',
-      'BSC': '🔶',
-      'Ethereum': '💎',
-      'Polygon': '🔷',
-      'Avalanche': '🔺',
-      'Arbitrum': '🔵',
-      'Optimism': '🔴',
-      'Base': '🟦'
-    };
-    return iconMap[network.name] || '🔗';
+  // Real logo assets where we have them; clean lettered-circle badge otherwise. No emojis.
+  const NETWORK_LOGOS: Record<string, string> = {
+    'Altcoinchain': 'Altcoinchain logo.png',
+    'ETHO': 'ETHO logo.png',
+    'OctaSpace': 'OCTA logo.png',
+    'Ethereum': 'ETH logo.png',
+    'DOGEchain': 'DOGEchain logo.png',
+  };
+  const NETWORK_COLORS: Record<string, string> = {
+    'EGAZ': 'bg-yellow-500', 'PlanQ': 'bg-teal-500', 'OctaSpace': 'bg-purple-500',
+    'PartyChain': 'bg-pink-500', 'EGEM': 'bg-emerald-500', 'ETHO': 'bg-blue-500',
+    'Altcoinchain': 'bg-red-600', 'DOGEchain': 'bg-amber-500', 'Fantom': 'bg-blue-600',
+    'BSC': 'bg-yellow-600', 'Ethereum': 'bg-indigo-500', 'Polygon': 'bg-purple-600',
+    'Avalanche': 'bg-red-500', 'Arbitrum': 'bg-blue-400', 'Optimism': 'bg-red-400', 'Base': 'bg-blue-500',
+  };
+
+  const getNetworkIcon = (network: SwapinNetwork, size: string = 'w-7 h-7') => {
+    const logo = NETWORK_LOGOS[network.name];
+    if (logo) {
+      return <img src={`${import.meta.env.BASE_URL}${logo}`} alt={network.name} className={`${size} object-contain rounded-full`} />;
+    }
+    const color = NETWORK_COLORS[network.name] || 'bg-slate-600';
+    return (
+      <div className={`${size} rounded-full ${color} flex items-center justify-center text-white text-[10px] font-bold uppercase`}>
+        {(network.nativeCurrency?.symbol || network.name).slice(0, 3)}
+      </div>
+    );
   };
 
   return (
@@ -66,7 +73,7 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
       >
         {selectedNetwork ? (
           <>
-            <span className="text-xl">{getNetworkIcon(selectedNetwork)}</span>
+            {getNetworkIcon(selectedNetwork)}
             <div className="flex-1 text-left">
               <p className="font-medium">{selectedNetwork.name}</p>
               <p className="text-xs text-slate-400">{selectedNetwork.nativeCurrency.symbol}</p>
@@ -77,7 +84,9 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
           </>
         ) : (
           <>
-            <span className="text-xl">🔗</span>
+            <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center">
+              <ChevronDown className="w-4 h-4 text-slate-300" />
+            </div>
             <div className="flex-1 text-left">
               <p className="font-medium">Select Network</p>
               <p className="text-xs text-slate-400">Choose a chain</p>
@@ -121,7 +130,7 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                     transition={{ delay: index * 0.05 }}
                     whileHover={{ x: 4 }}
                   >
-                    <span className="text-lg">{getNetworkIcon(network)}</span>
+                    {getNetworkIcon(network, 'w-6 h-6')}
                     <div className="flex-1 text-left">
                       <div className="flex items-center space-x-2">
                         <p className="font-medium">{network.name}</p>

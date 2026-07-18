@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff, Server, BarChart2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Wifi, WifiOff, Server, BarChart2, ArrowDownLeft, ArrowUpRight, CheckCircle } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { usePrices } from '../hooks/usePrices';
 import { walletService } from '../services/walletService';
@@ -151,7 +151,7 @@ const WalletView: React.FC = () => {
       icon: () => (
         <div className="relative flex items-center justify-center">
           <img 
-            src="/Altcoinchain logo.png" 
+            src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} 
             alt="ALT" 
             className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} object-contain rounded-full`}
             style={{ aspectRatio: '1/1' }}
@@ -166,7 +166,7 @@ const WalletView: React.FC = () => {
       name: 'Bitcoin',
       symbol: 'BTC',
       balance: '0.00000',
-      icon: () => <img src="/BTC logo.png" alt="BTC" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}BTC logo.png`} alt="BTC" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-orange-500 to-orange-600',
       nodeType: 'rpc' as const,
       syncStatus: 'connected' as const
@@ -175,7 +175,7 @@ const WalletView: React.FC = () => {
       name: 'Ethereum',
       symbol: 'ETH',
       balance: '0.0000',
-      icon: () => <img src="/ETH logo.png" alt="ETH" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}ETH logo.png`} alt="ETH" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-purple-500 to-purple-600',
       nodeType: 'light' as const,
       syncStatus: 'connected' as const
@@ -184,7 +184,7 @@ const WalletView: React.FC = () => {
       name: 'Litecoin',
       symbol: 'LTC',
       balance: '0.00000',
-      icon: () => <img src="/LTC logo.png" alt="LTC" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}LTC logo.png`} alt="LTC" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-gray-400 to-gray-500',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
@@ -193,7 +193,7 @@ const WalletView: React.FC = () => {
       name: 'Monero',
       symbol: 'XMR',
       balance: rpcBalances['XMR'] || '0.000000',
-      icon: () => <img src="/XMR logo.png" alt="XMR" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}XMR logo.png`} alt="XMR" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-orange-600 to-red-600',
       nodeType: 'rpc' as const,
       syncStatus: rpcBalances['XMR'] ? 'connected' as const : 'disconnected' as const
@@ -202,7 +202,7 @@ const WalletView: React.FC = () => {
       name: 'Trollcoin',
       symbol: 'TROLL',
       balance: '0.00000',
-      icon: () => <img src="/TROLL logo.png" alt="TROLL" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}TROLL logo.png`} alt="TROLL" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-red-500 to-orange-500',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
@@ -211,7 +211,7 @@ const WalletView: React.FC = () => {
       name: 'GHOST',
       symbol: 'GHOST',
       balance: '0.000000',
-      icon: () => <img src="/GHOST logo.png" alt="GHOST" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}GHOST logo.png`} alt="GHOST" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-gray-600 to-gray-700',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
@@ -220,7 +220,7 @@ const WalletView: React.FC = () => {
       name: 'Help The Homeless',
       symbol: 'HTH',
       balance: '0.000000',
-      icon: () => <img src="/HTH logo.webp" alt="HTH" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}HTH logo.webp`} alt="HTH" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-green-600 to-yellow-500',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
@@ -229,7 +229,7 @@ const WalletView: React.FC = () => {
       name: 'Raptoreum',
       symbol: 'RTM',
       balance: '0.000000',
-      icon: () => <img src="/RTM logo.png" alt="RTM" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain rounded-full`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}RTM logo.png`} alt="RTM" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain rounded-full`} />,
       color: 'from-red-600 to-orange-600',
       nodeType: 'rpc' as const,
       syncStatus: 'disconnected' as const
@@ -244,7 +244,7 @@ const WalletView: React.FC = () => {
       symbol: 'WATT',
       chainId: 2330,
       balance: wattBalance,
-      icon: () => <img src="/WATT logo.png" alt="WATT" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
+      icon: () => <img src={`${import.meta.env.BASE_URL}WATT logo.png`} alt="WATT" className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`} />,
       color: 'from-emerald-500 to-emerald-600',
       nodeType: 'full' as const,
       syncStatus: 'synced' as const
@@ -389,7 +389,7 @@ const WalletView: React.FC = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <img src="/XMR logo.png" alt="XMR" className="w-5 h-5" />
+                <img src={`${import.meta.env.BASE_URL}XMR logo.png`} alt="XMR" className="w-5 h-5" />
                 <span className="text-sm">Monero Nodes</span>
               </motion.button>
             </>
@@ -415,15 +415,6 @@ const WalletView: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Debug Info */}
-      <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-        <p className="text-sm text-blue-300">
-          🔧 Debug: Wallet loaded successfully! Chains: {chainsWithPrices.length}, 
-          Connected: {isConnected ? 'Yes' : 'No'}, 
-          Balances: {showBalances ? 'Visible' : 'Hidden'}
-        </p>
-      </div>
-
       {/* Connection Status */}
       {!isConnected && (
         <motion.div
@@ -438,7 +429,7 @@ const WalletView: React.FC = () => {
       )}
 
       {/* RPC Node Notice */}
-      {!isMobile && (
+      {!isConnected && !isMobile && (
         <motion.div
           className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-4"
           initial={{ opacity: 0, y: 20 }}
@@ -449,33 +440,6 @@ const WalletView: React.FC = () => {
             <p className="text-blue-400 font-medium">
               UTXO chains (BTC, LTC, XMR, GHOST, TROLL, HTH, RTM) require RPC node connections for balance and transaction management
             </p>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Monero Wallet Notice */}
-      {!rpcBalances['XMR'] && (
-        <motion.div
-          className="bg-orange-600/20 border border-orange-500/30 rounded-xl p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center space-x-2">
-            <img src="/XMR logo.png" alt="XMR" className="w-5 h-5" />
-            <div className="flex-1">
-              <p className="text-orange-400 font-medium">
-                Monero wallet RPC not accessible
-              </p>
-              <p className="text-orange-300 text-sm mt-1">
-                To enable Monero transactions and view balance, start the wallet RPC server:
-              </p>
-              <div className="mt-2 p-2 bg-slate-800/50 rounded text-xs font-mono text-slate-300">
-                <p>1. Open terminal and run:</p>
-                <p className="text-yellow-400">/home/nuts/Downloads/monero_gui/monero-gui-v0.18.4.2/extras/monero-wallet-rpc --rpc-bind-ip=127.0.0.1 --rpc-bind-port=18083 --daemon-address=127.0.0.1:18081 --wallet-file=/home/nuts/Monero/wallets/nuts/nuts --disable-rpc-login --prompt-for-password</p>
-                <p className="mt-1">2. Enter your wallet password when prompted</p>
-                <p className="mt-1">3. Click Refresh button above</p>
-              </div>
-            </div>
           </div>
         </motion.div>
       )}
@@ -512,8 +476,8 @@ const WalletView: React.FC = () => {
             <p className="text-sm text-slate-500 mt-2">Updating prices...</p>
           )}
           {isAuthenticated && (
-            <p className="text-sm text-emerald-400 mt-2">
-              ✅ Universal wallet authenticated
+            <p className="text-sm text-emerald-400 mt-2 flex items-center justify-center gap-1.5">
+              <CheckCircle className="w-4 h-4" /> Universal wallet authenticated
             </p>
           )}
         </div>

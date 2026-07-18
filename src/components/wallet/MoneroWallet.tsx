@@ -288,7 +288,7 @@ const MoneroWallet: React.FC<MoneroWalletProps> = ({ onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-700">
           <div className="flex items-center space-x-3">
-            <img src="/XMR logo.png" alt="XMR" className="w-8 h-8" />
+            <img src={`${import.meta.env.BASE_URL}XMR logo.png`} alt="XMR" className="w-8 h-8" />
             <div>
               <h2 className="text-2xl font-bold text-white">Monero Wallet</h2>
               <div className="flex items-center space-x-4 text-sm">

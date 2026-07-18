@@ -426,7 +426,7 @@ const CrossChainDeployment: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className="bg-blue-600/20 rounded-lg p-4 mb-3">
-              <img src="/MATIC logo.png" alt="Polygon" className="w-12 h-12 mx-auto mb-2" />
+              <img src={`${import.meta.env.BASE_URL}MATIC logo.png`} alt="Polygon" className="w-12 h-12 mx-auto mb-2" />
               <h5 className="font-semibold text-blue-400">Polygon Network</h5>
               <p className="text-xs text-slate-400">NFT Mining Rigs</p>
             </div>
@@ -454,7 +454,7 @@ const CrossChainDeployment: React.FC = () => {
 
           <div className="text-center">
             <div className="bg-yellow-600/20 rounded-lg p-4 mb-3">
-              <img src="/Altcoinchain logo.png" alt="Altcoinchain" className="w-12 h-12 mx-auto mb-2 rounded-full" />
+              <img src={`${import.meta.env.BASE_URL}Altcoinchain logo.png`} alt="Altcoinchain" className="w-12 h-12 mx-auto mb-2 rounded-full" />
               <h5 className="font-semibold text-yellow-400">Altcoinchain</h5>
               <p className="text-xs text-slate-400">WATT Token Base</p>
             </div>

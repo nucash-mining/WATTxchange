@@ -387,12 +387,12 @@ const TradingTerminal: React.FC = () => {
         </div>
 
         {/* Order book (hidden below xl) */}
-        <div className="hidden xl:block border-r border-[#1c2230] bg-[#0b0e14] p-2">
+        <div className="hidden xl:block border-r border-[#1c2230] bg-[#0b0e14] p-2 min-w-0 overflow-hidden">
           <PerpOrderBook market={market.id} />
         </div>
 
         {/* Order entry */}
-        <div className="hidden lg:flex flex-col p-3 gap-3 bg-[#0d1118]">
+        <div className="hidden lg:flex flex-col p-3 gap-3 bg-[#0d1118] min-w-0 overflow-hidden">
           {/* Side toggle */}
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-[#12161f] p-1">
             <button

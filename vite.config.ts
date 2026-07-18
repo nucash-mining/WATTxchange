@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // GitHub Pages project site serves under /WATTxchange/. Set VITE_BASE=/ for
+  // the custom-domain (wattxchange.app) build once the domain is renewed.
+  base: process.env.VITE_BASE ?? '/WATTxchange/',
   plugins: [react()],
   // Shim Node's `process.env` in the browser. Several services reference
   // `process.env.X || 'default'` at module top-level; without this, the first

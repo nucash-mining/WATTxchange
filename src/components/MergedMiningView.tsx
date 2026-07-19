@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, Check, Info } from 'lucide-react';
+import { Copy, Check, Info, BarChart2, Activity, Wrench } from 'lucide-react';
+import HashrateChart from './mining/HashrateChart';
+import {
+  hashrateStatsService,
+  type HashrateSnapshot,
+  type HashrateHistory,
+} from '../services/hashrateStatsService';
 
 const WATT_LOGO = 'https://raw.githubusercontent.com/nucash-mining/WATTxchange/main/WATT%20logo.png';
 
@@ -556,7 +562,34 @@ const MergedMiningView: React.FC = () => {
     return VALID_IDS.includes(hash) ? hash : 'xmr';
   });
   const [copiedKey, setCopiedKey] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'setup' | 'stats'>('stats');
+  const [activeTab, setActiveTab] = useState<'setup' | 'stats' | 'hashrate'>('hashrate');
+  const [hashSnapshot, setHashSnapshot] = useState<HashrateSnapshot | null>(null);
+  const [hashHistory, setHashHistory] = useState<HashrateHistory>({});
+  const [hashError, setHashError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [snap, hist] = await Promise.all([
+          hashrateStatsService.getCurrent(),
+          hashrateStatsService.getHistory(),
+        ]);
+        if (cancelled) return;
+        setHashSnapshot(snap);
+        setHashHistory(hist);
+        setHashError(null);
+      } catch (e) {
+        if (!cancelled) setHashError(e instanceof Error ? e.message : String(e));
+      }
+    };
+    void load();
+    const timer = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   // Sync hash on selection change
   useEffect(() => {
@@ -584,27 +617,86 @@ const MergedMiningView: React.FC = () => {
         {/* Tab switcher */}
         <div className="flex gap-1 mt-4 mb-0 border-b border-slate-700/50">
           <button
+            onClick={() => setActiveTab('hashrate')}
+            className={`px-5 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-1.5 ${
+              activeTab === 'hashrate'
+                ? 'bg-slate-800 text-yellow-400 border border-b-0 border-slate-700/50'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Activity className="w-4 h-4" /> Hashrate
+          </button>
+          <button
             onClick={() => setActiveTab('stats')}
-            className={`px-5 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            className={`px-5 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-1.5 ${
               activeTab === 'stats'
                 ? 'bg-slate-800 text-yellow-400 border border-b-0 border-slate-700/50'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            📊 Live Pool Stats
+            <BarChart2 className="w-4 h-4" /> Live Pool Stats
           </button>
           <button
             onClick={() => setActiveTab('setup')}
-            className={`px-5 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            className={`px-5 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-1.5 ${
               activeTab === 'setup'
                 ? 'bg-slate-800 text-yellow-400 border border-b-0 border-slate-700/50'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            ⛏️ Miner Setup
+            <Wrench className="w-4 h-4" /> Miner Setup
           </button>
         </div>
       </div>
+
+      {/* Per-chain hashrate charts: total network vs WATTx merged hashrate */}
+      {activeTab === 'hashrate' && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-4 pb-6">
+          {hashError && !hashSnapshot && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm text-slate-300">
+              Hashrate stats unavailable ({hashError}) — the collector at stats.wattxchange.app may
+              be offline.
+            </div>
+          )}
+          {hashSnapshot && (
+            <>
+              <p className="text-xs text-slate-500 mb-4">
+                Total network hashrate per parent chain vs the hashrate merged-mining WATTx, with
+                the pool's share of each chain. Updated{' '}
+                {new Date(hashSnapshot.updated).toLocaleTimeString()} — refreshes every minute.
+              </p>
+              {hashSnapshot.chains.map((c) => (
+                <div key={c.chain}>
+                  <h2 className="text-sm font-semibold text-white mb-2 capitalize flex items-center gap-2">
+                    {c.chain}
+                    <span className="text-xs font-normal text-slate-500 uppercase">{c.algo}</span>
+                    {c.nets.map((n) => (
+                      <span
+                        key={n.net}
+                        className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700/50 text-slate-400"
+                      >
+                        {n.net}:{n.port} · {n.miners} miner{n.miners === 1 ? '' : 's'}
+                      </span>
+                    ))}
+                  </h2>
+                  <HashrateChart
+                    stats={c}
+                    history={hashHistory[c.chain] ?? []}
+                    rewardWtx={
+                      hashSnapshot.wtx_block_reward.testnet ??
+                      hashSnapshot.wtx_block_reward.regtest ??
+                      null
+                    }
+                  />
+                </div>
+              ))}
+              {hashSnapshot.chains.length === 0 && (
+                <p className="text-sm text-slate-500">No active merged-mining chains reported.</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Live pool stats — mm.wattxchange.app embedded */}
       {activeTab === 'stats' && (

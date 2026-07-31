@@ -19,9 +19,35 @@ import { useDeviceDetect } from './hooks/useDeviceDetect';
 
 type ViewType = 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool';
 
+const VIEW_ALIASES: Record<string, ViewType> = {
+  wallet: 'wallet', nodes: 'nodes', dex: 'dex', defi: 'defi', bridge: 'bridge',
+  mining: 'mining', marketplace: 'marketplace', swap: 'swap', settings: 'settings',
+  nuchain: 'nuchain', explorer: 'explorer', pool: 'pool',
+  // short forms used by the dedicated subdomains (dex./mm./exp.wattxchange.app
+  // redirect here with these fragments)
+  mm: 'pool', 'merged-mining': 'pool', pools: 'pool', exp: 'explorer',
+};
+
+function viewFromHash(): ViewType | null {
+  const key = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+  return VIEW_ALIASES[key] ?? null;
+}
+
 function App() {
-  const [currentView, setCurrentView] = useState<ViewType>('wallet');
+  const [currentView, setCurrentView] = useState<ViewType>(() => viewFromHash() ?? 'wallet');
   const [, setIsSidebarOpen] = useState(true); // Show sidebar by default
+
+  // Keep the view in sync with the URL fragment so a shared link (or the
+  // dex./mm./exp. subdomain redirects) lands on the right tab, back/forward
+  // included.
+  useEffect(() => {
+    const onHashChange = () => {
+      const v = viewFromHash();
+      if (v) setCurrentView(v);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
   const [isNativeApp, setIsNativeApp] = useState(false);
   const { isMobile, isMobileWallet } = useDeviceDetect();
 

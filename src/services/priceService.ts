@@ -146,6 +146,16 @@ class PriceService {
         return cached.data;
       }
 
+      // Our own cached feed first. Browsers calling CoinGecko/Paprika directly
+      // share an IP pool and get 429/402, which silently dropped every visitor
+      // onto the hardcoded fallback table (BTC $50k). The collector polls
+      // Binance + CoinGecko server-side and serves one warm snapshot.
+      const relayed = await this.fetchFromStatsRelay(symbol);
+      if (relayed) {
+        this.cache.set(symbol, { data: relayed, timestamp: Date.now() });
+        return relayed;
+      }
+
       // Try multiple APIs and average the results
       const prices = await Promise.allSettled([
         this.fetchFromCoinMarketCap(symbol),
@@ -175,6 +185,40 @@ class PriceService {
     } catch (error) {
       console.error(`Error fetching price for ${symbol}:`, error);
       return this.createFallbackPrice(symbol);
+    }
+  }
+
+  // Shared snapshot from our stats collector (Binance primary, CoinGecko for
+  // the long tail). One upstream call serves every visitor, so no rate limits.
+  private statsRelayCache: { data: Record<string, any>; timestamp: number } | null = null;
+
+  private async fetchFromStatsRelay(symbol: string): Promise<PriceData | null> {
+    try {
+      if (!this.statsRelayCache || Date.now() - this.statsRelayCache.timestamp > this.cacheTimeout) {
+        const res = await fetch('https://stats.wattxchange.app:3345/api/prices', {
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) return null;
+        const body = await res.json();
+        if (!body?.coins) return null;
+        this.statsRelayCache = { data: body.coins, timestamp: Date.now() };
+      }
+      const c = this.statsRelayCache.data[symbol];
+      if (!c || typeof c.price !== 'number') return null;
+      return {
+        symbol,
+        price: c.price,
+        change24h: c.price * ((c.changePercent24h || 0) / 100),
+        changePercent24h: c.changePercent24h || 0,
+        high24h: c.price * 1.1,
+        low24h: c.price * 0.9,
+        volume24h: c.volume24h || 0,
+        marketCap: c.marketCap || 0,
+        lastUpdated: new Date(),
+        source: 'WATTxchange feed',
+      };
+    } catch {
+      return null;
     }
   }
 

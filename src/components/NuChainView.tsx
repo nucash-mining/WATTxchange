@@ -183,10 +183,10 @@ const NuChainView: React.FC = () => {
               </div>
             </div>
             <div className="text-xs text-slate-400 space-y-1">
-              <p>• Chain ID: 2331 (nuChain L2 zkRollup)</p>
-              <p>• RPC: https://rpc.nuchain.network</p>
-              <p>• Explorer: https://explorer.nuchain.network</p>
-              <p>• WATT Destination: 0x7069C4CEC0972D2f5FA8E6886e438656D6e6f23b</p>
+              <p>• Cosmos chain-id: nuchain_28277-1 · EVM chain-id: 28277 · prefix: nu</p>
+              <p>• Native: NU · Bridged: wWTX (WATTx WTX, 1:1) · settles to WATTx (22356)</p>
+              <p>• EVM RPC: <a className="text-cyan-400" href="https://evm-nu.wattxchange.app">https://evm-nu.wattxchange.app</a></p>
+              <p>• Explorer: <a className="text-cyan-400" href="https://nu-exp.wattxchange.app">https://nu-exp.wattxchange.app</a></p>
             </div>
           </div>
         </div>

@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Shield, Clock, Users } from 'lucide-react';
 import NuChainDashboard from './nuchain/NuChainDashboard';
+import StakingView from './nuchain/StakingView';
 import ValidatorNodes from './nuchain/ValidatorNodes';
 import MiningPools from './nuchain/MiningPools';
 import NFTMiningRigs from './nuchain/NFTMiningRigs';
 import NodeRewardDashboard from './nuchain/NodeRewardDashboard';
 
 const NuChainView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
 
   const stats = [
     {
@@ -71,6 +72,16 @@ const NuChainView: React.FC = () => {
             }`}
           >
             Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('staking')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'staking'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Staking
           </button>
           <button
             onClick={() => setActiveTab('validators')}
@@ -200,6 +211,7 @@ const NuChainView: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         {activeTab === 'dashboard' && <NuChainDashboard />}
+        {activeTab === 'staking' && <StakingView />}
         {activeTab === 'validators' && <ValidatorNodes />}
         {activeTab === 'pools' && <MiningPools />}
         {activeTab === 'rigs' && <NFTMiningRigs />}

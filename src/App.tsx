@@ -29,7 +29,9 @@ const VIEW_ALIASES: Record<string, ViewType> = {
 };
 
 function viewFromHash(): ViewType | null {
-  const key = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+  // Only the first segment names the view; anything after it belongs to the
+  // view (e.g. "#mm/xmr" selects the XMR card inside merged mining).
+  const key = window.location.hash.replace(/^#\/?/, '').split('/')[0].toLowerCase();
   return VIEW_ALIASES[key] ?? null;
 }
 

@@ -558,8 +558,12 @@ const CopyButton: React.FC<CopyButtonProps> = ({ text, copyKey, activeKey, onCop
 // ── Main component ────────────────────────────────────────────────────────────
 const MergedMiningView: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string>(() => {
-    const hash = window.location.hash.replace('#', '');
-    return VALID_IDS.includes(hash) ? hash : 'xmr';
+    // The chain lives in the second segment ("#mm/xmr"); the first names this
+    // view, so writing a bare coin id there would replace "#mm" and make the
+    // link resolve to the wallet tab when shared.
+    const segments = window.location.hash.replace(/^#\/?/, '').split('/');
+    const chain = segments[1] ?? (VALID_IDS.includes(segments[0]) ? segments[0] : '');
+    return VALID_IDS.includes(chain) ? chain : 'xmr';
   });
   const [copiedKey, setCopiedKey] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'setup' | 'stats' | 'hashrate'>('hashrate');
@@ -591,9 +595,11 @@ const MergedMiningView: React.FC = () => {
     };
   }, []);
 
-  // Sync hash on selection change
+  // Sync hash on selection change, keeping the view segment intact so the URL
+  // still identifies this page (replaceState fires no hashchange, so App's
+  // listener can't loop on it).
   useEffect(() => {
-    history.replaceState(null, '', '#' + selectedId);
+    history.replaceState(null, '', '#mm/' + selectedId);
   }, [selectedId]);
 
   const handleCopy = useCallback((text: string, key: string) => {

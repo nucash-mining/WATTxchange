@@ -47,10 +47,13 @@ const ExplorerView: React.FC = () => {
   // Explorer endpoints - eIquidus explorers
   const explorerEndpoints = {
     WTX: {
-      api: 'https://wtx-explorer.wattxchange.app',
-      apiDisplay: 'https://wtx-explorer.wattxchange.app',
-      electrum: 'electrum.wattxchange.app:50002',
-      rpc: '129.80.40.193:3889'
+      // Node-backed explorer on the mainnet seed host, exposed through the
+      // Cloudflare tunnel. It serves the eIquidus routes this view uses
+      // (/ext/getsummary, /ext/getlasttxs) on top of the daemon's RPC.
+      api: 'https://wtx-exp.wattxchange.app',
+      apiDisplay: 'https://wtx-exp.wattxchange.app',
+      electrum: 'electrum-wtx.wattxchange.app:50002',
+      rpc: 'rpc-wtx.wattxchange.app:8545'
     },
     HTH: {
       api: 'https://hth-explorer.wattxchange.app',

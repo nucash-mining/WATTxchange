@@ -55,9 +55,14 @@ browser at it:
 That same seed node is what makes WATTx-native liquidity (WTX/HTH pairs) possible
 — it is your own network, independent of Komodo's shared one.
 
-## Revenue
+## Revenue (DONE 2026-08-09 — fee patched to our key)
 
-The taker dex fee in stock kdf goes to Komodo's address. To capture it, either
-arrange a GleecDEX/Komodo white-label revenue share, or patch the fee address in
-the kdf Rust source and rebuild the WASM. Combined with market-making your own
-pairs (via the existing bots), that is the earning path.
+The taker dex fee (1/777 of volume, ~0.13%) is hardcoded to a pubkey in the kdf
+source. Our build patches `DEX_FEE_ADDR_PUBKEY`/`DEX_BURN_ADDR_PUBKEY`
+(mm2src/common/common.rs) to the WATTxchange fee key, so every taker fee on our
+netid-42 network pays us. Source: `~/Documents/kdf-src` (GLEECBTC kdf
+v3.0.0-beta d56a7bc + commit f57562c). Fee privkey: `DEX_FEE_PRIVATE_KEY` in
+the repo-root `.env` (git-ignored); per-chain fee addresses:
+`~/wattx-kdf-seed/FEE-ADDRESSES.txt`. The wasm bundle here and the seed-node
+binary MUST both come from that patched source or fee validation will
+disagree between peers. Seed deploy bundle + runbook: `~/wattx-kdf-seed/`.

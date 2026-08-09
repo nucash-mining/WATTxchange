@@ -1,5 +1,5 @@
-import { device_interface } from './snippets/hw_common-c933ea30ea0fef0d/inline0.js';
-import { get_webusb } from './snippets/hw_common-c933ea30ea0fef0d/inline1.js';
+import { get_webusb } from './snippets/hw_common-c933ea30ea0fef0d/inline0.js';
+import { device_interface } from './snippets/hw_common-c933ea30ea0fef0d/inline1.js';
 import { websocket_transport } from './snippets/libp2p-wasm-ext-7e5f5edb880ee0f5/src/websockets.js';
 import { get_provider_js } from './snippets/web3-3a881fca17d19cd8/inline0.js';
 
@@ -240,28 +240,6 @@ function debugString(val) {
     return className;
 }
 /**
- * Get the MarketMaker2 version.
- *
- * # Usage
- *
- * The function can be used before mm2 runs.
- *
- * ```javascript
- * import init, {mm2_version} from "./path/to/mm2.js";
- *
- * function print_version () {
- *     const response = mm2_version();
- *     console.log(`version: ${response.result}, datetime: ${response.datetime}`);
- * }
- * ```
- * @returns {any}
- */
-export function mm2_version() {
-    const ret = wasm.mm2_version();
-    return takeObject(ret);
-}
-
-/**
  * Invokes an RPC request.
  *
  * # Parameters
@@ -330,6 +308,28 @@ export function mm2_rpc(payload) {
  */
 export function mm2_stop() {
     const ret = wasm.mm2_stop();
+    return takeObject(ret);
+}
+
+/**
+ * Get the MarketMaker2 version.
+ *
+ * # Usage
+ *
+ * The function can be used before mm2 runs.
+ *
+ * ```javascript
+ * import init, {mm2_version} from "./path/to/mm2.js";
+ *
+ * function print_version () {
+ *     const response = mm2_version();
+ *     console.log(`version: ${response.result}, datetime: ${response.datetime}`);
+ * }
+ * ```
+ * @returns {any}
+ */
+export function mm2_version() {
+    const ret = wasm.mm2_version();
     return takeObject(ret);
 }
 
@@ -407,6 +407,23 @@ function addBorrowedObject(obj) {
     return stack_pointer;
 }
 /**
+ * Handler for `console.log` invocations.
+ *
+ * If a test is currently running it takes the `args` array and stringifies
+ * it and appends it to the current output of the test. Otherwise it passes
+ * the arguments to the original `console.log` function, psased as
+ * `original`.
+ * @param {Array<any>} args
+ */
+export function __wbgtest_console_log(args) {
+    try {
+        wasm.__wbgtest_console_log(addBorrowedObject(args));
+    } finally {
+        heap[stack_pointer++] = undefined;
+    }
+}
+
+/**
  * Handler for `console.debug` invocations. See above.
  * @param {Array<any>} args
  */
@@ -419,17 +436,12 @@ export function __wbgtest_console_debug(args) {
 }
 
 /**
- * Handler for `console.log` invocations.
- *
- * If a test is currently running it takes the `args` array and stringifies
- * it and appends it to the current output of the test. Otherwise it passes
- * the arguments to the original `console.log` function, psased as
- * `original`.
+ * Handler for `console.warn` invocations. See above.
  * @param {Array<any>} args
  */
-export function __wbgtest_console_log(args) {
+export function __wbgtest_console_warn(args) {
     try {
-        wasm.__wbgtest_console_log(addBorrowedObject(args));
+        wasm.__wbgtest_console_warn(addBorrowedObject(args));
     } finally {
         heap[stack_pointer++] = undefined;
     }
@@ -454,18 +466,6 @@ export function __wbgtest_console_info(args) {
 export function __wbgtest_console_error(args) {
     try {
         wasm.__wbgtest_console_error(addBorrowedObject(args));
-    } finally {
-        heap[stack_pointer++] = undefined;
-    }
-}
-
-/**
- * Handler for `console.warn` invocations. See above.
- * @param {Array<any>} args
- */
-export function __wbgtest_console_warn(args) {
-    try {
-        wasm.__wbgtest_console_warn(addBorrowedObject(args));
     } finally {
         heap[stack_pointer++] = undefined;
     }
@@ -507,15 +507,15 @@ function __wbg_adapter_53(arg0, arg1, arg2) {
     wasm.__wbindgen_export_8(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wbg_adapter_167(arg0, arg1) {
+function __wbg_adapter_177(arg0, arg1) {
     wasm.__wbindgen_export_9(arg0, arg1);
 }
 
-function __wbg_adapter_537(arg0, arg1, arg2, arg3, arg4) {
+function __wbg_adapter_505(arg0, arg1, arg2, arg3, arg4) {
     wasm.__wbindgen_export_10(arg0, arg1, addHeapObject(arg2), arg3, addHeapObject(arg4));
 }
 
-function __wbg_adapter_586(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_580(arg0, arg1, arg2, arg3) {
     wasm.__wbindgen_export_11(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
@@ -1852,7 +1852,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_537(a, state0.b, arg0, arg1, arg2);
+                    return __wbg_adapter_505(a, state0.b, arg0, arg1, arg2);
                 } finally {
                     state0.a = a;
                 }
@@ -2230,7 +2230,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_586(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_580(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -2743,7 +2743,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_167(a, state0.b, );
+                    return __wbg_adapter_177(a, state0.b, );
                 } finally {
                     state0.a = a;
                 }
@@ -2781,32 +2781,32 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper33546 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 16309, __wbg_adapter_38);
+    imports.wbg.__wbindgen_closure_wrapper33774 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 16331, __wbg_adapter_38);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper33548 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 16309, __wbg_adapter_38);
+    imports.wbg.__wbindgen_closure_wrapper33776 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 16331, __wbg_adapter_38);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper33550 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 16309, __wbg_adapter_38);
+    imports.wbg.__wbindgen_closure_wrapper33778 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 16331, __wbg_adapter_38);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper33552 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 16309, __wbg_adapter_38);
+    imports.wbg.__wbindgen_closure_wrapper33780 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 16331, __wbg_adapter_38);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper37989 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 17814, __wbg_adapter_47);
+    imports.wbg.__wbindgen_closure_wrapper38206 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 17841, __wbg_adapter_47);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper38921 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 18155, __wbg_adapter_50);
+    imports.wbg.__wbindgen_closure_wrapper39132 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 18182, __wbg_adapter_50);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper39106 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 18214, __wbg_adapter_53);
+    imports.wbg.__wbindgen_closure_wrapper39313 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 18237, __wbg_adapter_53);
         return addHeapObject(ret);
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {

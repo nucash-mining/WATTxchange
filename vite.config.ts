@@ -14,6 +14,16 @@ export default defineConfig({
   define: {
     'process.env': {},
   },
+  // kdflib.js pulls in kdflib_bg.wasm via `new URL(..., import.meta.url)` and a
+  // set of ./snippets/*.js. Pre-bundling mangles that relative graph, so keep
+  // the kdf engine out of esbuild's optimizer and let Vite serve it as-is.
+  optimizeDeps: {
+    exclude: ['@komodoplatform/kdflib'],
+  },
+  assetsInclude: ['**/*.wasm'],
+  worker: {
+    format: 'es',
+  },
   server: {
     port: 5173,
     host: true,

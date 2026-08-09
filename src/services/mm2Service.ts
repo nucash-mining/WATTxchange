@@ -7,8 +7,9 @@
  * API Documentation: https://developers.komodoplatform.com/basic-docs/atomicdex-api-20/
  */
 
-import { WATTXCHANGE_COINS, getCoinConfig, electrumFor } from '../config/mm2Coins';
+import { WATTXCHANGE_COINS, getCoinConfig, electrumFor, toKdfCoinsFile } from '../config/mm2Coins';
 import { getEndpoint, tradeableCoins } from '../config/nodeEndpoints';
+import { bootKdf, kdfRpc, kdfIsUp } from '../kdf/kdfClient';
 
 interface MM2Config {
   gui: string;
@@ -156,6 +157,26 @@ class MM2Service {
   private userpass: string = '';
   private isRunning: boolean = false;
 
+  // Transport mode. In the browser kdf runs as WASM in-process (non-custodial,
+  // keys never leave the page); set VITE_MM2_NATIVE=true to instead POST to a
+  // local native kdf daemon at rpcUrl (desktop/Electron or dev against a node).
+  private readonly useWasm: boolean =
+    typeof window !== 'undefined' &&
+    (import.meta as { env?: Record<string, string> }).env?.VITE_MM2_NATIVE !== 'true';
+  // Private WATTx liquidity network. A browser WASM node cannot self-seed (no
+  // inbound P2P), so it MUST bootstrap off a reachable kdf seed node on this
+  // same netid, published as WSS multiaddrs in VITE_MM2_SEEDNODES. Stand up one
+  // seed node (native kdf, i_am_seed=true) on the WATTxchange node server, then
+  // set these two env vars — that is the only remaining step to a live orderbook.
+  private netid: number =
+    Number((import.meta as { env?: Record<string, string> }).env?.VITE_MM2_NETID) || 42;
+  private seednodes: string[] = ((import.meta as { env?: Record<string, string> }).env
+    ?.VITE_MM2_SEEDNODES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  private wasmBooting: Promise<void> | null = null;
+
   // WATTx coin configuration
   private readonly WTX_CONFIG: CoinConfig = {
     coin: 'WTX',
@@ -258,10 +279,16 @@ class MM2Service {
   }
 
   private generateUserpass(): void {
-    // Generate a random userpass for this session
-    const array = new Uint8Array(32);
+    // kdf enforces a password policy on rpc_password (used at boot AND as the
+    // `userpass` on every RPC): 8+ chars with an uppercase, lowercase, digit and
+    // special char, and it must not contain the word "password". A plain hex
+    // string has no uppercase/special and is rejected ("Password should contain
+    // at least 1 digit"/special). Build a random secret that always satisfies it.
+    const array = new Uint8Array(24);
     crypto.getRandomValues(array);
-    this.userpass = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    const hex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    // Guarantee each required character class regardless of the random draw.
+    this.userpass = `Wx${hex}Z9$`;
     this.rpcPassword = this.userpass;
   }
 
@@ -281,15 +308,56 @@ class MM2Service {
   }
 
   /**
-   * Make an RPC call to mm2
+   * Boot the in-browser kdf (WASM) engine and block until its RPC is up.
+   * Idempotent. `passphrase` is the wallet seed; when omitted a random
+   * view-only session seed is generated (fine for browsing orderbooks — no
+   * user funds are exposed until they deposit to a derived address).
+   */
+  async startWasm(passphrase?: string): Promise<void> {
+    if (!this.useWasm) return;
+    if (kdfIsUp()) { this.isRunning = true; return; }
+    if (this.wasmBooting) return this.wasmBooting;
+
+    const seed = passphrase ?? this.generateSessionSeed();
+    this.wasmBooting = bootKdf(
+      {
+        gui: 'WATTxchange',
+        netid: this.netid,
+        passphrase: seed,
+        rpc_password: this.userpass,
+        coins: toKdfCoinsFile(),
+        ...(this.seednodes.length ? { seednodes: this.seednodes } : {}),
+      },
+      (level, line) => {
+        if (level <= 2) console.warn('[kdf]', line);
+      }
+    ).then(() => { this.isRunning = true; });
+
+    return this.wasmBooting;
+  }
+
+  private generateSessionSeed(): string {
+    const words = new Uint32Array(8);
+    crypto.getRandomValues(words);
+    return 'wattxchange-session-' + Array.from(words, (w) => w.toString(16)).join('');
+  }
+
+  /**
+   * Make an RPC call to kdf. In the browser this dispatches to the in-process
+   * WASM engine; with VITE_MM2_NATIVE=true it POSTs to a native kdf daemon.
    */
   private async rpcCall<T>(method: string, params: Record<string, any> = {}): Promise<MM2Response<T>> {
+    const body = {
+      userpass: this.userpass,
+      method,
+      ...params
+    };
+
     try {
-      const body = {
-        userpass: this.userpass,
-        method,
-        ...params
-      };
+      if (this.useWasm) {
+        await this.startWasm();
+        return (await kdfRpc<MM2Response<T>>(body));
+      }
 
       const response = await fetch(this.rpcUrl, {
         method: 'POST',

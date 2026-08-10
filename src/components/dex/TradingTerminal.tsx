@@ -37,9 +37,20 @@ interface Market {
 const MARKETS: Market[] = [
   { id: 'BTC-USDT', base: 'BTC', quote: 'USDT', volume24h: '$1.2B', openInterest: '$450M', fundingRate: '0.0100%', maxLev: 100 },
   { id: 'ETH-USDT', base: 'ETH', quote: 'USDT', volume24h: '$850M', openInterest: '$320M', fundingRate: '0.0080%', maxLev: 100 },
+  { id: 'LTC-USDT', base: 'LTC', quote: 'USDT', volume24h: '$180M', openInterest: '$60M', fundingRate: '0.0100%', maxLev: 75 },
+  { id: 'DOGE-USDT', base: 'DOGE', quote: 'USDT', volume24h: '$320M', openInterest: '$90M', fundingRate: '0.0100%', maxLev: 75 },
+  { id: 'XMR-USDT', base: 'XMR', quote: 'USDT', volume24h: '$110M', openInterest: '$40M', fundingRate: '0.0100%', maxLev: 50 },
+  { id: 'WTX-USDT', base: 'WTX', quote: 'USDT', volume24h: '$3.4M', openInterest: '$1.1M', fundingRate: '0.0125%', maxLev: 50 },
+  { id: 'HTH-USDT', base: 'HTH', quote: 'USDT', volume24h: '$1.6M', openInterest: '$520K', fundingRate: '0.0125%', maxLev: 50 },
   { id: 'ALT-USDT', base: 'ALT', quote: 'USDT', volume24h: '$5.2M', openInterest: '$1.8M', fundingRate: '0.0150%', maxLev: 50 },
-  { id: 'WATT-USDT', base: 'WATT', quote: 'USDT', volume24h: '$2.1M', openInterest: '$740K', fundingRate: '0.0125%', maxLev: 50 }
+  { id: 'WATT-USDT', base: 'WATT', quote: 'USDT', volume24h: '$2.1M', openInterest: '$740K', fundingRate: '0.0125%', maxLev: 50 },
+  { id: 'TROLL-USDT', base: 'TROLL', quote: 'USDT', volume24h: '$420K', openInterest: '$120K', fundingRate: '0.0150%', maxLev: 25 },
+  { id: 'GHOST-USDT', base: 'GHOST', quote: 'USDT', volume24h: '$680K', openInterest: '$210K', fundingRate: '0.0150%', maxLev: 25 },
+  { id: 'RTM-USDT', base: 'RTM', quote: 'USDT', volume24h: '$390K', openInterest: '$100K', fundingRate: '0.0150%', maxLev: 25 },
+  { id: 'BTCZ-USDT', base: 'BTCZ', quote: 'USDT', volume24h: '$210K', openInterest: '$70K', fundingRate: '0.0150%', maxLev: 25 }
 ];
+
+const MARKET_BASES = MARKETS.map(m => m.base);
 
 interface Position {
   id: number;
@@ -159,7 +170,7 @@ const TradingTerminal: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
-  const { getPrice } = usePrices(['BTC', 'ETH', 'ALT', 'WATT']);
+  const { getPrice } = usePrices(MARKET_BASES);
   const priceData = getPrice(market.base);
   const markPrice = priceData?.price || 0;
   const change24h = priceData?.changePercent24h || 0;

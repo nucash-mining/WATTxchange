@@ -39,7 +39,10 @@ button{font-family:inherit;cursor:pointer}
 .stat .col{display:flex;flex-direction:column;line-height:1.15}
 #s-watt b{color:var(--gold)} #s-hash b{color:var(--cyan)} #s-pow b{color:#b7a6ff}
 #s-temp b{color:var(--grn)} #s-temp.hot b{color:#ffae42} #s-temp.crit b{color:var(--red)}
-#hudbtns{margin-left:auto;display:flex;gap:6px}
+#hudbtns{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+/* DEMO / LIVE toggle pill — deliberately distinct from the grey action buttons */
+#modepill{border-color:#3dff8a55;background:rgba(61,255,138,.08);color:var(--grn);font-weight:800;letter-spacing:.06em}
+#modepill.gold{border-color:#3dff8a;background:rgba(61,255,138,.16);box-shadow:0 0 12px rgba(61,255,138,.35)}
 .hbtn{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:600;letter-spacing:.04em;transition:all .15s}
 .hbtn:hover{border-color:var(--pur);background:var(--panel2);transform:translateY(-1px)}
 .hbtn.gold{color:var(--gold)} .hbtn.accent{color:var(--cyan)}
@@ -2066,19 +2069,27 @@ function renderWallet(){
     const on=c&&c.key===ch.key;
     return `<button class="w3chip ${on?'on':''} ${ch.prelaunch?'pre':''}" data-chain="${ch.key}">${ch.key==='polygon'?'🟣':ch.key==='alt'?'🟠':'⚡'} ${ch.name}${ch.prelaunch?' <small>PRE-LAUNCH</small>':''}</button>`;
   }).join('');
+  /* Prominent DEMO/LIVE switch — the same toggle as the HUD pill, surfaced here
+     where players come to connect a wallet for Live mode. Inline onclick so it
+     survives the early-return branches below. */
+  const live=(typeof isLive==='function')&&isLive();
+  const modeBar=`<div style="display:flex;gap:6px;margin-bottom:12px;padding:4px;background:rgba(10,8,26,.6);border:1px solid var(--line);border-radius:12px">
+    <button onclick="setMode('demo')" class="hbtn" style="flex:1;text-align:center;${!live?'background:linear-gradient(90deg,var(--pur),#5f2ec7);color:#fff;border-color:transparent':''}">🎮 DEMO</button>
+    <button onclick="setMode('live')" class="hbtn" style="flex:1;text-align:center;${live?'background:rgba(61,255,138,.18);color:var(--grn);border-color:#3dff8a':''}">🔗 LIVE</button>
+  </div>`;
   if(!w3Has()){
-    m.innerHTML=`<div class="w3note">No browser wallet detected. Install <b>MetaMask</b> (or any EIP-1193 wallet) and reload — the game connects to the real Mining Game contracts on Polygon & Altcoinchain. The full game works without one; on-chain sync is a bonus layer.</div>`;
+    m.innerHTML=`${modeBar}<div class="w3note">No browser wallet detected. Install <b>MetaMask</b> (or any EIP-1193 wallet) and reload — the game connects to the real Mining Game contracts on Polygon & Altcoinchain. The full game works without one; on-chain sync is a bonus layer.</div>`;
     return;
   }
   if(!W3.addr){
-    m.innerHTML=`<div class="w3note">Connect to sync your real Mining Game NFTs — owned components unlock in-game, balances show live, and you can free-mint the Gaming PC on-chain.</div>
+    m.innerHTML=`${modeBar}<div class="w3note">Connect to sync your real Mining Game NFTs — owned components unlock in-game, balances show live, and you can free-mint the Gaming PC on-chain.</div>
       <button class="hbtn gold" id="w3-connect" style="width:100%">${W3.busy?'CONNECTING…':'🦊 CONNECT WALLET'}</button>
       ${W3.err?`<div class="w3err">${W3.err}</div>`:''}`;
     $('w3-connect')?.addEventListener('click',w3Connect);
     return;
   }
   const v=(x,f)=>x===null?'<span class="w3dim">…</span>':f;
-  m.innerHTML=`
+  m.innerHTML=`${modeBar}
     <div class="w3addr">${W3.addr} ${c?`· <b style="color:var(--grn)">${c.name}</b>`:'· <b style="color:var(--red)">unsupported chain ('+W3.chainId+')</b>'}</div>
     <div class="w3chips">${chainPills}</div>
     ${c?`<div class="stats2" style="margin:10px 0">

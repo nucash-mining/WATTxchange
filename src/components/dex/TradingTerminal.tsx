@@ -102,6 +102,38 @@ function buildSeries(basePrice: number, change24h: number, tf: Timeframe) {
   return { candles, volumes };
 }
 
+// Real OHLC from Binance for coins it lists; app-native coins (ALT, WATT, …)
+// have no exchange candles, so those fall back to buildSeries anchored to the
+// real live spot price from priceService.
+const BINANCE_SYMBOL: Record<string, string> = { BTC: 'BTCUSDT', ETH: 'ETHUSDT', LTC: 'LTCUSDT', DOGE: 'DOGEUSDT', BCH: 'BCHUSDT' };
+const TF_TO_BINANCE: Record<Timeframe, string> = { '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' };
+
+async function fetchKlines(base: string, tf: Timeframe) {
+  const sym = BINANCE_SYMBOL[base];
+  if (!sym) return null;
+  try {
+    const url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${TF_TO_BINANCE[tf]}&limit=300`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const rows: unknown[][] = await res.json();
+    const candles = rows.map((r) => ({
+      time: Math.floor(Number(r[0]) / 1000),
+      open: parseFloat(r[1] as string),
+      high: parseFloat(r[2] as string),
+      low: parseFloat(r[3] as string),
+      close: parseFloat(r[4] as string),
+    }));
+    const volumes = rows.map((r) => ({
+      time: Math.floor(Number(r[0]) / 1000),
+      value: parseFloat(r[5] as string),
+      color: parseFloat(r[4] as string) >= parseFloat(r[1] as string) ? '#10b98155' : '#ef444455',
+    }));
+    return { candles, volumes };
+  } catch {
+    return null;
+  }
+}
+
 function fmtPrice(p: number): string {
   if (!isFinite(p)) return '—';
   if (p >= 1000) return p.toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -179,16 +211,33 @@ const TradingTerminal: React.FC = () => {
     });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 
-    const { candles, volumes } = buildSeries(markPrice, change24h, timeframe);
-    candleSeries.setData(candles as never);
-    volumeSeries.setData(volumes as never);
+    // Instant synthetic series anchored to the live spot price, so the chart is
+    // never blank while real candles load.
+    const synth = buildSeries(markPrice, change24h, timeframe);
+    candleSeries.setData(synth.candles as never);
+    volumeSeries.setData(synth.volumes as never);
     chart.timeScale().fitContent();
+
+    // Replace with REAL Binance OHLC for listed coins; refresh every 30s so the
+    // chart tracks the live market.
+    let cancelled = false;
+    const loadReal = async () => {
+      const real = await fetchKlines(market.base, timeframe);
+      if (cancelled || !real || !chartRef.current) return;
+      candleSeries.setData(real.candles as never);
+      volumeSeries.setData(real.volumes as never);
+      chart.timeScale().fitContent();
+    };
+    loadReal();
+    const poll = setInterval(loadReal, 30000);
 
     const onResize = () => {
       chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 480 });
     };
     window.addEventListener('resize', onResize);
     return () => {
+      cancelled = true;
+      clearInterval(poll);
       window.removeEventListener('resize', onResize);
       chart.remove();
       chartRef.current = null;

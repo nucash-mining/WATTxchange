@@ -337,6 +337,7 @@ button{font-family:inherit;cursor:pointer}
   </div>
   <div id="hudbtns">
     <div id="farmpill" style="display:none" title="Mining farm status"><b id="farmtier">PRO</b> FARM</div>
+    <button id="modepill" class="hbtn" title="Switch between DEMO (simulated) and LIVE (real contracts + real swaps)">🎮 DEMO</button>
     <div id="net" title="Switch network"><span class="dot"></span><span id="netname">Polygon</span><small id="netdiff"></small></div>
     <button class="hbtn" id="b-wallet">🦊 WALLET</button>
     <button class="hbtn gold" id="b-shop">🛒 SHOP</button>
@@ -542,7 +543,7 @@ function freshState(){ const inv={},bought={2:0,17:0,18:0,19:0,23:0}; INV_IDS.fo
   net:'polygon', rigs:[], inv, badge:0, bought, pcCount:0, periph:{17:0,18:0,23:0}, tower:0,
   upg:{power:0,cooling:0,rack:0}, gen:1, blocks:0, blocksNet:{pol:0,alt:0,wtx:0}, lucky:0,
   temp:24, muted:false, tut:0, created:now(), lastSeen:now(), sold:{pol:0,alt:0,wtx:0}, netSwitchT:0,
-  payCur:'watt', w3claim:{}, ocRigs:[], monSize:27, chair:0,
+  payCur:'watt', w3claim:{}, ocRigs:[], mode:'demo', monSize:27, chair:0,
   usdt:0, dai:0, containers:0, warehouse:0,
   stakedWatt:0, shopPool:25000, shopEarned:0,
   pool:{pol:'nucash',alt:'nucash',wtx:'genesis'}, myPools:{}, pend:{pol:0,alt:0,wtx:0}, payThresh:3,
@@ -1706,6 +1707,18 @@ function simTick(dt){ // dt seconds (fixed 0.1)
 function sellCoin(cn, amt, recv){
   amt = amt===undefined ? S[cn] : Math.min(amt, S[cn]);
   if(amt<=0.001){ SFX.err(); return false; }
+  /* LIVE mode: sell is a REAL DEX swap of the player's wallet coin -> WATT.
+     It operates on the on-chain wallet balance, not the sim S[cn] counter, so
+     ask how much wallet coin to swap (never dump the whole native balance —
+     that would strand gas) and hand off to onchainSell. */
+  if(typeof isLive==='function' && isLive() && (recv===undefined||recv==='watt') && dexChainForCoin(cn)){
+    const sym=cn.toUpperCase();
+    const raw=prompt(`LIVE swap — how much ${sym} to sell for WATT?\n(from your connected wallet, leaves gas)`, '');
+    if(raw===null) return false;
+    const a=parseFloat(raw);
+    if(!(a>0)){ SFX.err(); toast('Enter a positive amount','red'); return false; }
+    onchainSell(cn, a); return true;
+  }
   const val=amt*S.price[cn];
   S[cn]-=amt; S.sold[cn]+=val;
   if(recv==='usdt'){ S.usdt+=val; toast(`Swapped ${fmt(amt)} ${cn.toUpperCase()} → +${fmt(val)} USDT`,'grn'); }
@@ -1858,7 +1871,10 @@ const WEB3CFG={
       nft:'0x970a8b10147e3459d3cbf56329b76ac18d329728', watt:'0xE960d5076cd3169C343Ee287A2c3380A222e5839', staking:'0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275',
       nftV2:null, wattV2:null,
       pools:{ registry:'0xCe347180C3A45151C10366Da43fD822289ebB075', hub:'0x6f8330bB06D93A8932618EC1Fbb2818323EC3bf5',
-              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xB322458286008F89E1d56251fCeD71aE4e9D3952' } },
+              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xB322458286008F89E1d56251fCeD71aE4e9D3952' },
+      /* QuickSwap V2 — real WPOL/WATT pool 0xEC54584a…Bef. Sell POL→WATT native-in. */
+      dex:{ kind:'univ2', router:'0xa5E0829CaCED8fFDD4De3c43696c57F7D7A678ff', weth:'0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
+            wattOut:'0xE960d5076cd3169C343Ee287A2c3380A222e5839' } },
     /* rpc: rpc0.altcoinchain.org is dead — rpc.wattxchange.app is the live node.
        pools: the ON-CHAIN pool-hosting set, deployed+verified 2026-08-09
        (deployments-pools-2330.json). 100k WATT host stake lives in registry. */
@@ -1866,7 +1882,10 @@ const WEB3CFG={
       nft:'0xf9670e5D46834561813CA79854B3d7147BBbFfb2', watt:'0x6645143e49B3a15d8F205658903a55E520444698', staking:'0xe463045318393095F11ed39f1a98332aBCc1A7b1',
       nftV2:null, wattV2:null,
       pools:{ registry:'0x0f1e3C2336fBf35148FdbA21F81fA3B57a1DF254', hub:'0xfbc6168D4c4f112275713B976612891E432e265e',
-              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x927d062180E9a30206c968f157b39fb86539FDB2' } },
+              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x927d062180E9a30206c968f157b39fb86539FDB2' },
+      /* SwapinDEX (original live venue) — WATT/wALT pool 0xb2F8e147…. Sell ALT→WATT native-in. */
+      dex:{ kind:'univ2', router:'0xae168Ce47cebca9abbC5107a58df0532f1afa4d6', weth:'0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
+            wattOut:'0x6645143e49B3a15d8F205658903a55E520444698' } },
     /* WATTxchain MAINNET — LIVE since 2026-08-01. Chain id 22356 (final,
        matches the AuxPoW chain_id). Native coin is WTX; WATT is the ERC20 game
        token (classic set, deployments-classic-wattx-22356.json). dec:18 is
@@ -2229,6 +2248,53 @@ const POOL_ABI={
 };
 let _E6=null;
 async function poolEthers(){ if(!_E6) _E6=import('https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm'); return _E6; }
+
+/* ===== DEMO / LIVE mode ===== */
+/* DEMO = the simulation (no wallet). LIVE = real contracts: selling routes through
+   real DEX pools, earning reflects real rewards (validator wiring lands in a later
+   pass), on-chain pool hosting. Live requires a wallet on a supported chain. */
+function isLive(){ return S && S.mode==='live'; }
+function setMode(m){
+  S.mode=m; SFX.swap();
+  if(m==='live'&&!W3.addr){ toast('🔗 LIVE MODE — connect a wallet (🦊) to sell into real pools and mine on-chain','gold',9000); }
+  else toast(m==='live'?'🔗 LIVE MODE — sells are REAL swaps into on-chain WATT pools':'🎮 DEMO MODE — simulated economy, nothing on-chain','cyan',7000);
+  renderHud&&renderHud(); if($('m-pool')&&$('m-pool').classList.contains('open')) renderPoolHub();
+  if($('m-web3')&&$('m-web3').classList.contains('open')) renderWallet(); save();
+}
+function toggleMode(){ setMode(isLive()?'demo':'live'); }
+
+/* ===== real DEX sell — coin(native) -> WATT via a Uniswap-V2 router ===== */
+const DEX_ABI=[
+  'function getAmountsOut(uint256,address[]) view returns (uint256[])',
+  'function swapExactETHForTokens(uint256,address[],address,uint256) payable returns (uint256[])'];
+/* Which in-game coin maps to which wallet chain's native DEX sell. */
+function dexChainForCoin(coin){ return coin==='alt'?'alt':coin==='pol'?'polygon':coin==='wtx'?'wattx':null; }
+async function onchainSell(coin, amtCoin){
+  const key=dexChainForCoin(coin), c=key&&WEB3CFG.chains[key];
+  if(!c){ toast('No on-chain venue for '+coin.toUpperCase(),'red'); return false; }
+  if(!W3.addr){ SFX.err(); toast('Connect a wallet first (🦊 WALLET)','red'); return false; }
+  if(W3.chainId!==c.chainId){ SFX.err(); toast(`Switch your wallet to ${c.name} to sell ${coin.toUpperCase()} on-chain`,'gold',8000); w3Switch(key); return false; }
+  if(!c.dex){ SFX.err(); toast(`${coin.toUpperCase()}→WATT needs the bridge (coming) — no direct pool yet`,'gold',9000); return false; }
+  try{
+    const E=await poolEthers();
+    const prov=new E.BrowserProvider(w3Eth()); const signer=await prov.getSigner();
+    const router=new E.Contract(c.dex.router, DEX_ABI, signer);
+    const path=[c.dex.weth, c.dex.wattOut];
+    const valueWei=E.parseEther(String(amtCoin));
+    const bal=await prov.getBalance(W3.addr);
+    if(bal<valueWei){ SFX.err(); toast(`Only ${(Number(bal)/1e18).toFixed(4)} ${c.sym} in wallet`,'red'); return false; }
+    const outs=await router.getAmountsOut(valueWei, path);
+    const expected=outs[outs.length-1];
+    const minOut=expected*99n/100n; // 1% slippage
+    toast(`Swapping ${amtCoin} ${c.sym} → ~${ocFmt(expected)} WATT on ${c.name}…`,'gold',8000);
+    const dl=BigInt(Math.floor(Date.now()/1000)+1800);
+    const tx=await router.swapExactETHForTokens(minOut, path, W3.addr, dl, {value:valueWei});
+    await tx.wait();
+    SFX.sell(); toast(`✅ Sold ${amtCoin} ${c.sym} → WATT on ${c.name} (real swap ${w3Short(tx.hash)})`,'grn',10000);
+    w3Refresh&&w3Refresh();
+    return true;
+  }catch(e){ SFX.err(); toast('swap failed: '+(''+(e&&(e.reason||e.message)||e)).slice(0,90),'red',9000); return false; }
+}
 function poolCfg(){ return (W3.addr&&W3.chain&&W3.chain.pools)?W3.chain:null; }
 async function poolCtr(kind,write){
   const c=poolCfg(); if(!c) return null;
@@ -2512,16 +2578,28 @@ function renderHud(){
   pw.className='pr '+(S.price.wtx>=CFG.nets.wattx.p0?'up':'dn');
   /* SELL sells the WHOLE balance, so dim it at zero and say so on hover —
      it used to look identical whether or not you had anything to sell. */
+  const liveMode=S.mode==='live';
   ['pol','alt','wtx'].forEach(cn=>{
     const b=$('sell-'+cn); if(!b) return;
-    const bal=S[cn], live=bal>0.001;
-    b.disabled=!live;
-    b.title=live?`Sell all ${fmt(bal)} ${cn.toUpperCase()} → +${fmt(bal*S.price[cn])} ⚡WATT`
-                :`No ${cn.toUpperCase()} to sell — mine some first`;
+    const bal=S[cn], has=bal>0.001;
+    /* LIVE mode sells the wallet's real coin via a DEX swap, so don't gate on the
+       sim balance — onchainSell validates against the on-chain wallet instead. */
+    b.disabled=liveMode?false:!has;
+    b.title=liveMode
+      ? `LIVE — swap your wallet ${cn.toUpperCase()} → WATT through the real on-chain pool`
+      : (has?`Sell all ${fmt(bal)} ${cn.toUpperCase()} → +${fmt(bal*S.price[cn])} ⚡WATT`
+             :`No ${cn.toUpperCase()} to sell — mine some first`);
   });
   $('v-usdt').textContent=fmt(S.usdt); $('v-dai').textContent=fmt(S.dai);
   $('coin-usdt').style.display=S.usdt>0.005?'flex':'none';
   $('coin-dai').style.display=S.dai>0.005?'flex':'none';
+  const mp=$('modepill');
+  if(mp){ const live=S.mode==='live';
+    mp.textContent=live?'🔗 LIVE':'🎮 DEMO';
+    mp.classList.toggle('gold',live);
+    mp.style.color=live?'var(--grn)':'';
+    mp.title=live?'LIVE — sells are real DEX swaps, mining is on-chain. Click for DEMO.':'DEMO — simulated economy. Click for LIVE (real contracts).';
+  }
   const fs=farmStatus();
   $('farmpill').style.display=fs==='GARAGE'?'none':'flex';
   $('farmtier').textContent=fs;
@@ -3188,6 +3266,7 @@ $('b-shop').onclick=()=>{ openModal('m-shop'); renderShop(); if(S.tut===2){S.tut
 $('b-upg').onclick=()=>{ openModal('m-upg'); renderUpg(); };
 $('b-stats').onclick=()=>{ openModal('m-stats'); renderStats(); };
 $('b-mute').onclick=()=>setMuted(!S.muted);
+$('modepill').onclick=()=>toggleMode();
 $('net').onclick=switchNet;
 $('sell-pol').onclick=()=>sellCoin('pol');
 $('sell-alt').onclick=()=>sellCoin('alt');

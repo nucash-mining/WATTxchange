@@ -24,19 +24,19 @@ import toast from 'react-hot-toast';
 import { wattxBridgeService, type BridgeQuote, type PoolStats } from '../services/wattxBridgeService';
 import MM2SwapInterface from './dex/MM2SwapInterface';
 
-// Virtual Boy inspired CSS styles
+// Site-themed styles (dark slate + amber/yellow accents) — matches the rest of the app
 const vbStyles = {
   glow: {
-    textShadow: '0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000',
-    color: '#ff0000'
+    textShadow: '0 0 12px rgba(234,179,8,0.35)',
+    color: '#eab308'
   },
   glowSubtle: {
-    textShadow: '0 0 5px #ff0000, 0 0 10px #aa0000',
-    color: '#ff3333'
+    textShadow: 'none',
+    color: '#fcd34d'
   },
   boxGlow: {
-    boxShadow: '0 0 10px #ff0000, inset 0 0 10px rgba(255,0,0,0.1)',
-    border: '1px solid #ff0000'
+    boxShadow: '0 0 0 1px rgba(234,179,8,0.15)',
+    border: '1px solid rgba(234,179,8,0.3)'
   }
 };
 
@@ -46,19 +46,19 @@ const CHAINS = {
     id: 137,
     name: 'POLYGON',
     symbol: 'MATIC',
-    rpc: 'https://polygon-rpc.com',
+    rpc: 'https://polygon-bor-rpc.publicnode.com',
     explorer: 'https://polygonscan.com',
-    color: '#ff0000',
+    color: '#eab308',
     tokens: { WATT: '0xE960d5076cd3169C343Ee287A2c3380A222e5839' },
     bridge: { vault: '0xde9AC868db4C9f1F851106d6f358BB25F7B13cD0' }
   },
   wattx: {
-    id: 8889,
+    id: 22356,
     name: 'WATTX',
     symbol: 'WATT',
-    rpc: 'http://127.0.0.1:23889',
-    explorer: 'http://localhost:3000',
-    color: '#ff3333',
+    rpc: 'https://rpc-wtx.wattxchange.app',
+    explorer: 'https://wtx-explorer.wattxchange.app',
+    color: '#fcd34d',
     tokens: { tWATTx: '0xe12e814b1f1a1781bf9ff2f9708d3b5d3334b2c2' },
     bridge: { tWATTx: '0xe12e814b1f1a1781bf9ff2f9708d3b5d3334b2c2' }
   },
@@ -68,7 +68,7 @@ const CHAINS = {
     symbol: 'ALT',
     rpc: 'https://rpc.wattxchange.app',
     explorer: 'https://explorer.altcoinchain.org',
-    color: '#ff6600',
+    color: '#f59e0b',
     tokens: {
       WATT: '0x6645143e49B3a15d8F205658903a55E520444698',
       wXMR: '0x2eb2230b406c73a34587d0aae4435ce4b548c296'
@@ -79,26 +79,19 @@ const CHAINS = {
 
 type ChainKey = 'polygon' | 'wattx' | 'altcoinchain';
 
-// Scanline overlay component
-const ScanlineOverlay: React.FC = () => (
-  <div
-    className="pointer-events-none fixed inset-0 z-50"
-    style={{
-      background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
-      mixBlendMode: 'multiply'
-    }}
-  />
-);
+// Scanline overlay removed — it made the DeFi Hub hard to read. Kept as a no-op
+// so existing <ScanlineOverlay /> usages compile without change.
+const ScanlineOverlay: React.FC = () => null;
 
-// Animated grid background
+// Subtle neutral grid background (matches the app's dark theme)
 const GridBackground: React.FC = () => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none">
     <div
       className="absolute inset-0"
       style={{
         backgroundImage: `
-          linear-gradient(rgba(255,0,0,0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,0,0,0.03) 1px, transparent 1px)
+          linear-gradient(rgba(148,163,184,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148,163,184,0.04) 1px, transparent 1px)
         `,
         backgroundSize: '50px 50px',
         animation: 'gridMove 20s linear infinite'
@@ -141,15 +134,16 @@ const VBButton: React.FC<{
       ${className}
     `}
     style={{
-      background: 'transparent',
-      border: `2px solid ${variant === 'primary' ? '#ff0000' : '#660000'}`,
-      color: variant === 'primary' ? '#ff0000' : '#aa0000',
-      textShadow: variant === 'primary' ? '0 0 10px #ff0000' : 'none',
-      boxShadow: variant === 'primary' ? '0 0 20px rgba(255,0,0,0.3), inset 0 0 20px rgba(255,0,0,0.1)' : 'none'
+      background: variant === 'primary' ? '#ca8a04' : 'rgba(30,41,59,0.6)',
+      border: `1px solid ${variant === 'primary' ? '#eab308' : 'rgba(148,163,184,0.3)'}`,
+      color: variant === 'primary' ? '#0f172a' : '#e2e8f0',
+      borderRadius: '0.5rem',
+      textShadow: 'none',
+      boxShadow: 'none'
     }}
     whileHover={!disabled ? {
       scale: 1.02,
-      boxShadow: '0 0 30px rgba(255,0,0,0.5), inset 0 0 30px rgba(255,0,0,0.2)'
+      boxShadow: '0 0 16px rgba(234,179,8,0.25)'
     } : {}}
     whileTap={!disabled ? { scale: 0.98 } : {}}
   >
@@ -160,20 +154,20 @@ const VBButton: React.FC<{
 // Virtual Boy style card
 const VBCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <motion.div
-    className={`relative ${className}`}
+    className={`relative rounded-xl ${className}`}
     style={{
-      background: 'rgba(20, 0, 0, 0.8)',
-      border: '1px solid #ff0000',
-      boxShadow: '0 0 20px rgba(255,0,0,0.2), inset 0 0 30px rgba(255,0,0,0.05)',
+      background: 'rgba(15, 23, 42, 0.7)',
+      border: '1px solid rgba(148,163,184,0.15)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
     }}
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
   >
-    {/* Corner decorations */}
-    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red-600" />
-    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red-600" />
-    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red-600" />
-    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red-600" />
+    {/* Corner accents */}
+    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-yellow-500/40 rounded-tl-xl" />
+    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-yellow-500/40 rounded-tr-xl" />
+    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-yellow-500/40 rounded-bl-xl" />
+    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-yellow-500/40 rounded-br-xl" />
     {children}
   </motion.div>
 );
@@ -189,7 +183,7 @@ const WireframeLogo: React.FC<{ chain: 'polygon' | 'wattx' | 'altcoinchain'; siz
     <svg viewBox="0 0 100 100" className="w-full h-full">
       {chain === 'polygon' ? (
         // Polygon wireframe hexagon
-        <g stroke="#ff0000" strokeWidth="2" fill="none" style={{ filter: 'drop-shadow(0 0 5px #ff0000)' }}>
+        <g stroke="#eab308" strokeWidth="2" fill="none" style={{ filter: 'drop-shadow(0 0 5px #eab308)' }}>
           <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
           <polygon points="50,20 80,35 80,65 50,80 20,65 20,35" />
           <line x1="50" y1="5" x2="50" y2="20" />
@@ -201,7 +195,7 @@ const WireframeLogo: React.FC<{ chain: 'polygon' | 'wattx' | 'altcoinchain'; siz
         </g>
       ) : chain === 'altcoinchain' ? (
         // Altcoinchain wireframe - stylized 'A' with chain links
-        <g stroke="#ff6600" strokeWidth="2" fill="none" style={{ filter: 'drop-shadow(0 0 5px #ff6600)' }}>
+        <g stroke="#f59e0b" strokeWidth="2" fill="none" style={{ filter: 'drop-shadow(0 0 5px #f59e0b)' }}>
           <path d="M50,10 L20,85 M50,10 L80,85 M30,60 L70,60" />
           <circle cx="50" cy="10" r="8" />
           <circle cx="20" cy="85" r="8" />
@@ -210,7 +204,7 @@ const WireframeLogo: React.FC<{ chain: 'polygon' | 'wattx' | 'altcoinchain'; siz
         </g>
       ) : (
         // WATTx wireframe lightning bolt
-        <g stroke="#ff3333" strokeWidth="2" fill="none" style={{ filter: 'drop-shadow(0 0 5px #ff3333)' }}>
+        <g stroke="#fcd34d" strokeWidth="2" fill="none" style={{ filter: 'drop-shadow(0 0 5px #fcd34d)' }}>
           <path d="M60,5 L25,50 L45,50 L35,95 L75,45 L55,45 Z" />
           <circle cx="50" cy="50" r="45" strokeDasharray="5,5" />
         </g>
@@ -306,21 +300,26 @@ const DeFiHubView: React.FC = () => {
 
   const fetchBalances = async (address: string) => {
     setIsLoading(true);
+    const wattAbi = ['function balanceOf(address) view returns (uint256)'];
     try {
-      // Fetch Polygon balances
-      const polygonProvider = new ethers.JsonRpcProvider(CHAINS.polygon.rpc);
-      const maticBalance = await polygonProvider.getBalance(address);
-      const wattAbi = ['function balanceOf(address) view returns (uint256)'];
-      const polygonWattContract = new ethers.Contract(CHAINS.polygon.tokens.WATT, wattAbi, polygonProvider);
-      const polygonWattBalance = await polygonWattContract.balanceOf(address);
+      // Fetch Polygon balances (own try/catch — a dead Polygon RPC must NOT
+      // prevent the Altcoinchain/WATTx reads below from running).
+      try {
+        const polygonProvider = new ethers.JsonRpcProvider(CHAINS.polygon.rpc);
+        const maticBalance = await polygonProvider.getBalance(address);
+        const polygonWattContract = new ethers.Contract(CHAINS.polygon.tokens.WATT, wattAbi, polygonProvider);
+        const polygonWattBalance = await polygonWattContract.balanceOf(address);
 
-      setBalances(prev => ({
-        ...prev,
-        polygon: {
-          MATIC: ethers.formatEther(maticBalance),
-          WATT: ethers.formatEther(polygonWattBalance)
-        }
-      }));
+        setBalances(prev => ({
+          ...prev,
+          polygon: {
+            MATIC: ethers.formatEther(maticBalance),
+            WATT: ethers.formatEther(polygonWattBalance)
+          }
+        }));
+      } catch (err) {
+        console.log('Polygon not available:', err);
+      }
 
       // Fetch Altcoinchain balances (try/catch separately to not block other chains)
       try {
@@ -388,7 +387,7 @@ const DeFiHubView: React.FC = () => {
         setWalletConnected(true);
         setWalletAddress(accounts[0]);
         fetchBalances(accounts[0]);
-        toast.success('WALLET LINKED', { style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.success('WALLET LINKED', { style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
       } catch (err: any) {
         toast.error(err.message);
       }
@@ -483,7 +482,7 @@ const DeFiHubView: React.FC = () => {
 
       // Ensure we're on the source chain
       if (currentChainId !== source.id) {
-        toast.error(`SWITCH TO ${source.name} NETWORK`, { style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.error(`SWITCH TO ${source.name} NETWORK`, { style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
         try {
           await switchToChain(ethereum, sourceChain);
         } catch (switchError: any) {
@@ -499,7 +498,7 @@ const DeFiHubView: React.FC = () => {
       // Handle bridging based on source chain
       if (sourceChain === 'polygon') {
         // Bridging FROM Polygon
-        toast.loading('CHECKING APPROVAL...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('CHECKING APPROVAL...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
 
         const wattContract = new ethers.Contract(
           CHAINS.polygon.tokens.WATT,
@@ -513,13 +512,13 @@ const DeFiHubView: React.FC = () => {
         const currentAllowance = await wattContract.allowance(userAddress, CHAINS.polygon.bridge.vault);
 
         if (currentAllowance < amountWei) {
-          toast.loading('APPROVE WATT SPENDING...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+          toast.loading('APPROVE WATT SPENDING...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
           const approveTx = await wattContract.approve(CHAINS.polygon.bridge.vault, ethers.MaxUint256);
           await approveTx.wait();
           toast.success('APPROVAL CONFIRMED', { id: 'bridge', style: { background: '#1a0000', color: '#00ff00', border: '1px solid #00ff00' } });
         }
 
-        toast.loading('INITIATING BRIDGE...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('INITIATING BRIDGE...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
 
         // Determine bridge function based on destination
         const vaultContract = new ethers.Contract(
@@ -538,7 +537,7 @@ const DeFiHubView: React.FC = () => {
           bridgeTx = await vaultContract.bridgeToAltcoinchain(recipientAddress, amountWei);
         }
 
-        toast.loading('CONFIRMING LOCK TX...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('CONFIRMING LOCK TX...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
         const receipt = await bridgeTx.wait();
 
         toast.success(
@@ -548,7 +547,7 @@ const DeFiHubView: React.FC = () => {
 
       } else if (sourceChain === 'wattx') {
         // Bridging FROM WATTx
-        toast.loading('INITIATING BURN...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('INITIATING BURN...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
 
         const tWATTxContract = new ethers.Contract(
           CHAINS.wattx.tokens.tWATTx,
@@ -558,7 +557,7 @@ const DeFiHubView: React.FC = () => {
 
         const burnTx = await tWATTxContract.burn(amountWei, recipientAddress, dest.id);
 
-        toast.loading('CONFIRMING BURN TX...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('CONFIRMING BURN TX...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
         const receipt = await burnTx.wait();
 
         toast.success(
@@ -568,7 +567,7 @@ const DeFiHubView: React.FC = () => {
 
       } else if (sourceChain === 'altcoinchain') {
         // Bridging FROM Altcoinchain
-        toast.loading('CHECKING APPROVAL...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('CHECKING APPROVAL...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
 
         const wattContract = new ethers.Contract(
           CHAINS.altcoinchain.tokens.WATT,
@@ -582,13 +581,13 @@ const DeFiHubView: React.FC = () => {
         const currentAllowance = await wattContract.allowance(userAddress, CHAINS.altcoinchain.bridge.vault);
 
         if (currentAllowance < amountWei) {
-          toast.loading('APPROVE WATT SPENDING...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+          toast.loading('APPROVE WATT SPENDING...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
           const approveTx = await wattContract.approve(CHAINS.altcoinchain.bridge.vault, ethers.MaxUint256);
           await approveTx.wait();
           toast.success('APPROVAL CONFIRMED', { id: 'bridge', style: { background: '#1a0000', color: '#00ff00', border: '1px solid #00ff00' } });
         }
 
-        toast.loading('INITIATING BRIDGE...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('INITIATING BRIDGE...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
 
         const vaultContract = new ethers.Contract(
           CHAINS.altcoinchain.bridge.vault,
@@ -598,7 +597,7 @@ const DeFiHubView: React.FC = () => {
 
         const bridgeTx = await vaultContract.bridgeOut(recipientAddress, amountWei, dest.id);
 
-        toast.loading('CONFIRMING LOCK TX...', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+        toast.loading('CONFIRMING LOCK TX...', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
         const receipt = await bridgeTx.wait();
 
         toast.success(
@@ -613,7 +612,7 @@ const DeFiHubView: React.FC = () => {
 
     } catch (err: any) {
       console.error('Bridge error:', err);
-      toast.error(err.message || 'BRIDGE FAILED', { id: 'bridge', style: { background: '#1a0000', color: '#ff0000', border: '1px solid #ff0000' } });
+      toast.error(err.message || 'BRIDGE FAILED', { id: 'bridge', style: { background: '#1a0000', color: '#eab308', border: '1px solid #eab308' } });
     } finally {
       setIsBridging(false);
     }
@@ -639,7 +638,7 @@ const DeFiHubView: React.FC = () => {
             >
               ◢ DEFI BRIDGE ◣
             </h1>
-            <p className="text-red-800 mt-1 text-sm tracking-wide">
+            <p className="text-yellow-800 mt-1 text-sm tracking-wide">
               &gt;&gt; CROSS-CHAIN ASSET TRANSFER SYSTEM &lt;&lt;
             </p>
           </div>
@@ -647,16 +646,16 @@ const DeFiHubView: React.FC = () => {
           {walletConnected ? (
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-red-500 text-xs">LINKED WALLET</p>
-                <p className="text-red-400 font-bold" style={vbStyles.glowSubtle}>
+                <p className="text-yellow-500 text-xs">LINKED WALLET</p>
+                <p className="text-yellow-400 font-bold" style={vbStyles.glowSubtle}>
                   {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                 </p>
               </div>
               <motion.button
                 onClick={() => fetchBalances(walletAddress)}
-                className="p-2 border border-red-800"
-                style={{ color: '#ff0000' }}
-                whileHover={{ boxShadow: '0 0 15px #ff0000' }}
+                className="p-2 border border-yellow-800"
+                style={{ color: '#eab308' }}
+                whileHover={{ boxShadow: '0 0 15px #eab308' }}
                 whileTap={{ scale: 0.9 }}
               >
                 <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -683,23 +682,23 @@ const DeFiHubView: React.FC = () => {
             { label: 'BACKING', value: '100%', sub: 'BY WATTX' }
           ].map((stat, i) => (
             <VBCard key={i} className="p-4">
-              <p className="text-red-800 text-xs mb-1">{stat.label}</p>
+              <p className="text-yellow-800 text-xs mb-1">{stat.label}</p>
               <p className="text-lg font-bold" style={vbStyles.glowSubtle}>{stat.value}</p>
-              <p className="text-red-900 text-xs">{stat.sub}</p>
+              <p className="text-yellow-900 text-xs">{stat.sub}</p>
             </VBCard>
           ))}
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border border-red-900">
+        <div className="flex border border-yellow-900">
           {['bridge', 'swap', 'liquidity', 'history', 'status'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
               className={`flex-1 py-3 uppercase tracking-wider text-sm transition-all ${
                 activeTab === tab
-                  ? 'bg-red-900/30 text-red-400'
-                  : 'text-red-800 hover:text-red-600'
+                  ? 'bg-yellow-900/30 text-yellow-400'
+                  : 'text-yellow-800 hover:text-yellow-600'
               }`}
               style={activeTab === tab ? vbStyles.glowSubtle : {}}
             >
@@ -721,8 +720,8 @@ const DeFiHubView: React.FC = () => {
                 <div className="space-y-6">
                   {/* Source Chain Selector */}
                   <div>
-                    <p className="text-red-800 text-xs mb-2">&gt; SOURCE CHAIN</p>
-                    <div className="flex items-center justify-between p-4 border border-red-900 bg-black/50">
+                    <p className="text-yellow-800 text-xs mb-2">&gt; SOURCE CHAIN</p>
+                    <div className="flex items-center justify-between p-4 border border-yellow-900 bg-black/50">
                       <div className="flex items-center gap-4">
                         <WireframeLogo chain={sourceChain} size={50} />
                         <div>
@@ -742,16 +741,16 @@ const DeFiHubView: React.FC = () => {
                             style={{ ...vbStyles.glowSubtle, border: 'none' }}
                           >
                             {(Object.keys(CHAINS) as ChainKey[]).map(key => (
-                              <option key={key} value={key} style={{ background: '#1a0000', color: '#ff0000' }}>
+                              <option key={key} value={key} style={{ background: '#1a0000', color: '#eab308' }}>
                                 {CHAINS[key].name}
                               </option>
                             ))}
                           </select>
-                          <p className="text-red-900 text-xs">CHAIN ID: {source.id}</p>
+                          <p className="text-yellow-900 text-xs">CHAIN ID: {source.id}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-red-800 text-xs">BALANCE</p>
+                        <p className="text-yellow-800 text-xs">BALANCE</p>
                         <p className="font-bold" style={vbStyles.glowSubtle}>
                           {parseFloat(getSourceBalance()).toFixed(4)} {getSourceToken()}
                         </p>
@@ -765,12 +764,12 @@ const DeFiHubView: React.FC = () => {
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-black border border-red-900 p-4 text-2xl font-bold focus:outline-none focus:border-red-500"
-                        style={{ color: '#ff0000', textShadow: '0 0 10px #ff0000' }}
+                        className="w-full bg-black border border-yellow-900 p-4 text-2xl font-bold focus:outline-none focus:border-yellow-500"
+                        style={{ color: '#eab308', textShadow: '0 0 10px #eab308' }}
                       />
                       <button
                         onClick={() => setAmount(getSourceBalance())}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 text-xs border border-red-800 text-red-600 hover:border-red-500"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 text-xs border border-yellow-800 text-yellow-600 hover:border-yellow-500"
                       >
                         MAX
                       </button>
@@ -781,19 +780,19 @@ const DeFiHubView: React.FC = () => {
                   <div className="flex justify-center">
                     <motion.button
                       onClick={switchDirection}
-                      className="p-4 border border-red-600"
-                      style={{ boxShadow: '0 0 20px rgba(255,0,0,0.3)' }}
-                      whileHover={{ rotate: 180, boxShadow: '0 0 30px rgba(255,0,0,0.5)' }}
+                      className="p-4 border border-yellow-600"
+                      style={{ boxShadow: '0 0 20px rgba(234,179,8,0.3)' }}
+                      whileHover={{ rotate: 180, boxShadow: '0 0 30px rgba(234,179,8,0.5)' }}
                       transition={{ duration: 0.3 }}
                     >
-                      <ArrowRightLeft className="w-6 h-6" style={{ color: '#ff0000' }} />
+                      <ArrowRightLeft className="w-6 h-6" style={{ color: '#eab308' }} />
                     </motion.button>
                   </div>
 
                   {/* Destination Chain Selector */}
                   <div>
-                    <p className="text-red-800 text-xs mb-2">&gt; DESTINATION CHAIN</p>
-                    <div className="flex items-center justify-between p-4 border border-red-900 bg-black/50">
+                    <p className="text-yellow-800 text-xs mb-2">&gt; DESTINATION CHAIN</p>
+                    <div className="flex items-center justify-between p-4 border border-yellow-900 bg-black/50">
                       <div className="flex items-center gap-4">
                         <WireframeLogo chain={destChain} size={50} />
                         <div>
@@ -807,16 +806,16 @@ const DeFiHubView: React.FC = () => {
                             style={{ ...vbStyles.glowSubtle, border: 'none' }}
                           >
                             {availableDestChains.map(key => (
-                              <option key={key} value={key} style={{ background: '#1a0000', color: '#ff0000' }}>
+                              <option key={key} value={key} style={{ background: '#1a0000', color: '#eab308' }}>
                                 {CHAINS[key].name}
                               </option>
                             ))}
                           </select>
-                          <p className="text-red-900 text-xs">CHAIN ID: {dest.id}</p>
+                          <p className="text-yellow-900 text-xs">CHAIN ID: {dest.id}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-red-800 text-xs">YOU RECEIVE</p>
+                        <p className="text-yellow-800 text-xs">YOU RECEIVE</p>
                         <p className="font-bold text-green-500" style={{ textShadow: '0 0 10px #00ff00' }}>
                           ~{amount || '0'} {getDestToken()}
                         </p>
@@ -825,19 +824,19 @@ const DeFiHubView: React.FC = () => {
                   </div>
 
                   {/* Bridge Info with Liquidity Status */}
-                  <div className="border border-red-900/50 p-4 bg-red-950/20">
+                  <div className="border border-yellow-900/50 p-4 bg-yellow-950/20">
                     <div className="flex items-start gap-3">
-                      <Cpu className="w-5 h-5 text-red-700 mt-0.5" />
-                      <div className="text-xs text-red-700 space-y-1 flex-1">
+                      <Cpu className="w-5 h-5 text-yellow-700 mt-0.5" />
+                      <div className="text-xs text-yellow-700 space-y-1 flex-1">
                         <p>▸ BRIDGE FEE: {bridgeQuote ? `${bridgeQuote.feePercent}%` : '0.1%'} {bridgeQuote && `(${parseFloat(bridgeQuote.fee).toFixed(6)} WATT)`}</p>
                         <p>▸ SECURED BY MULTI-SIGNATURE RELAY</p>
                       </div>
                     </div>
 
                     {/* Liquidity Status */}
-                    <div className="mt-3 pt-3 border-t border-red-900/30">
+                    <div className="mt-3 pt-3 border-t border-yellow-900/30">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-red-800">DESTINATION LIQUIDITY:</span>
+                        <span className="text-xs text-yellow-800">DESTINATION LIQUIDITY:</span>
                         <span
                           className={`text-xs font-bold ${
                             parseFloat(poolLiquidity[destChain] || '0') >= parseFloat(amount || '0')
@@ -895,7 +894,7 @@ const DeFiHubView: React.FC = () => {
 
               {/* Process Diagram */}
               <VBCard className="p-6 mt-6">
-                <p className="text-red-800 text-xs mb-4">&gt; BRIDGE PROCESS</p>
+                <p className="text-yellow-800 text-xs mb-4">&gt; BRIDGE PROCESS</p>
                 <div className="flex items-center justify-between">
                   {[
                     { step: '01', label: 'LOCK', icon: Shield },
@@ -905,18 +904,18 @@ const DeFiHubView: React.FC = () => {
                     <React.Fragment key={item.step}>
                       <div className="text-center">
                         <div
-                          className="w-16 h-16 border-2 border-red-600 flex items-center justify-center mx-auto mb-2"
-                          style={{ boxShadow: '0 0 15px rgba(255,0,0,0.3)' }}
+                          className="w-16 h-16 border-2 border-yellow-600 flex items-center justify-center mx-auto mb-2"
+                          style={{ boxShadow: '0 0 15px rgba(234,179,8,0.3)' }}
                         >
-                          <item.icon className="w-8 h-8" style={{ color: '#ff0000' }} />
+                          <item.icon className="w-8 h-8" style={{ color: '#eab308' }} />
                         </div>
-                        <p className="text-red-600 text-xs font-bold">[{item.step}]</p>
-                        <p className="text-red-800 text-xs">{item.label}</p>
+                        <p className="text-yellow-600 text-xs font-bold">[{item.step}]</p>
+                        <p className="text-yellow-800 text-xs">{item.label}</p>
                       </div>
                       {i < 2 && (
                         <motion.div
                           className="flex-1 h-0.5 mx-2"
-                          style={{ background: 'linear-gradient(90deg, #ff0000, transparent, #ff0000)' }}
+                          style={{ background: 'linear-gradient(90deg, #eab308, transparent, #eab308)' }}
                           animate={{ opacity: [0.3, 1, 0.3] }}
                           transition={{ duration: 1.5, repeat: Infinity }}
                         />
@@ -936,8 +935,8 @@ const DeFiHubView: React.FC = () => {
               exit={{ opacity: 0, x: 20 }}
             >
               <VBCard className="p-6">
-                <p className="text-red-800 text-xs mb-4">&gt; BRIDGE POOL LIQUIDITY</p>
-                <p className="text-red-700 text-xs mb-6">
+                <p className="text-yellow-800 text-xs mb-4">&gt; BRIDGE POOL LIQUIDITY</p>
+                <p className="text-yellow-700 text-xs mb-6">
                   All WATT tokens on Polygon and Altcoinchain are backed by WATTx on the mainnet.
                   Add liquidity to enable instant bridging.
                 </p>
@@ -946,29 +945,29 @@ const DeFiHubView: React.FC = () => {
                   {/* Pool Cards */}
                   {[
                     { key: 'polygon' as ChainKey, name: 'POLYGON', color: '#8247e5' },
-                    { key: 'wattx' as ChainKey, name: 'WATTX (MAINNET)', color: '#ff3333' },
-                    { key: 'altcoinchain' as ChainKey, name: 'ALTCOINCHAIN', color: '#ff6600' }
+                    { key: 'wattx' as ChainKey, name: 'WATTX (MAINNET)', color: '#fcd34d' },
+                    { key: 'altcoinchain' as ChainKey, name: 'ALTCOINCHAIN', color: '#f59e0b' }
                   ].map((pool) => (
-                    <div key={pool.key} className="p-4 border border-red-900/50 bg-black/30">
+                    <div key={pool.key} className="p-4 border border-yellow-900/50 bg-black/30">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <Droplets className="w-5 h-5" style={{ color: pool.color }} />
                           <span className="font-bold" style={{ color: pool.color }}>{pool.name}</span>
                         </div>
-                        <span className="text-xs text-red-700">
+                        <span className="text-xs text-yellow-700">
                           {pool.key === 'wattx' ? 'BACKING CHAIN' : 'WRAPPED WATT'}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mb-3">
                         <div>
-                          <p className="text-red-800 text-xs">AVAILABLE LIQUIDITY</p>
+                          <p className="text-yellow-800 text-xs">AVAILABLE LIQUIDITY</p>
                           <p className="font-bold text-lg" style={vbStyles.glowSubtle}>
                             {parseFloat(poolLiquidity[pool.key] || '0').toFixed(4)} WATT
                           </p>
                         </div>
                         <div>
-                          <p className="text-red-800 text-xs">YOUR BALANCE</p>
+                          <p className="text-yellow-800 text-xs">YOUR BALANCE</p>
                           <p className="font-bold text-lg" style={vbStyles.glowSubtle}>
                             {pool.key === 'polygon' ? parseFloat(balances.polygon.WATT).toFixed(4) :
                              pool.key === 'wattx' ? parseFloat(balances.wattx.tWATTx).toFixed(4) :
@@ -978,18 +977,18 @@ const DeFiHubView: React.FC = () => {
                       </div>
 
                       {poolStats[pool.key] && (
-                        <div className="grid grid-cols-3 gap-2 text-xs border-t border-red-900/30 pt-3">
+                        <div className="grid grid-cols-3 gap-2 text-xs border-t border-yellow-900/30 pt-3">
                           <div>
-                            <p className="text-red-900">TOTAL LOCKED</p>
-                            <p className="text-red-600">{parseFloat(poolStats[pool.key]?.totalLocked || '0').toFixed(2)}</p>
+                            <p className="text-yellow-900">TOTAL LOCKED</p>
+                            <p className="text-yellow-600">{parseFloat(poolStats[pool.key]?.totalLocked || '0').toFixed(2)}</p>
                           </div>
                           <div>
-                            <p className="text-red-900">TOTAL RELEASED</p>
-                            <p className="text-red-600">{parseFloat(poolStats[pool.key]?.totalReleased || '0').toFixed(2)}</p>
+                            <p className="text-yellow-900">TOTAL RELEASED</p>
+                            <p className="text-yellow-600">{parseFloat(poolStats[pool.key]?.totalReleased || '0').toFixed(2)}</p>
                           </div>
                           <div>
-                            <p className="text-red-900">PENDING</p>
-                            <p className="text-red-600">{poolStats[pool.key]?.pendingCount || 0}</p>
+                            <p className="text-yellow-900">PENDING</p>
+                            <p className="text-yellow-600">{poolStats[pool.key]?.pendingCount || 0}</p>
                           </div>
                         </div>
                       )}
@@ -998,10 +997,10 @@ const DeFiHubView: React.FC = () => {
                 </div>
 
                 {/* Add Liquidity Info */}
-                <div className="mt-6 p-4 border border-red-900/30 bg-red-950/20">
+                <div className="mt-6 p-4 border border-yellow-900/30 bg-yellow-950/20">
                   <div className="flex items-start gap-3">
-                    <TrendingUp className="w-5 h-5 text-red-700 mt-0.5" />
-                    <div className="text-xs text-red-700 space-y-1">
+                    <TrendingUp className="w-5 h-5 text-yellow-700 mt-0.5" />
+                    <div className="text-xs text-yellow-700 space-y-1">
                       <p className="font-bold">HOW LIQUIDITY WORKS:</p>
                       <p>▸ Bridge pools hold WATT tokens on each chain</p>
                       <p>▸ When you bridge, tokens are locked on source and released on destination</p>
@@ -1022,11 +1021,11 @@ const DeFiHubView: React.FC = () => {
               exit={{ opacity: 0, x: 20 }}
             >
               <VBCard className="p-6">
-                <p className="text-red-800 text-xs mb-4">&gt; TRANSACTION LOG</p>
+                <p className="text-yellow-800 text-xs mb-4">&gt; TRANSACTION LOG</p>
                 <div className="text-center py-12">
-                  <Clock className="w-12 h-12 mx-auto mb-4" style={{ color: '#660000' }} />
+                  <Clock className="w-12 h-12 mx-auto mb-4" style={{ color: '#713f12' }} />
                   <p style={vbStyles.glowSubtle}>NO TRANSACTIONS RECORDED</p>
-                  <p className="text-red-900 text-xs mt-2">Bridge history will appear here</p>
+                  <p className="text-yellow-900 text-xs mt-2">Bridge history will appear here</p>
                 </div>
               </VBCard>
             </motion.div>
@@ -1051,7 +1050,7 @@ const DeFiHubView: React.FC = () => {
               exit={{ opacity: 0, x: 20 }}
             >
               <VBCard className="p-6">
-                <p className="text-red-800 text-xs mb-4">&gt; SYSTEM STATUS</p>
+                <p className="text-yellow-800 text-xs mb-4">&gt; SYSTEM STATUS</p>
                 <div className="space-y-4">
                   {[
                     { label: 'POLYGON RPC', status: 'ONLINE', ok: true },
@@ -1060,11 +1059,11 @@ const DeFiHubView: React.FC = () => {
                     { label: 'RELAYER', status: 'ACTIVE', ok: true },
                     { label: 'VAULT CONTRACTS', status: 'VERIFIED', ok: true }
                   ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between p-3 border border-red-900/50">
-                      <span className="text-red-700">{item.label}</span>
+                    <div key={item.label} className="flex items-center justify-between p-3 border border-yellow-900/50">
+                      <span className="text-yellow-700">{item.label}</span>
                       <span
-                        className={item.ok ? 'text-green-500' : 'text-red-500'}
-                        style={{ textShadow: item.ok ? '0 0 10px #00ff00' : '0 0 10px #ff0000' }}
+                        className={item.ok ? 'text-green-500' : 'text-yellow-500'}
+                        style={{ textShadow: item.ok ? '0 0 10px #00ff00' : '0 0 10px #eab308' }}
                       >
                         [{item.status}]
                       </span>
@@ -1077,7 +1076,7 @@ const DeFiHubView: React.FC = () => {
         </AnimatePresence>
 
         {/* Footer */}
-        <div className="text-center text-red-900 text-xs py-4">
+        <div className="text-center text-yellow-900 text-xs py-4">
           <p>◢◤ WATTX DEFI BRIDGE v1.1 ◢◤</p>
           <p className="mt-1">POLYGON ↔ WATTX ↔ ALTCOINCHAIN CROSS-CHAIN PROTOCOL</p>
         </div>

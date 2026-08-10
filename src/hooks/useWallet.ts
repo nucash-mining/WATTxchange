@@ -62,35 +62,46 @@ export const useWallet = () => {
       
       let altBalance = '0';
       let wattBalance = '0';
-      
+      const tokenBalances: Record<string, string> = {};
+
       if (chainId === 2330) {
         // On Altcoinchain, native balance is ALT
         altBalance = ethers.formatEther(nativeBalance);
-        
-        // Fetch WATT token balance
-        try {
-          const wattContract = new ethers.Contract(
-            '0x6645143e49B3a15d8F205658903a55E520444698',
-            ['function balanceOf(address) view returns (uint256)'],
-            provider
-          );
-          const wattBalanceWei = await wattContract.balanceOf(address);
-          wattBalance = ethers.formatEther(wattBalanceWei);
-        } catch (error) {
-          console.error('Failed to fetch WATT balance:', error);
-          wattBalance = '0';
-        }
+        tokenBalances.ALT = altBalance;
+
+        // Fetch the Altcoinchain ERC20 balances the DEX trades (WATT, wALT).
+        const erc20Abi = ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'];
+        const alcTokens: Record<string, string> = {
+          WATT: '0x6645143e49B3a15d8F205658903a55E520444698',
+          wALT: '0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
+        };
+        await Promise.all(
+          Object.entries(alcTokens).map(async ([sym, addr]) => {
+            try {
+              const c = new ethers.Contract(addr, erc20Abi, provider);
+              const [raw, dec] = await Promise.all([c.balanceOf(address), c.decimals().catch(() => 18)]);
+              const val = ethers.formatUnits(raw, Number(dec));
+              tokenBalances[sym] = val;
+              if (sym === 'WATT') wattBalance = val;
+            } catch (e) {
+              console.error(`Failed to fetch ${sym} balance:`, e);
+              tokenBalances[sym] = '0';
+            }
+          })
+        );
       } else {
-        // On other networks, native balance is ETH/BNB/etc.
+        // On other EVM networks, native balance is ETH/BNB/etc.
         altBalance = '0';
         wattBalance = '0';
+        tokenBalances.ETH = ethers.formatEther(nativeBalance);
       }
-      
+
       setWallet(prev => ({
         ...prev,
         balance: ethers.formatEther(nativeBalance),
         altBalance,
         wattBalance,
+        tokenBalances,
       }));
     } catch (error) {
       console.error('Error refreshing balances:', error);

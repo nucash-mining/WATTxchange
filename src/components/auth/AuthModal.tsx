@@ -13,6 +13,8 @@ import {
   connectInjected,
   hasSolanaWallet,
   connectSolana,
+  hasVidulumWallet,
+  connectVidulum,
   HARDWARE_HINTS,
   type ConnectResult,
 } from '../../services/walletConnectors';
@@ -280,6 +282,16 @@ const AuthModal: React.FC<Props> = ({ onClose, onSeedAuth, onWalletAuth }) => {
                       >
                         <Wallet className="w-6 h-6 text-purple-400" />
                         <span className="text-sm">Phantom (Solana)</span>
+                      </button>
+                    )}
+                    {hasVidulumWallet() && (
+                      <button
+                        disabled={busy}
+                        onClick={() => doConnect(() => connectVidulum())}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-900/70 border border-slate-700 hover:border-yellow-500"
+                      >
+                        <Wallet className="w-6 h-6 text-emerald-400" />
+                        <span className="text-sm">Vidulum</span>
                       </button>
                     )}
                     <div className="pt-2 border-t border-slate-700 mt-2">

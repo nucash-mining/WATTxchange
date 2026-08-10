@@ -15,7 +15,7 @@ export interface Eip6963ProviderDetail {
   provider: any; // EIP-1193
 }
 
-export type ConnectorKind = 'evm-injected' | 'solana';
+export type ConnectorKind = 'evm-injected' | 'solana' | 'cosmos-vidulum';
 
 export interface ConnectResult {
   kind: ConnectorKind;
@@ -76,6 +76,30 @@ export async function connectSolana(): Promise<ConnectResult> {
     kind: 'solana',
     walletName: sol.isPhantom ? 'Phantom' : 'Solana Wallet',
     address: resp.publicKey.toString(),
+  };
+}
+
+// --- Vidulum browser extension (Keplr-style Cosmos provider) ---
+// window.vidulum exposes the Keplr API surface (enable/getKey/getOfflineSigner/
+// signAmino/signDirect/experimentalSuggestChain). It is NOT EIP-1193, so it does
+// not appear in the EIP-6963 injected list. Connecting = enable(chainId) then
+// getKey(chainId); the user approves in the extension popup.
+const VIDULUM_CHAIN_ID =
+  (import.meta as { env?: Record<string, string> }).env?.VITE_VIDULUM_CHAIN_ID || 'vidulum-1';
+
+export function hasVidulumWallet(): boolean {
+  return typeof window !== 'undefined' && !!(window as any).vidulum;
+}
+
+export async function connectVidulum(chainId: string = VIDULUM_CHAIN_ID): Promise<ConnectResult> {
+  const vdl = (window as any).vidulum;
+  if (!vdl) throw new Error('Vidulum extension not detected');
+  await vdl.enable(chainId); // user approves in the extension
+  const key = await vdl.getKey(chainId);
+  return {
+    kind: 'cosmos-vidulum',
+    walletName: 'Vidulum',
+    address: key?.bech32Address ?? key?.address ?? '',
   };
 }
 

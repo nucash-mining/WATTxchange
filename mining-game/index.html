@@ -2276,6 +2276,35 @@ function setMode(m){
 }
 function toggleMode(){ setMode(isLive()?'demo':'live'); }
 
+/* ===== WTX -> WATT via the live bridge desk (bridge.wattxchange.app) ===== */
+const WATT_BRIDGE_API='https://bridge.wattxchange.app';
+async function bridgeSellWtx(amtWtx){
+  /* Pay WATT out on ALT if the wallet has an EVM address, else prompt. */
+  const dst = (W3.chain && (W3.chain.key==='polygon'?'polygon':'alt')) || 'alt';
+  const destAddress = W3.addr || prompt('Your EVM address to receive WATT (ALT/Polygon):','');
+  if(!destAddress){ SFX.err(); toast('Need an EVM address to receive the WATT','red'); return false; }
+  try{
+    toast('Opening a WTX→WATT bridge intent…','gold',6000);
+    const r=await fetch(WATT_BRIDGE_API+'/api/swap',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({direction:'WTX_TO_WATT', destChain:dst, destAddress, amount:String(amtWtx)})});
+    const j=await r.json();
+    if(!r.ok||j.error){ SFX.err(); toast('bridge: '+((j&&j.error)||('HTTP '+r.status)),'red',9000); return false; }
+    const dep=j.wtxDepositAddress||j.depositAddress;
+    const el=$('m-tx');
+    if(el){
+      el.innerHTML=`<div class="txbox"><div class="txh">WTX → WATT bridge</div>
+        <div class="txr"><span>send</span><b>${amtWtx} WTX</b></div>
+        <div class="txr"><span>to (WTX deposit)</span><b style="font-size:10px;word-break:break-all">${dep}</b></div>
+        <div class="txr"><span>you receive</span><b>~${amtWtx} WATT on ${dst.toUpperCase()}</b></div>
+        <div class="txr"><span>to address</span><b style="font-size:10px">${w3Short(destAddress)}</b></div>
+        <div class="txtag">Send WTX from your WATTx wallet to the deposit address. The desk pays WATT after confirmations. Track at bridge.wattxchange.app</div></div>`;
+      el.classList.add('show'); clearTimeout(txFlow._t); txFlow._t=setTimeout(()=>el.classList.remove('show'),15000);
+    }
+    SFX.buy(); toast(`🌉 Bridge intent created — send ${amtWtx} WTX to ${dep.slice(0,10)}… (see the panel)`,'gold',12000);
+    return true;
+  }catch(e){ SFX.err(); toast('bridge unreachable: '+(''+(e&&e.message||e)).slice(0,70),'red',9000); return false; }
+}
+
 /* ===== real DEX sell — coin(native) -> WATT via a Uniswap-V2 router ===== */
 const DEX_ABI=[
   'function getAmountsOut(uint256,address[]) view returns (uint256[])',
@@ -2286,6 +2315,11 @@ async function onchainSell(coin, amtCoin){
   const key=dexChainForCoin(coin), c=key&&WEB3CFG.chains[key];
   if(!c){ toast('No on-chain venue for '+coin.toUpperCase(),'red'); return false; }
   if(!W3.addr){ SFX.err(); toast('Connect a wallet first (🦊 WALLET)','red'); return false; }
+  /* WTX has no direct EVM pool (janus can't take user txs) — route through the
+     live WATT⇄WTX bridge desk instead. The desk gives a WTX deposit address; the
+     player sends WTX from their WATTx wallet and the desk pays WATT on an EVM
+     chain (default ALT). Async watched-deposit flow, so we show instructions. */
+  if(coin==='wtx'){ return bridgeSellWtx(amtCoin); }
   if(W3.chainId!==c.chainId){ SFX.err(); toast(`Switch your wallet to ${c.name} to sell ${coin.toUpperCase()} on-chain`,'gold',8000); w3Switch(key); return false; }
   if(!c.dex){ SFX.err(); toast(`${coin.toUpperCase()}→WATT needs the bridge (coming) — no direct pool yet`,'gold',9000); return false; }
   try{

@@ -281,15 +281,31 @@ class MM2Service {
   private generateUserpass(): void {
     // kdf enforces a password policy on rpc_password (used at boot AND as the
     // `userpass` on every RPC): 8+ chars with an uppercase, lowercase, digit and
-    // special char, and it must not contain the word "password". A plain hex
-    // string has no uppercase/special and is rejected ("Password should contain
-    // at least 1 digit"/special). Build a random secret that always satisfies it.
-    const array = new Uint8Array(24);
-    crypto.getRandomValues(array);
-    const hex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-    // Guarantee each required character class regardless of the random draw.
-    this.userpass = `Wx${hex}Z9$`;
-    this.rpcPassword = this.userpass;
+    // special char, must not contain the word "password", AND must not repeat the
+    // same character three times in a row. A plain hex string frequently contains
+    // a run like "000"/"aaa", so kdf rejected it intermittently at boot. Build the
+    // secret character-by-character, guaranteeing every class and no triple-repeat.
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digit = '23456789';
+    const special = '@#%&*+=?';
+    const all = upper + lower + digit + special;
+    const pick = (set: string): string => {
+      const r = new Uint32Array(1);
+      crypto.getRandomValues(r);
+      return set[r[0] % set.length];
+    };
+    // Seed one of each required class up front, then fill randomly.
+    const required = [pick(upper), pick(lower), pick(digit), pick(special)];
+    let pw = '';
+    while (pw.length < 24) {
+      const c = pw.length < required.length ? required[pw.length] : pick(all);
+      // reject a char that would make three-in-a-row
+      if (pw.length >= 2 && pw[pw.length - 1] === c && pw[pw.length - 2] === c) continue;
+      pw += c;
+    }
+    this.userpass = pw;
+    this.rpcPassword = pw;
   }
 
   /**

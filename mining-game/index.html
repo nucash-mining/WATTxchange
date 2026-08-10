@@ -510,9 +510,18 @@ const CFG = {
   shopStakeNPC: 150000,                           // sim stakers sharing the rewards pool
   shopStakeRate: 0.012,                           // pool % paid out per minute (pro-rata)
   nets:{
-    polygon:{name:'Polygon', coin:'pol', sym:'POL', color:0x8247e5, lam:0.007, reward:3.0, p0:10, vol:0.035, pmin:4, pmax:22},
-    alt:    {name:'Altcoinchain', coin:'alt', sym:'ALT', color:0xffb020, lam:0.004, reward:2.2, p0:25, vol:0.10, pmin:5, pmax:95},
-    wattx:  {name:'WATTxchain', coin:'wtx', sym:'WTX', color:0xffd23f, lam:0.0055, reward:5.0, p0:2.0, vol:0.05, pmin:0.6, pmax:9, sim:true},
+    /* reward = per-block coin an NFT miner competes for. Real economics:
+       - Polygon has no minable blocks for participants (no validator) → swapOnly:
+         you earn WATT and swap to POL, never "mine" POL.
+       - Altcoinchain (Fusaka hybrid) pays 1 ALT PoW + 1 ALT PoS/block; hardware
+         miners take PoW, NFT miners take the PoS half via the validator.
+       - WATTxchain pays via a dedicated validator (100k WTX staked) — gated until
+         that validator exists.
+       In LIVE mode these flags gate the sim; real earning runs through the
+       on-chain Pool Hub + PayoutHub, not this loop. */
+    polygon:{name:'Polygon', coin:'pol', sym:'POL', color:0x8247e5, lam:0.007, reward:3.0, p0:10, vol:0.035, pmin:4, pmax:22, swapOnly:true},
+    alt:    {name:'Altcoinchain', coin:'alt', sym:'ALT', color:0xffb020, lam:0.004, reward:2.0, pow:1.0, pos:1.0, p0:25, vol:0.10, pmin:5, pmax:95, validator:'Mining-Game_nucash-validator'},
+    wattx:  {name:'WATTxchain', coin:'wtx', sym:'WTX', color:0xffd23f, lam:0.0055, reward:5.0, p0:2.0, vol:0.05, pmin:0.6, pmax:9, sim:true, needsValidator:true},
   },
   poolHostWatt:100000, poolHostCoin:100000, hostBurnCut:0.01,
   altHybridBlock:7000000, valNodeAlt:32, altNetStake:40000, altBlockRate:0.62,
@@ -1673,7 +1682,11 @@ function simTick(dt){ // dt seconds (fixed 0.1)
   const hostFree=P&&P.mine; // mining on own hosted pool = free power
   const need=hostFree?0:draw*CFG.consumePerWatt*effMult()*dt;
   noWatt = S.watt<need;
-  if(!noWatt && S.rigs.length){
+  /* LIVE mode: the simulated block loop must NOT credit fake coins. Real earning
+     comes from the on-chain Pool Hub (startMining on the real engine → PayoutHub
+     → operator daemon pays real coin). So run the sim earning only in DEMO. */
+  const simEarn = !(typeof isLive==='function' && isLive());
+  if(simEarn && !noWatt && S.rigs.length){
     S.watt-=need;
     if(need>0){ S.burned+=need*(1-CFG.hostBurnCut); } // 1% of burn goes to pool host, rest → 0x000…dEaD
     const hf=heatFactor(), pf=powerFactor();
@@ -2529,7 +2542,13 @@ function renderPoolHub(){
       <button class="hbtn gold" id="stk25">STAKE 25%</button>
       <button class="hbtn gold" id="stkall">ALL-IN</button>
       ${S.stakedWatt>0?'<button class="hbtn" id="stkout">UNSTAKE</button>':''}</div></div>`;
+  const nx=CFG.nets[S.net];
+  const econ = nx.swapOnly ? `<b style="color:var(--gold)">swap-only</b> — no validator to mine ${sym}; earn WATT and swap to ${sym}`
+    : nx.needsValidator ? `<b style="color:var(--gold)">validator-gated</b> — real ${sym} needs the 100k-${sym} staked validator (coming)`
+    : nx.pow ? `real block reward <b>${nx.pow} ${sym} PoW</b> (hardware) + <b>${nx.pos} ${sym} PoS</b> (NFT miners via ${nx.validator})`
+    : '';
   $('poolbody').innerHTML=`<div id="chainpools"></div>${stakeBox}
+    ${isLive()&&econ?`<p style="color:var(--dim);font-size:10.5px;margin:2px 0 8px;line-height:1.5">⛓ ${nx.name}: ${econ}.</p>`:''}
     <p style="color:var(--dim);font-size:11px;margin:2px 0 10px">Network: <b style="color:var(--txt)">${CFG.nets[S.net].name}</b> (switch on the HUD pill) · pending payout <b>${fmt(S.pend[coin])} ${sym}</b> · threshold ${S.payThresh}× reward
     <button class="hbtn" id="thresh" style="padding:2px 8px;font-size:10px">TH ${S.payThresh}×</button></p>
     ${rows}${mineRow}${alt}

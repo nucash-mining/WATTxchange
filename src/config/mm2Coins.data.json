@@ -117,7 +117,10 @@
       "avg_blocktime": 13,
       "decimals": 18,
       "protocol": {
-        "type": "ETH"
+        "type": "ETH",
+        "protocol_data": {
+          "chain_id": 2330
+        }
       },
       "chain_id": 2330,
       "verified": true

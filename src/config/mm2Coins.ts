@@ -54,6 +54,8 @@ export interface KdfCoinConfig {
   protocol: {
     type: 'UTXO' | 'QTUM' | 'ETH' | 'ERC20';
     protocol_data?: {
+      /** kdf v3 requires the EVM chain id inside protocol_data for ETH coins. */
+      chain_id?: number;
       platform?: string;
       contract_address?: string;
     };

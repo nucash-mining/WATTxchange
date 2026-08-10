@@ -14,7 +14,8 @@
       "required_confirmations": 3,
       "avg_blocktime": 120,
       "protocol": {
-        "type": "QTUM"
+        "type": "QTUM",
+        "chain_variant": "WATTX"
       },
       "verified": true
     },

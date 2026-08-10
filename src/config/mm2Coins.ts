@@ -53,6 +53,8 @@ export interface KdfCoinConfig {
   decimals?: number;
   protocol: {
     type: 'UTXO' | 'QTUM' | 'ETH' | 'ERC20';
+    /** kdf ChainVariant override for header parsing (WTX = "WATTX"). */
+    chain_variant?: string;
     protocol_data?: {
       /** kdf v3 requires the EVM chain id inside protocol_data for ETH coins. */
       chain_id?: number;

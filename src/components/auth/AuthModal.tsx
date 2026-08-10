@@ -2,6 +2,7 @@
 //   Account (seed): Sign in / Create / Import, with a forced seed-backup step.
 //   Connect wallet: EIP-6963 injected (MetaMask/Rabby/Trust…), Phantom, hardware.
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Eye, EyeOff, Copy, ShieldCheck, KeyRound, Wallet, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -108,7 +109,7 @@ const AuthModal: React.FC<Props> = ({ onClose, onSeedAuth, onWalletAuth }) => {
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -295,7 +296,8 @@ const AuthModal: React.FC<Props> = ({ onClose, onSeedAuth, onWalletAuth }) => {
           )}
         </AnimatePresence>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

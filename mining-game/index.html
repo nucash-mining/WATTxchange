@@ -1241,19 +1241,43 @@ function buildRigVis(i){
   // Bit Hammer ASIC on the floor beside the desk (real ASIC ≈ 40cm long)
   if(r.asic&&PROTO.asic){ const am=normalizeFit(instOf('asic'),0.95);
     am.position.x+=2.6; am.position.z+=0.45; am.rotation.y=-0.9; g.add(am); }
-  const gpuMs=[];
+  const gpuMs=[]; const fanMs=[];
   if(r.frame&&PROTO.frame){
-    // open-air mining rig frame on the shelf (never larger than the desk), GPUs racked at real ratio
+    // open-air mining rig frame on the shelf (never larger than the desk).
     const fm=normalizeFit(instOf('frame'),1.9);
     fm.position.x+=0; fm.position.z+=-0.62; fm.position.y+=DESK.SHELF+0.05; g.add(fm);
-    const gn=r.gpus.length, span=0.62, x0=-(gn-1)*span/2;
+    /* Real open-air rig: GPUs stand side by side, ALL facing the same way, and
+       wrap into rows of 4 as the rig grows. The per-item `flip` flag used to
+       point mixed gen1/gen2 cards different directions — force ONE uniform
+       orientation instead (FRAME_GPU_FLIP flips the whole row together if the
+       base model sits upside-down). */
+    const FRAME_GPU_FLIP=false;      // true => rotate every card 180° on X together
+    const gn=r.gpus.length, perRow=4, span=0.56, rowGap=0.62;
+    const baseZ=-0.5, baseY=DESK.SHELF+0.25;
     r.gpus.forEach((gid,k)=>{
       const it=ITEMS[gid];
-      const raw=instOf(it.key); if(it.flip) raw.rotation.x=Math.PI;
-      const m=normalizeFit(raw,0.67); // 30cm GPU at 2.25u/m
-      m.position.x+= x0+k*span; m.position.z+= -0.62; m.position.y+=DESK.SHELF+0.25;
+      const raw=instOf(it.key);
+      const m=normalizeFit(raw,0.60); // ~27cm card at 2.25u/m
+      m.rotation.set(FRAME_GPU_FLIP?Math.PI:0, 0, 0); // uniform, ignore per-item flip
+      const row=Math.floor(k/perRow), col=k%perRow;
+      const inRow=Math.min(perRow, gn-row*perRow);
+      const x0=-(inRow-1)*span/2;
+      m.position.x+= x0+col*span;
+      m.position.z+= baseZ - row*rowGap;   // each new row of 4 sits behind the last
+      m.position.y+= baseY;
       g.add(m); gpuMs.push(m);
     });
+    /* Cooling upgrade => a bank of RGB fans across the front of the frame,
+       one per GPU column, spinning + colour-cycling (animated in the loop). */
+    if(S.upg&&S.upg.cooling>0){
+      const cols=Math.min(perRow, gn||1);
+      const fx0=-(cols-1)*span/2;
+      for(let c=0;c<cols;c++){
+        const fan=makeRGBFan();
+        fan.position.set(fx0+c*span, baseY-0.02, baseZ+0.34);
+        g.add(fan); fanMs.push(fan);
+      }
+    }
   } else if(r.gpus.length||r.cpu){
     // closed case: soft glow through the vents scales with installed hardware
     const glow=new THREE.PointLight(0x2ee6d6, 0.35+0.2*r.gpus.length, 2.2);
@@ -1265,7 +1289,25 @@ function buildRigVis(i){
   led.position.set(0,DESK.TOP+0.12,DESK.D/2+0.02); g.add(led);
   g.position.set(sx,0,sz);
   scene.add(g);
-  rigVis[i]={group:g,led,gpuMeshes:gpuMs,cpuMesh:cpuM,pcMesh:pc,slot:r.slot};
+  rigVis[i]={group:g,led,gpuMeshes:gpuMs,cpuMesh:cpuM,pcMesh:pc,fans:fanMs,slot:r.slot};
+}
+/* An RGB case fan: a dark ring + 7-blade hub, its emissive colour cycled and
+   spun in the render loop. Cheap (targets integrated GPUs) — a torus + a few
+   thin boxes, no textures. */
+function makeRGBFan(){
+  const grp=new THREE.Group();
+  const ringMat=new THREE.MeshStandardMaterial({color:0x111318, emissive:0x00e5ff, emissiveIntensity:1.3, roughness:0.5});
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.16,0.028,8,20), ringMat);
+  grp.add(ring); grp.userData.rgb=ringMat;
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,10),
+    new THREE.MeshStandardMaterial({color:0x0a0c10, roughness:0.7}));
+  hub.rotation.x=Math.PI/2; grp.add(hub);
+  const blades=new THREE.Group();
+  const bMat=new THREE.MeshStandardMaterial({color:0x1b1f27, roughness:0.6, transparent:true, opacity:0.85});
+  for(let b=0;b<7;b++){ const bl=new THREE.Mesh(new THREE.BoxGeometry(0.135,0.006,0.05), bMat);
+    bl.position.x=0.075; bl.rotation.z=0.35; const pv=new THREE.Group(); pv.add(bl); pv.rotation.z=b*(Math.PI*2/7); blades.add(pv); }
+  grp.add(blades); grp.userData.blades=blades;
+  return grp;
 }
 /* rack-mounted rig inside a container / warehouse shelf */
 function buildRackRig(i,r,sx,sz,sy){
@@ -1860,6 +1902,7 @@ function buyUpgrade(k){
   const names={power:'⚡ Power grid upgraded',cooling:'❄ Cooling upgraded',rack:'🗄 Rack expansion built — 3 new slots'};
   toast(names[k]+` (Lv ${S.upg[k]})`,'grn');
   if(k==='rack') refreshRings();
+  if(k==='cooling'&&S.upg.cooling===1&&rebuildAllRigs) rebuildAllRigs(); // first cooling => RGB fans appear on the frames
   renderHud(); renderUpg(); save();
 }
 function gen2(){
@@ -3459,8 +3502,22 @@ function frame(t){
   if(badgeHolo&&badgeHolo.visible) badgeHolo.rotation.y+=dt*0.5;
   // led colors + gentle gpu hover
   const ledc=noWatt?0xff4d5e:(heatFactor()<1||powerFactor()<1)?0xffae42:0x3dff8a;
-  rigVis.forEach(rv=>{ if(rv){ rv.led.material.color.setHex(ledc);
-    rv.led.material.opacity=1; }});
+  const ptF=t/1000;
+  rigVis.forEach((rv,ri)=>{ if(!rv) return;
+    rv.led.material.color.setHex(ledc); rv.led.material.opacity=1;
+    // RGB cooling fans: spin faster when the rig is powered on/mining, and
+    // cycle hue along the row so the bank shimmers like real ARGB fans.
+    if(rv.fans&&rv.fans.length){
+      const on=S.rigs[ri]&&S.rigs[ri].on!==0 && !noWatt;
+      const spin=(on?9:1.2)*dt;
+      rv.fans.forEach((fan,fi)=>{
+        if(fan.userData.blades) fan.userData.blades.rotation.z+=spin;
+        const m=fan.userData.rgb;
+        if(m){ const hue=(ptF*0.18 + fi*0.14 + ri*0.05)%1;
+          m.emissive.setHSL(hue,1,0.55); m.emissiveIntensity=on?1.5:0.7; }
+      });
+    }
+  });
   // rings pulse
   const pt=t/1000;
   rings.forEach((rg,i)=>{ if(!rg||!rg.visible) return;

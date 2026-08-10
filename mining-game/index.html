@@ -1927,7 +1927,7 @@ const WEB3CFG={
       nft:'0x970a8b10147e3459d3cbf56329b76ac18d329728', watt:'0xE960d5076cd3169C343Ee287A2c3380A222e5839', staking:'0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275',
       nftV2:null, wattV2:null,
       pools:{ registry:'0xCe347180C3A45151C10366Da43fD822289ebB075', hub:'0x6f8330bB06D93A8932618EC1Fbb2818323EC3bf5',
-              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xB322458286008F89E1d56251fCeD71aE4e9D3952' },
+              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xB322458286008F89E1d56251fCeD71aE4e9D3952', stakingPool:'0x07ef3eCDB4e4fd9D914787031b6cB746340bF661' },
       /* QuickSwap V2 — real WPOL/WATT pool 0xEC54584a…Bef. Sell POL→WATT native-in. */
       dex:{ kind:'univ2', router:'0xa5E0829CaCED8fFDD4De3c43696c57F7D7A678ff', weth:'0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
             wattOut:'0xE960d5076cd3169C343Ee287A2c3380A222e5839' } },
@@ -1938,7 +1938,7 @@ const WEB3CFG={
       nft:'0xf9670e5D46834561813CA79854B3d7147BBbFfb2', watt:'0x6645143e49B3a15d8F205658903a55E520444698', staking:'0xe463045318393095F11ed39f1a98332aBCc1A7b1',
       nftV2:null, wattV2:null,
       pools:{ registry:'0x0f1e3C2336fBf35148FdbA21F81fA3B57a1DF254', hub:'0xfbc6168D4c4f112275713B976612891E432e265e',
-              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x927d062180E9a30206c968f157b39fb86539FDB2' },
+              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x927d062180E9a30206c968f157b39fb86539FDB2', stakingPool:'0x62fC935400104371777aD36B78CF73f2c48dcD24' },
       /* SwapinDEX (original live venue) — WATT/wALT pool 0xb2F8e147…. Sell ALT→WATT native-in. */
       dex:{ kind:'univ2', router:'0xae168Ce47cebca9abbC5107a58df0532f1afa4d6', weth:'0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
             wattOut:'0x6645143e49B3a15d8F205658903a55E520444698' } },
@@ -1952,7 +1952,7 @@ const WEB3CFG={
       nft:'0x566808D0747662d0a0eeC68A854b695C01BE76a6', watt:'0x99B5503c7144dcf241551aDabFbb58e88829BD3a', staking:'0xBDfdF71830f6FC0C1de4f983EC774d03Aa006474',
       nftV2:null, wattV2:null,
       pools:{ registry:'0x3a02971ceAF9B817e770c36e393A95542bC65Df2', hub:'0x9fAb0fBa9b458A7A0c9D60a26BC33f6E2695F179',
-              engine:'0xb38e119a70F621bf080F51e2A436bEBc248cc0Dc', rigNft:'0x7DcD7e01F4f407a01ef6aF3e42165861c979b4c6' } },
+              engine:'0xb38e119a70F621bf080F51e2A436bEBc248cc0Dc', rigNft:'0x7DcD7e01F4f407a01ef6aF3e42165861c979b4c6', stakingPool:'0x0176566fe72E5733008Bfc68439FB2F3Eb43901B' } },
   },
   /* PayoutHub target ids, in deploy-script registration order (identical on
      every chain because the same script registers the same list). */
@@ -2296,11 +2296,15 @@ const POOL_ABI={
   'function tokenOfOwnerByIndex(address,uint256) view returns (uint256)',
   'function getRigTraits(uint256) view returns (tuple(uint16 hashRate,uint8 algorithm,uint8 efficiency,uint16 wattConsumption,uint8 rarity,uint8 cooling,uint8 durability))',
   'function getWattPerHour(uint256) view returns (uint256)',
-  'function approve(address,uint256)'],
+  'function approve(address,uint256)','function getApproved(uint256) view returns (address)'],
  erc20:[
   'function balanceOf(address) view returns (uint256)',
   'function allowance(address,address) view returns (uint256)',
   'function approve(address,uint256) returns (bool)'],
+ staking:[
+  'function stake(address,uint256)','function unstake(address,uint256)',
+  'function earned(address) view returns (uint256)',
+  'function pendingRewards(address) view returns (uint256)'],
 };
 let _E6=null;
 async function poolEthers(){ if(!_E6) _E6=import('https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm'); return _E6; }
@@ -2391,7 +2395,8 @@ async function poolCtr(kind,write){
   const E=await poolEthers();
   const prov=new E.BrowserProvider(w3Eth());
   const runner=write?await prov.getSigner():prov;
-  const addr=kind==='erc20'?c.watt:c.pools[kind==='rig'?'rigNft':kind];
+  const slot=kind==='rig'?'rigNft':kind==='staking'?'stakingPool':kind;
+  const addr=kind==='erc20'?c.watt:c.pools[slot];
   return new E.Contract(addr,POOL_ABI[kind],runner);
 }
 const ocFmt=(w,dp=2)=>{ const n=Number(w)/1e18; return n>=1e6?(n/1e6).toFixed(2)+'M':n.toLocaleString(undefined,{maximumFractionDigits:dp}); };
@@ -2474,6 +2479,30 @@ async function ocStop(rigId){
   }catch(e){ SFX.err(); toast('stopMining failed: '+(''+(e&&(e.reason||e.message)||e)).slice(0,90),'red',9000); }
   fillChainPools();
 }
+/* On-chain STAKING — the real "stake weight through the staking contract". A rig
+   is either STAKED (idle, earns the WATT drip that miners burn) or MINING (earns
+   coin) — the NFT lives in one contract at a time, so these are exclusive. This
+   is the Live realisation of the demo's power-off = full stake weight. */
+async function ocStakeRig(rigId){
+  const c=poolCfg(); if(!c||!c.pools.stakingPool) return;
+  try{
+    const rig=await poolCtr('rig',true);
+    if((await rig.getApproved?.(rigId).catch(()=>null))!==c.pools.stakingPool)
+      await (await rig.approve(c.pools.stakingPool,rigId)).wait();
+    const sp=await poolCtr('staking',true);
+    await (await sp.stake(c.pools.rigNft,rigId)).wait();
+    SFX.mint(); toast(`🥩 RIG #${rigId} STAKED on-chain — powered off, earning 100% stake weight from the WATT drip`,'gold',10000);
+  }catch(e){ SFX.err(); toast('stake failed: '+(''+(e&&(e.reason||e.message)||e)).slice(0,90),'red',9000); }
+  fillChainPools();
+}
+async function ocUnstakeRig(rigId){
+  const c=poolCfg(); if(!c||!c.pools.stakingPool) return;
+  try{ const sp=await poolCtr('staking',true);
+    await (await sp.unstake(c.pools.rigNft,rigId)).wait();
+    SFX.buy(); toast(`RIG #${rigId} unstaked — back in your wallet, WATT rewards claimed`,'grn',9000);
+  }catch(e){ SFX.err(); toast('unstake failed: '+(''+(e&&(e.reason||e.message)||e)).slice(0,90),'red',9000); }
+  fillChainPools();
+}
 
 /* async fill of the #chainpools box inside the Pool Hub */
 let _ocBusy=false;
@@ -2528,8 +2557,9 @@ async function fillChainPools(){
       const id=await rig.tokenOfOwnerByIndex(W3.addr,i);
       const t=await rig.getRigTraits(id);
       const opts=engPools.map((p,pi)=>p.active?`<option value="${pi}">#${pi} ${p.name} → ${WEB3CFG.targets[Number(p.targetId)]?.sym||'?'} (fee ${(Number(p.rewardFeeBps)/100).toFixed(1)}%)</option>`:'').join('');
+      const stakeBtn = c.pools.stakingPool?`<button class="hbtn gold" data-ocstake="${id}" title="Power off + stake on-chain: earn 100% stake weight from the WATT drip">🥩 STAKE</button>`:'';
       rigRows+=`<div class="prow"><div class="pi"><b>⛏ RIG #${id}</b><small>${t.hashRate} H · eff ${t.efficiency} · ${t.wattConsumption} ⚡/h · algo ${t.algorithm}</small></div>
-        ${opts?`<select id="oc-pool-${id}" class="hbtn">${opts}</select><button class="hbtn accent" data-ocmine="${id}">MINE</button>`:'<small style="color:var(--dim)">no active pools</small>'}</div>`;
+        ${opts?`<select id="oc-pool-${id}" class="hbtn">${opts}</select><button class="hbtn accent" data-ocmine="${id}">MINE</button>`:''}${stakeBtn}${!opts&&!stakeBtn?'<small style="color:var(--dim)">no active pools</small>':''}</div>`;
     }
     /* rigs currently in sessions are owned by the engine — check my recent ones via events is heavy; keep a local note */
     const mySessions=(S.ocRigs||[]).filter(Boolean);
@@ -2575,6 +2605,7 @@ async function fillChainPools(){
       S.ocRigs=Array.from(new Set([...(S.ocRigs||[]),id])); save();
       ocMine(id, +($('oc-pool-'+id)?.value||0)); });
     el.querySelectorAll('[data-ocstop]').forEach(b=>b.onclick=()=>ocStop(+b.dataset.ocstop));
+    el.querySelectorAll('[data-ocstake]').forEach(b=>b.onclick=()=>ocStakeRig(+b.dataset.ocstake));
   }catch(e){
     el.innerHTML=`<div class="valbox" style="border-color:#ff5b5b44"><b>⛓ REAL ON-CHAIN POOLS</b><small>chain read failed: ${(''+(e&&e.message||e)).slice(0,110)}</small></div>`;
   }

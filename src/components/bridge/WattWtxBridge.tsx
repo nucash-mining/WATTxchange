@@ -58,8 +58,9 @@ export default function WattWtxBridge() {
   const wallet = useWallet();
   const [info, setInfo] = useState<BridgeInfo | null>(null);
   const [infoError, setInfoError] = useState<string | null>(null);
-  const [direction, setDirection] = useState<'WATT_TO_WTX' | 'WTX_TO_WATT'>('WATT_TO_WTX');
+  const [direction, setDirection] = useState<'WATT_TO_WTX' | 'WTX_TO_WATT' | 'EVM_TO_EVM'>('WATT_TO_WTX');
   const [chainKey, setChainKey] = useState<BridgeChainKey>('alt');
+  const [destChainKey, setDestChainKey] = useState<BridgeChainKey>('polygon');
   const [amount, setAmount] = useState('');
   const [destAddr, setDestAddr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -130,7 +131,7 @@ export default function WattWtxBridge() {
   const estimate = useMemo(() => {
     const a = Number(amount);
     if (!Number.isFinite(a) || a <= 0) return null;
-    const gross = direction === 'WATT_TO_WTX' ? a * rate : a / rate;
+    const gross = direction === 'WATT_TO_WTX' ? a * rate : direction === 'WTX_TO_WATT' ? a / rate : a;
     return gross * (1 - feePct / 100);
   }, [amount, direction, rate, feePct]);
 
@@ -161,7 +162,7 @@ export default function WattWtxBridge() {
             toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WTX after confirmations`);
           }
         }
-      } else {
+      } else if (direction === 'WTX_TO_WATT') {
         if (!destAddr.trim()) throw new Error(`Enter your ${CHAIN_LABELS[chainKey]} WATT address`);
         const swap = await wattWtxBridgeService.createSwap({
           direction,
@@ -170,6 +171,28 @@ export default function WattWtxBridge() {
         });
         track(swap.id);
         toast.success('Deposit address created — send WTX to it');
+      } else {
+        // EVM_TO_EVM: cross-EVM WATT. Lock WATT on the source chain; the desk
+        // pays WATT on the destination chain from its float, then claims.
+        if (chainKey === destChainKey) throw new Error('Pick two different chains');
+        if (!destAddr.trim()) throw new Error(`Enter your ${CHAIN_LABELS[destChainKey]} WATT address`);
+        const swap = await wattWtxBridgeService.createSwap({
+          direction,
+          sourceChain: chainKey,
+          destChain: destChainKey,
+          destAddress: destAddr.trim(),
+        });
+        track(swap.id);
+        const chain = info.chains[chainKey];
+        if (!wallet.isConnected || !wallet.signer) {
+          toast('Intent created. Connect your wallet and lock from the tracker below.', { icon: 'ℹ️' });
+        } else if (wallet.chainId !== chain.chainId) {
+          toast.error(`Switch your wallet to ${CHAIN_LABELS[chainKey]} (chain ${chain.chainId}), then lock from the tracker`);
+        } else {
+          if (!amount) throw new Error('Enter the WATT amount to lock');
+          const txHash = await wattWtxBridgeService.lockWatt(wallet.signer, swap, amount);
+          toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WATT on ${CHAIN_LABELS[destChainKey]} after confirmations`);
+        }
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -228,39 +251,73 @@ export default function WattWtxBridge() {
         </p>
       )}
 
-      {/* direction + chain */}
+      {/* mode selector */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <button
-          onClick={() => setDirection((d) => (d === 'WATT_TO_WTX' ? 'WTX_TO_WATT' : 'WATT_TO_WTX'))}
-          className={`${btnCls} bg-gray-800 hover:bg-gray-700 text-gray-200`}
-        >
-          <ArrowDownUp className="w-4 h-4" />
-          <span>{direction === 'WATT_TO_WTX' ? 'WATT → WTX' : 'WTX → WATT'}</span>
-        </button>
-        {chainChoices.map((k) => (
+        {([
+          ['WATT_TO_WTX', 'WATT → WTX'],
+          ['WTX_TO_WATT', 'WTX → WATT'],
+          ['EVM_TO_EVM', 'WATT ⇄ WATT (cross-chain)'],
+        ] as const).map(([mode, label]) => (
           <button
-            key={k}
-            onClick={() => setChainKey(k)}
-            className={`px-3 py-1.5 rounded-lg text-sm border ${
-              chainKey === k
-                ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
-                : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500'
+            key={mode}
+            onClick={() => setDirection(mode)}
+            className={`${btnCls} ${
+              direction === mode
+                ? 'bg-yellow-500/10 border border-yellow-500 text-yellow-400'
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-200 border border-transparent'
             }`}
           >
-            {CHAIN_LABELS[k]}
+            <ArrowDownUp className="w-4 h-4" />
+            <span>{label}</span>
           </button>
         ))}
-        {info && !info.chains.polygon?.enabled && (
-          <span className="px-3 py-1.5 rounded-lg text-sm border border-gray-800 bg-gray-900 text-gray-600">
-            Polygon · soon
-          </span>
+      </div>
+
+      {/* chain selector(s) */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className="text-xs text-gray-500">{direction === 'EVM_TO_EVM' ? 'From' : 'Chain'}</span>
+        {chainChoices
+          .filter((k) => direction !== 'EVM_TO_EVM' || k !== 'bsv')
+          .map((k) => (
+            <button
+              key={k}
+              onClick={() => setChainKey(k)}
+              className={`px-3 py-1.5 rounded-lg text-sm border ${
+                chainKey === k
+                  ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                  : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500'
+              }`}
+            >
+              {CHAIN_LABELS[k]}
+            </button>
+          ))}
+        {direction === 'EVM_TO_EVM' && (
+          <>
+            <span className="text-xs text-gray-500 ml-1">To</span>
+            {chainChoices
+              .filter((k) => k !== 'bsv')
+              .map((k) => (
+                <button
+                  key={`dst-${k}`}
+                  onClick={() => setDestChainKey(k)}
+                  disabled={k === chainKey}
+                  className={`px-3 py-1.5 rounded-lg text-sm border disabled:opacity-30 ${
+                    destChainKey === k
+                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                      : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  {CHAIN_LABELS[k]}
+                </button>
+              ))}
+          </>
         )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-3 mb-3">
         <div>
           <label className="text-xs text-gray-400">
-            Amount ({direction === 'WATT_TO_WTX' ? 'WATT' : 'WTX'})
+            Amount ({direction === 'WTX_TO_WATT' ? 'WTX' : 'WATT'})
           </label>
           <input
             className={inputCls}
@@ -273,13 +330,15 @@ export default function WattWtxBridge() {
           <label className="text-xs text-gray-400">
             {direction === 'WATT_TO_WTX'
               ? 'Your WTX (WATTxchain) address'
+              : direction === 'EVM_TO_EVM'
+              ? `Your WATT address on ${CHAIN_LABELS[destChainKey]}`
               : `Your WATT address on ${CHAIN_LABELS[chainKey]}`}
           </label>
           <input
             className={inputCls}
             value={destAddr}
             onChange={(e) => setDestAddr(e.target.value)}
-            placeholder={direction === 'WATT_TO_WTX' ? 'W…' : chainKey === 'bsv' ? '1…' : '0x…'}
+            placeholder={direction === 'WATT_TO_WTX' ? 'W…' : chainKey === 'bsv' && direction !== 'EVM_TO_EVM' ? '1…' : '0x…'}
           />
         </div>
       </div>
@@ -292,6 +351,7 @@ export default function WattWtxBridge() {
               <span className="text-gray-200">
                 {estimate.toLocaleString(undefined, { maximumFractionDigits: 8 })}{' '}
                 {direction === 'WATT_TO_WTX' ? 'WTX' : 'WATT'}
+                {direction === 'EVM_TO_EVM' ? ` on ${CHAIN_LABELS[destChainKey]}` : ''}
               </span>
             </>
           )}
@@ -301,7 +361,7 @@ export default function WattWtxBridge() {
           disabled={busy || !info}
           className={`${btnCls} bg-yellow-500 hover:bg-yellow-400 text-gray-900`}
         >
-          <span>{direction === 'WATT_TO_WTX' && chainKey !== 'bsv' ? 'Create & lock' : 'Create swap'}</span>
+          <span>{(direction === 'WATT_TO_WTX' && chainKey !== 'bsv') || direction === 'EVM_TO_EVM' ? 'Create & lock' : 'Create swap'}</span>
         </button>
       </div>
 

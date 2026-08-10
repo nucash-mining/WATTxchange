@@ -29,7 +29,7 @@ export interface BridgeInfo {
 
 export interface BridgeSwap {
   id: string;
-  direction: 'WATT_TO_WTX' | 'WTX_TO_WATT';
+  direction: 'WATT_TO_WTX' | 'WTX_TO_WATT' | 'EVM_TO_EVM';
   sourceChain?: BridgeChainKey;
   destChain?: BridgeChainKey;
   state: string;
@@ -71,7 +71,7 @@ class WattWtxBridgeService {
   }
 
   async createSwap(body: {
-    direction: 'WATT_TO_WTX' | 'WTX_TO_WATT';
+    direction: 'WATT_TO_WTX' | 'WTX_TO_WATT' | 'EVM_TO_EVM';
     sourceChain?: BridgeChainKey;
     destChain?: BridgeChainKey;
     wtxAddress?: string;

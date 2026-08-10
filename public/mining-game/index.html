@@ -1856,7 +1856,9 @@ const WEB3CFG={
        pools: null until deployments-pools-137.json lands (deployer needs POL). */
     polygon:{ key:'polygon', net:'polygon', chainId:137, hex:'0x89', name:'Polygon', rpc:'https://polygon.drpc.org', sym:'POL', dec:18, explorer:'https://polygonscan.com',
       nft:'0x970a8b10147e3459d3cbf56329b76ac18d329728', watt:'0xE960d5076cd3169C343Ee287A2c3380A222e5839', staking:'0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275',
-      nftV2:null, wattV2:null, pools:null },
+      nftV2:null, wattV2:null,
+      pools:{ registry:'0xCe347180C3A45151C10366Da43fD822289ebB075', hub:'0x6f8330bB06D93A8932618EC1Fbb2818323EC3bf5',
+              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xB322458286008F89E1d56251fCeD71aE4e9D3952' } },
     /* rpc: rpc0.altcoinchain.org is dead — rpc.wattxchange.app is the live node.
        pools: the ON-CHAIN pool-hosting set, deployed+verified 2026-08-09
        (deployments-pools-2330.json). 100k WATT host stake lives in registry. */
@@ -1873,7 +1875,9 @@ const WEB3CFG={
        pools: null until deployments-pools-22356.json lands. */
     wattx:{ key:'wattx', net:'wattx', chainId:22356, hex:'0x5754', name:'WATTxchain', rpc:'https://rpc-wtx.wattxchange.app', sym:'WTX', dec:18, explorer:null,
       nft:'0x566808D0747662d0a0eeC68A854b695C01BE76a6', watt:'0x99B5503c7144dcf241551aDabFbb58e88829BD3a', staking:'0xBDfdF71830f6FC0C1de4f983EC774d03Aa006474',
-      nftV2:null, wattV2:null, pools:null },
+      nftV2:null, wattV2:null,
+      pools:{ registry:'0x3a02971ceAF9B817e770c36e393A95542bC65Df2', hub:'0x9fAb0fBa9b458A7A0c9D60a26BC33f6E2695F179',
+              engine:'0xb38e119a70F621bf080F51e2A436bEBc248cc0Dc', rigNft:'0x7DcD7e01F4f407a01ef6aF3e42165861c979b4c6' } },
   },
   /* PayoutHub target ids, in deploy-script registration order (identical on
      every chain because the same script registers the same list). */

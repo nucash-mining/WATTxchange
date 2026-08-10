@@ -445,7 +445,22 @@ class MM2Service {
       }
 
       // Use provided electrum servers or defaults
-      const servers = options.electrumServers || coinConfig.electrum || [];
+      let servers = options.electrumServers || coinConfig.electrum || [];
+
+      // In the browser, kdf-WASM can ONLY reach electrum over WS/WSS — it returns
+      // an IRRECOVERABLE error for any TCP/SSL server ("'TCP' and 'SSL' are not
+      // supported in a browser"), which aborts the whole enable even when a valid
+      // WSS server is also listed. So drop non-websocket servers here.
+      if (this.useWasm) {
+        servers = servers.filter(s => s.protocol === 'WSS' || s.protocol === 'WS');
+        if (servers.length === 0) {
+          console.error(
+            `enable ${coin}: no WS/WSS ElectrumX endpoint — a browser cannot use ` +
+              `this coin's TCP/SSL servers. Add a WSS ElectrumX (see nodeEndpoints.ts).`
+          );
+          return null;
+        }
+      }
 
       const params = {
         coin,

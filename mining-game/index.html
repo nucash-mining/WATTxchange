@@ -1930,7 +1930,7 @@ const WEB3CFG={
       nft:'0x970a8b10147e3459d3cbf56329b76ac18d329728', watt:'0xE960d5076cd3169C343Ee287A2c3380A222e5839', staking:'0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275',
       nftV2:null, wattV2:null,
       pools:{ registry:'0xCe347180C3A45151C10366Da43fD822289ebB075', hub:'0x6f8330bB06D93A8932618EC1Fbb2818323EC3bf5',
-              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xB322458286008F89E1d56251fCeD71aE4e9D3952', stakingPool:'0x07ef3eCDB4e4fd9D914787031b6cB746340bF661' },
+              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xf9F94e9fa744DE1209EF28321604a0Aa3B21a884', stakingPool:'0x07ef3eCDB4e4fd9D914787031b6cB746340bF661', migrator:'0xf2DbF910aD1cA08c3879C72AE6277fA903E058c4' },
       /* QuickSwap V2 — real WPOL/WATT pool 0xEC54584a…Bef. Sell POL→WATT native-in. */
       dex:{ kind:'univ2', router:'0xa5E0829CaCED8fFDD4De3c43696c57F7D7A678ff', weth:'0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
             wattOut:'0xE960d5076cd3169C343Ee287A2c3380A222e5839' } },
@@ -1941,7 +1941,7 @@ const WEB3CFG={
       nft:'0xf9670e5D46834561813CA79854B3d7147BBbFfb2', watt:'0x6645143e49B3a15d8F205658903a55E520444698', staking:'0xe463045318393095F11ed39f1a98332aBCc1A7b1',
       nftV2:null, wattV2:null,
       pools:{ registry:'0x0f1e3C2336fBf35148FdbA21F81fA3B57a1DF254', hub:'0xfbc6168D4c4f112275713B976612891E432e265e',
-              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x927d062180E9a30206c968f157b39fb86539FDB2', stakingPool:'0x62fC935400104371777aD36B78CF73f2c48dcD24' },
+              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x131A875e1bfEB2B3735E5d9Ad5e8871fF6CE9381', stakingPool:'0x62fC935400104371777aD36B78CF73f2c48dcD24', migrator:'0xdB13ecc87960632b8aAe93640F246CdAE1675B78' },
       /* SwapinDEX (original live venue) — WATT/wALT pool 0xb2F8e147…. Sell ALT→WATT native-in. */
       dex:{ kind:'univ2', router:'0xae168Ce47cebca9abbC5107a58df0532f1afa4d6', weth:'0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
             wattOut:'0x6645143e49B3a15d8F205658903a55E520444698' } },
@@ -2316,6 +2316,13 @@ const POOL_ABI={
   'function stake(address,uint256)','function unstake(address,uint256)',
   'function earned(address) view returns (uint256)',
   'function pendingRewards(address) view returns (uint256)'],
+ migrator:[
+  'function claim(uint256[],uint256[]) returns (uint256)',
+  'function reclaim(uint256)'],
+ classic:[
+  'function balanceOf(address,uint256) view returns (uint256)',
+  'function isApprovedForAll(address,address) view returns (bool)',
+  'function setApprovalForAll(address,bool)'],
 };
 let _E6=null;
 async function poolEthers(){ if(!_E6) _E6=import('https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm'); return _E6; }
@@ -2407,7 +2414,7 @@ async function poolCtr(kind,write){
   const prov=new E.BrowserProvider(w3Eth());
   const runner=write?await prov.getSigner():prov;
   const slot=kind==='rig'?'rigNft':kind==='staking'?'stakingPool':kind;
-  const addr=kind==='erc20'?c.watt:c.pools[slot];
+  const addr=kind==='erc20'?c.watt:kind==='classic'?c.nft:c.pools[slot];
   return new E.Contract(addr,POOL_ABI[kind],runner);
 }
 const ocFmt=(w,dp=2)=>{ const n=Number(w)/1e18; return n>=1e6?(n/1e6).toFixed(2)+'M':n.toLocaleString(undefined,{maximumFractionDigits:dp}); };
@@ -2490,6 +2497,34 @@ async function ocStop(rigId){
   }catch(e){ SFX.err(); toast('stopMining failed: '+(''+(e&&(e.reason||e.message)||e)).slice(0,90),'red',9000); }
   fillChainPools();
 }
+/* CLAIM RIG — turn the classic Mining Game NFTs you already own (ERC-1155
+   components) into an engine-compatible rig via the RigClaimMigrator. Escrows
+   your components (reclaim anytime by returning the rig). */
+const CLASSIC_IDS=[1,3,4,5]; // hashing components (2=Genesis Badge is a quality bonus)
+const CLASSIC_NAMES={1:'Gaming PC',2:'Genesis Badge',3:'XL1 Processor',4:'TX120 GPU',5:'GP50 GPU'};
+async function ocClaimRig(){
+  const c=poolCfg(); if(!c||!c.pools.migrator){ SFX.err(); toast('Claim not available on this chain yet','red'); return; }
+  try{
+    const cls=await poolCtr('classic'); // read owned component balances
+    const owned=[];
+    for(const id of [1,2,3,4,5]){ const b=Number(await cls.balanceOf(W3.addr,id)); if(b>0) owned.push([id,b]); }
+    const hashing=owned.filter(([id])=>id!==2);
+    if(!hashing.length){ SFX.err(); toast('You hold no classic hardware components to build a rig from','gold',9000); return; }
+    // assemble ONE rig from all owned components (ids ascending, dedup already unique)
+    const ids=owned.map(o=>o[0]), amounts=owned.map(o=>o[1]);
+    const clsW=await poolCtr('classic',true), mig=await poolCtr('migrator',true);
+    if(!(await cls.isApprovedForAll(W3.addr,c.pools.migrator))){
+      toast('TX 1/2 — approve your Mining Game NFTs to the migrator…','gold',8000);
+      await (await clsW.setApprovalForAll(c.pools.migrator,true)).wait();
+    }
+    toast('TX 2/2 — claiming an on-chain rig from your components…','gold',9000);
+    await (await mig.claim(ids,amounts)).wait();
+    SFX.mint(); toast(`⛓ RIG CLAIMED from your ${owned.map(o=>CLASSIC_NAMES[o[0]]).join(' + ')} — now mineable/stakeable on-chain (reclaim your NFTs anytime)`,'gold',13000);
+    w3Refresh&&w3Refresh();
+  }catch(e){ SFX.err(); toast('claim failed: '+(''+(e&&(e.reason||e.message)||e)).slice(0,90),'red',9000); }
+  fillChainPools();
+}
+
 /* On-chain STAKING — the real "stake weight through the staking contract". A rig
    is either STAKED (idle, earns the WATT drip that miners burn) or MINING (earns
    coin) — the NFT lives in one contract at a time, so these are exclusive. This
@@ -2601,12 +2636,14 @@ async function fillChainPools(){
           <button class="hbtn gold" id="oc-host">🏊 LOCK 100k + LAUNCH</button></div></div>`}
       <div class="rowbtns" style="margin-top:8px;flex-wrap:wrap">
         <button class="hbtn accent" id="oc-mintrig">⛏ MINT ON-CHAIN RIG</button>
+        ${c.pools.migrator?'<button class="hbtn gold" id="oc-claimrig" title="Turn the classic Mining Game NFTs you already own into a mineable on-chain rig (your NFTs are escrowed, reclaim anytime)">🎫 CLAIM RIG FROM MY NFTs</button>':''}
         <input id="oc-bsv" class="hbtn" placeholder="BSV payout address (for WATT-on-BSV rewards)" value="${bsvAddr||''}" style="flex:1;min-width:180px">
         <button class="hbtn" id="oc-savebsv">SAVE BSV ADDR</button></div>
       ${rigRows}${sesRows}</div>`;
     /* wire */
     $('oc-host')?.addEventListener('click',ocHostPool);
     $('oc-mintrig')?.addEventListener('click',ocMintRig);
+    $('oc-claimrig')?.addEventListener('click',ocClaimRig);
     $('oc-savebsv')?.addEventListener('click',ocSaveBsv);
     $('oc-unstake')?.addEventListener('click',()=>ocUnstake('requestUnstake'));
     $('oc-cancelun')?.addEventListener('click',()=>ocUnstake('cancelUnstake'));

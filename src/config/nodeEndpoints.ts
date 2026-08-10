@@ -62,13 +62,12 @@ const env = (key: string): string | undefined => importMetaEnv[key];
 export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
   WTX: {
     symbol: 'WTX',
-    name: 'WATTx (Testnet)',
+    name: 'WATTx',
     protocol: 'QTUM',
-    // The live wattxd + wattx-electrumx fleet runs the WATTx TESTNET until
-    // mainnet launches — address bytes in mm2Coins.data.json match testnet.
-    testnet: true,
+    // WATTx MAINNET (genesis 0000b7a5960e…, verified against wattxd). Address
+    // bytes in mm2Coins.data.json are mainnet (pubtype 73 / p2sh 75 / wif 128).
     nativeRpc: env('VITE_WTX_RPC') || `${ORACLE_HOST}:3889`,
-    // Live wattx-electrumx on the WATTxchange node server, WSS via Cloudflare tunnel.
+    // Live mainnet wattx-electrumx (Qtum ElectrumX 1.16.0), WSS via Cloudflare tunnel.
     electrum: [
       { url: env('VITE_WTX_ELECTRUM_WSS') || 'electrum-wtx.wattxchange.app:443', protocol: 'WSS' }
     ],

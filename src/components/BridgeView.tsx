@@ -15,6 +15,7 @@ import { ethers } from 'ethers';
 import { BRIDGE_DEPLOYMENTS, WRAPPED_FACTORY_ABI, WRAPPED_TOKEN_ABI } from '../config/bridgeContracts';
 import { htlcBridgeService, type HtlcStage } from '../services/htlcBridgeService';
 import { useWallet } from '../hooks/useWallet';
+import WattWtxBridge from './bridge/WattWtxBridge';
 
 // A locally-remembered HTLC leg. The preimage only exists in this browser —
 // losing it before the counterparty claims means waiting out the refund path.
@@ -294,6 +295,9 @@ export default function BridgeView() {
           <span>Refresh</span>
         </button>
       </div>
+
+      {/* WATT <-> WTX desk */}
+      <WattWtxBridge />
 
       {/* Chain selector */}
       <div className={cardCls}>

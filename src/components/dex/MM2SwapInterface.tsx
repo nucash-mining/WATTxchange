@@ -31,16 +31,16 @@ import { getEndpoint } from '../../config/nodeEndpoints';
 
 // Match the DeFiHubView "Virtual Boy" red aesthetic.
 const vb = {
-  glow: { textShadow: '0 0 10px #ff0000, 0 0 20px #ff0000', color: '#ff0000' },
-  glowSubtle: { textShadow: '0 0 5px #ff0000, 0 0 10px #aa0000', color: '#ff3333' },
-  boxGlow: { boxShadow: '0 0 10px #ff0000, inset 0 0 10px rgba(255,0,0,0.1)', border: '1px solid #ff0000' },
+  glow: { textShadow: '0 0 10px #eab308, 0 0 20px #eab308', color: '#eab308' },
+  glowSubtle: { textShadow: '0 0 5px #eab308, 0 0 10px #a16207', color: '#fcd34d' },
+  boxGlow: { boxShadow: '0 0 10px #eab308, inset 0 0 10px rgba(234,179,8,0.1)', border: '1px solid #eab308' },
   greenGlow: { textShadow: '0 0 8px #00ff00', color: '#00ff00' }
 } as const;
 
 const toastStyle = (ok = false) => ({
   background: '#1a0000',
-  color: ok ? '#00ff00' : '#ff0000',
-  border: `1px solid ${ok ? '#00ff00' : '#ff0000'}`
+  color: ok ? '#00ff00' : '#eab308',
+  border: `1px solid ${ok ? '#00ff00' : '#eab308'}`
 });
 
 /** Per-coin badge: verified bytes + ElectrumX/EVM readiness. */
@@ -93,11 +93,16 @@ const MM2SwapInterface: React.FC = () => {
 
   const tradeableSet = useMemo(() => new Set(tradeableCoins), [tradeableCoins]);
 
-  // Refresh the orderbook whenever the pair changes (and we're connected).
+  // Refresh the orderbook whenever the pair changes (and we're connected), then
+  // keep polling. The very first fetch after connect often races the libp2p
+  // handshake to the seed (the P2P link needs ~1s), so a single fetch reports
+  // "no response from any peer". Polling makes it self-heal within a few seconds
+  // and keeps the book fresh as orders arrive.
   useEffect(() => {
-    if (isConnected && base && rel && base !== rel) {
-      fetchOrderbook(base, rel);
-    }
+    if (!(isConnected && base && rel && base !== rel)) return;
+    fetchOrderbook(base, rel);
+    const id = setInterval(() => fetchOrderbook(base, rel), 6000);
+    return () => clearInterval(id);
   }, [isConnected, base, rel, fetchOrderbook]);
 
   const bestAsk = getBestPrice('buy');   // price to acquire `base` paying `rel`
@@ -168,7 +173,7 @@ const MM2SwapInterface: React.FC = () => {
               <div className="font-mono text-sm" style={isConnected ? vb.greenGlow : vb.glow}>
                 {isConnected ? `kdf DAEMON ONLINE` : 'kdf DAEMON OFFLINE'}
               </div>
-              <div className="text-[10px] font-mono text-red-300/70">
+              <div className="text-[10px] font-mono text-yellow-300/70">
                 {isConnected
                   ? `v${version ?? '?'} · 127.0.0.1:7783 · trustless HTLC atomic swaps`
                   : 'start it: scripts/start-mm2.sh (Komodo DeFi Framework)'}
@@ -186,7 +191,7 @@ const MM2SwapInterface: React.FC = () => {
           </button>
         </div>
         {error && (
-          <div className="mt-2 flex items-center gap-2 text-[11px] font-mono text-red-400">
+          <div className="mt-2 flex items-center gap-2 text-[11px] font-mono text-yellow-400">
             <AlertTriangle size={12} /> {error}
           </div>
         )}
@@ -197,7 +202,7 @@ const MM2SwapInterface: React.FC = () => {
         <div className="p-4 rounded-lg bg-black/60" style={vb.boxGlow}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-mono text-sm" style={vb.glowSubtle}>COINS</h3>
-            <span className="text-[10px] font-mono text-red-300/60">
+            <span className="text-[10px] font-mono text-yellow-300/60">
               {enabledCoins.length}/{wattxchangeCoins.length} ENABLED
             </span>
           </div>
@@ -208,9 +213,9 @@ const MM2SwapInterface: React.FC = () => {
               const bal = balances[coin];
               return (
                 <div key={coin}
-                  className="flex items-center justify-between p-2 rounded bg-red-950/20 border border-red-900/40">
+                  className="flex items-center justify-between p-2 rounded bg-yellow-950/20 border border-yellow-900/40">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-mono text-xs text-red-200 w-12">{coin}</span>
+                    <span className="font-mono text-xs text-yellow-200 w-12">{coin}</span>
                     <CoinBadges coin={coin} />
                   </div>
                   <div className="flex items-center gap-2">
@@ -253,34 +258,34 @@ const MM2SwapInterface: React.FC = () => {
 
           {/* Orderbook summary */}
           <div className="grid grid-cols-2 gap-2 mb-3 text-center">
-            <div className="p-2 rounded bg-red-950/20 border border-red-900/40">
-              <div className="text-[9px] font-mono text-red-300/60">BEST ASK (BUY)</div>
+            <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/40">
+              <div className="text-[9px] font-mono text-yellow-300/60">BEST ASK (BUY)</div>
               <div className="font-mono text-xs" style={vb.greenGlow}>
                 {orderbookMatchesPair && bestAsk ? parseFloat(bestAsk).toPrecision(6) : '—'}
               </div>
             </div>
-            <div className="p-2 rounded bg-red-950/20 border border-red-900/40">
-              <div className="text-[9px] font-mono text-red-300/60">BEST BID (SELL)</div>
+            <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/40">
+              <div className="text-[9px] font-mono text-yellow-300/60">BEST BID (SELL)</div>
               <div className="font-mono text-xs" style={vb.glowSubtle}>
                 {orderbookMatchesPair && bestBid ? parseFloat(bestBid).toPrecision(6) : '—'}
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between mb-3 text-[10px] font-mono text-red-300/60">
+          <div className="flex items-center justify-between mb-3 text-[10px] font-mono text-yellow-300/60">
             <span>{orderbookMatchesPair ? `${orderbook?.numasks ?? 0} asks · ${orderbook?.numbids ?? 0} bids` : 'no book'}</span>
             <button onClick={() => fetchOrderbook(base, rel)}
-              className="flex items-center gap-1 hover:text-red-200">
+              className="flex items-center gap-1 hover:text-yellow-200">
               <RefreshCw size={10} /> REFRESH
             </button>
           </div>
 
-          <label className="block text-[10px] font-mono text-red-300/60 mb-1">VOLUME ({base})</label>
+          <label className="block text-[10px] font-mono text-yellow-300/60 mb-1">VOLUME ({base})</label>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
             inputMode="decimal"
-            className="w-full px-3 py-2 mb-3 rounded bg-black/70 font-mono text-sm text-red-100 outline-none"
+            className="w-full px-3 py-2 mb-3 rounded bg-black/70 font-mono text-sm text-yellow-100 outline-none"
             style={vb.boxGlow}
           />
 
@@ -304,7 +309,7 @@ const MM2SwapInterface: React.FC = () => {
               SELL {base}
             </button>
           </div>
-          <p className="mt-2 text-[9px] font-mono text-red-300/50 leading-relaxed">
+          <p className="mt-2 text-[9px] font-mono text-yellow-300/50 leading-relaxed">
             Taker swap against the best resting order. kdf escrows both legs via
             HTLC — funds only move on secret reveal. No bridge, no custodian.
           </p>
@@ -319,7 +324,7 @@ const MM2SwapInterface: React.FC = () => {
           )}
         </h3>
         {recentSwaps.length === 0 && activeSwaps.length === 0 ? (
-          <p className="text-[11px] font-mono text-red-300/50">No swaps yet.</p>
+          <p className="text-[11px] font-mono text-yellow-300/50">No swaps yet.</p>
         ) : (
           <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
             {recentSwaps.map((s) => {
@@ -328,8 +333,8 @@ const MM2SwapInterface: React.FC = () => {
               const failed = s.error_events?.includes(last);
               return (
                 <div key={s.uuid}
-                  className="flex items-center justify-between p-2 rounded bg-red-950/20 border border-red-900/40 font-mono text-[11px]">
-                  <span className="text-red-200">
+                  className="flex items-center justify-between p-2 rounded bg-yellow-950/20 border border-yellow-900/40 font-mono text-[11px]">
+                  <span className="text-yellow-200">
                     {s.maker_coin}/{s.taker_coin} · {s.uuid.slice(0, 8)}
                   </span>
                   <span className="flex items-center gap-1"
@@ -351,11 +356,11 @@ const CoinSelect: React.FC<{
   label: string; value: string; onChange: (v: string) => void; coins: string[];
 }> = ({ label, value, onChange, coins }) => (
   <div className="flex-1">
-    <label className="block text-[10px] font-mono text-red-300/60 mb-1">{label}</label>
+    <label className="block text-[10px] font-mono text-yellow-300/60 mb-1">{label}</label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-2 py-2 rounded bg-black/70 font-mono text-sm text-red-100 outline-none"
+      className="w-full px-2 py-2 rounded bg-black/70 font-mono text-sm text-yellow-100 outline-none"
       style={vb.boxGlow}
     >
       {coins.map((c) => <option key={c} value={c} className="bg-black">{c}</option>)}

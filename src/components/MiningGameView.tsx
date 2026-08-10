@@ -1,14 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Zap, Trophy, Gift, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
+import { Gamepad2, Zap, Trophy, Gift, ExternalLink, Maximize2, Minimize2, Download, AppWindow } from 'lucide-react';
 import NFTStaking from './mining/NFTStaking';
 import MiningStats from './mining/MiningStats';
 import RewardsClaiming from './mining/RewardsClaiming';
 import MiningRigConfigurator from './mining/MiningRigConfigurator';
 
+// The game and the staking/claims site live on their own subdomains (GitHub
+// Pages, CNAMEd from Cloudflare). The embed uses the same-origin /mining-game/
+// mount for the game (instant, no cross-origin quirks); the buttons open the
+// canonical subdomains.
+const GAME_URL = 'https://mining-game.wattxchange.app/';
+const GAME_EMBED = '/mining-game/';
+const STAKE_URL = 'https://stake.mining-game.wattxchange.app/';
+
 const MiningGameView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dapp' | 'stake' | 'mine' | 'rewards' | 'configure'>('dapp');
+  const [activeTab, setActiveTab] = useState<'dapp' | 'stakeclaim' | 'stake' | 'mine' | 'rewards' | 'configure'>('dapp');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [gameLoaded, setGameLoaded] = useState(false);
+  const installEvent = useRef<Event & { prompt?: () => void } | null>(null);
+  const [installReady, setInstallReady] = useState(false);
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => { e.preventDefault(); installEvent.current = e as Event & { prompt?: () => void }; setInstallReady(true); };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+  }, []);
+
+  const installApp = () => {
+    // Prefer the browser's native install prompt (installs the WATTxchange PWA
+    // including this tab). Fallback: open the game standalone — its own
+    // manifest + in-game INSTALL button make the game itself installable.
+    if (installEvent.current?.prompt) { installEvent.current.prompt(); return; }
+    window.open(GAME_URL, '_blank', 'noopener');
+    alert('Install from the game window: use the "INSTALL APP" button in its corner, or the install icon in the browser address bar.');
+  };
+  const openWindow = (url: string) =>
+    window.open(url, 'mining-game', 'popup,noopener,width=1360,height=860');
 
   return (
     <div className="space-y-6">
@@ -33,6 +61,16 @@ const MiningGameView: React.FC = () => {
             }`}
           >
             Play Game
+          </button>
+          <button
+            onClick={() => setActiveTab('stakeclaim')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'stakeclaim'
+                ? 'bg-yellow-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Stake &amp; Claim
           </button>
           <button
             onClick={() => setActiveTab('configure')}
@@ -176,8 +214,29 @@ const MiningGameView: React.FC = () => {
               </div>
               
               <div className="flex items-center space-x-2">
+                <motion.button
+                  onClick={installApp}
+                  className="flex items-center space-x-2 px-3 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg transition-colors text-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title={installReady ? 'Install to this computer' : 'Open the game and install it from there'}
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Install App</span>
+                </motion.button>
+
+                <motion.button
+                  onClick={() => openWindow(GAME_URL)}
+                  className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <AppWindow className="w-4 h-4" />
+                  <span>Open in New Window</span>
+                </motion.button>
+
                 <motion.a
-                  href="https://stake.mining.game"
+                  href={GAME_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
@@ -185,9 +244,9 @@ const MiningGameView: React.FC = () => {
                   whileTap={{ scale: 0.95 }}
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>Open in New Tab</span>
+                  <span>New Tab</span>
                 </motion.a>
-                
+
                 <motion.button
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
@@ -203,28 +262,29 @@ const MiningGameView: React.FC = () => {
               </div>
             </div>
             
-            {/* Embedded dApp */}
+            {/* Embedded 3D game (same-origin mount; WASD/X walk, F for mouse-look) */}
             <div className={`relative ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[600px]'}`}>
               <iframe
-                src="https://stake.mining.game"
+                src={GAME_EMBED}
                 className="w-full h-full rounded-b-xl"
                 title="The Mining Game"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-                allow="clipboard-read; clipboard-write; web-share"
+                allow="clipboard-read; clipboard-write; web-share; pointer-lock; fullscreen"
                 loading="lazy"
+                onLoad={() => setGameLoaded(true)}
               />
-              
-              {/* Loading overlay */}
-              <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center rounded-b-xl">
-                <div className="text-center">
-                  <motion.div
-                    className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto mb-4"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  />
-                  <p className="text-slate-400">Loading Mining Game...</p>
+
+              {!gameLoaded && (
+                <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center rounded-b-xl pointer-events-none">
+                  <div className="text-center">
+                    <motion.div
+                      className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto mb-4"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                    <p className="text-slate-400">Loading Mining Game...</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Quick Actions */}
@@ -240,6 +300,52 @@ const MiningGameView: React.FC = () => {
                   <span className="text-sm text-emerald-400">Live</span>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'stakeclaim' && (
+          <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl border border-slate-700/50">
+            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+              <div className="flex items-center space-x-3">
+                <Trophy className="w-6 h-6 text-yellow-400" />
+                <div>
+                  <h3 className="text-xl font-semibold">Staking &amp; Claims</h3>
+                  <p className="text-slate-400 text-sm">
+                    NFT + WATT staking, inventory, rigs and cross-chain claims — stake.mining-game.wattxchange.app
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <motion.button
+                  onClick={() => openWindow(STAKE_URL)}
+                  className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <AppWindow className="w-4 h-4" />
+                  <span>Open in New Window</span>
+                </motion.button>
+                <motion.a
+                  href={STAKE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>New Tab</span>
+                </motion.a>
+              </div>
+            </div>
+            <div className="relative h-[700px]">
+              <iframe
+                src={STAKE_URL}
+                className="w-full h-full rounded-b-xl"
+                title="Mining Game Staking and Claims"
+                allow="clipboard-read; clipboard-write; web-share"
+                loading="lazy"
+              />
             </div>
           </div>
         )}

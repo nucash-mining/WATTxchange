@@ -23,7 +23,8 @@ export const BRIDGE_DEPLOYMENTS: BridgeDeployment[] = [
   { chainId: 22356, name: 'WATTx', rpcUrl: 'http://127.0.0.1:13889', nativeSymbol: 'WTX', factory: null, vault: null },
   { chainId: 1, name: 'Ethereum', rpcUrl: 'https://ethereum.publicnode.com', nativeSymbol: 'ETH', factory: null, vault: null },
   { chainId: 56, name: 'BSC', rpcUrl: 'https://bsc-dataseed.binance.org', nativeSymbol: 'BNB', factory: null, vault: null },
-  { chainId: 137, name: 'Polygon', rpcUrl: 'https://polygon-rpc.com', nativeSymbol: 'MATIC', factory: null, vault: null },
+  // Deployed 2026-08-09 by the same deployer (nonces 0/1) — addresses match ALT.
+  { chainId: 137, name: 'Polygon', rpcUrl: 'https://polygon-bor-rpc.publicnode.com', nativeSymbol: 'POL', factory: '0x80938eB385FA99861B56aE447E5a611A88700eE3', vault: '0x54117CAd2835B3D5B499f3acA03B1Ff643Af1955' },
   { chainId: 250, name: 'Fantom', rpcUrl: 'https://rpc.ftm.tools', nativeSymbol: 'FTM', factory: null, vault: null },
   { chainId: 43114, name: 'Avalanche', rpcUrl: 'https://api.avax.network/ext/bc/C/rpc', nativeSymbol: 'AVAX', factory: null, vault: null },
   { chainId: 42161, name: 'Arbitrum', rpcUrl: 'https://arb1.arbitrum.io/rpc', nativeSymbol: 'ETH', factory: null, vault: null },

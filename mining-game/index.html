@@ -595,7 +595,8 @@ function rigHash(r){ if(r.crashT>0||!r.on||r.wear>=100) return 0;
 function rigWatt(r){ if(!r.on) return 0; let w=ITEMS[1].watt; if(r.cpu) w+=ITEMS[r.cpu].watt; if(r.asic) w+=ITEMS[r.asic].watt; for(const g of r.gpus) w+=ITEMS[g].watt;
   return (r.crashT>0||r.wear>=100) ? w*0.25 : w*ocWattMult(r); }
 function rigSW(r){ let s=ITEMS[1].sw; if(r.cpu) s+=ITEMS[r.cpu].sw; if(r.asic) s+=ITEMS[r.asic].sw; if(r.frame) s+=ITEMS[14].sw; for(const g of r.gpus) s+=ITEMS[g].sw; return s; }
-function gpuCap(r){ return r.frame?4:2; }
+/* frame = open-air rack: 4-wide rows on BOTH rails (bottom + top) = 8 cards */
+function gpuCap(r){ return r.frame?8:2; }
 function totHash(){ return S.rigs.reduce((a,r)=>a+rigHash(r),0) * Math.pow(CFG.gen2Mult,S.gen-1); }
 function totWatt(){ return S.rigs.reduce((a,r)=>a+rigWatt(r),0); }
 function totSW(){ return S.rigs.reduce((a,r)=>a+rigSW(r),0) + (S.badge?ITEMS[2].sw:0) + (S.tower?ITEMS[19].sw:0); }
@@ -1241,34 +1242,60 @@ function buildRigVis(i){
     mm.position.x+=1.35; mm.position.z+=0.58; mm.position.y+=DESK.SURF+0.02; mm.rotation.y=-0.3; g.add(mm); }
   // CPU + GPUs live INSIDE the case (see 🔧 WORKBENCH) unless an open-air frame is racked
   let cpuM=null;
-  // Bit Hammer ASIC on the floor beside the desk (real ASIC ≈ 40cm long)
+  // Bit Hammer ASIC on the TOP SHELF beside the GPU rack (real ASIC ≈ 40cm long)
   if(r.asic&&PROTO.asic){ const am=normalizeFit(instOf('asic'),0.95);
-    am.position.x+=2.6; am.position.z+=0.45; am.rotation.y=-0.9; g.add(am); }
+    am.position.x+=1.65; am.position.z+=-0.62; am.position.y+=DESK.SHELF+0.05;
+    am.rotation.y=-0.25; g.add(am); }
   const gpuMs=[]; const fanMs=[];
   if(r.frame&&PROTO.frame){
     // open-air mining rig frame on the shelf (never larger than the desk).
     const fm=normalizeFit(instOf('frame'),1.9);
     fm.position.x+=0; fm.position.z+=-0.62; fm.position.y+=DESK.SHELF+0.05; g.add(fm);
-    /* Real open-air rig: GPUs stand side by side, ALL facing the same way, and
-       wrap into rows of 4 as the rig grows. The per-item `flip` flag used to
-       point mixed gen1/gen2 cards different directions — force ONE uniform
-       orientation instead (FRAME_GPU_FLIP flips the whole row together if the
-       base model sits upside-down). */
+    /* Real open-air rig (art direction 2026-08-11): GPUs sit in rows of 4 on
+       BOTH rails — bottom rail fills first, then the top rail — every card the
+       same way round with the FANS FACING LEFT (-x). The per-item `flip` flag
+       used to point mixed gen1/gen2 cards different directions — force ONE
+       uniform orientation instead (FRAME_GPU_FLIP flips the whole set together
+       if the base model sits upside-down). */
     const FRAME_GPU_FLIP=false;      // true => rotate every card 180° on X together
-    const gn=r.gpus.length, perRow=4, span=0.56, rowGap=0.62;
-    const baseZ=-0.5, baseY=DESK.SHELF+0.25;
+    /* The GLBs' native orientation IS fans-left (-x) — verified in-browser
+       2026-08-11 for both GP50 and TX120. Identity + uniform is correct; the
+       old mixed look came from honoring the per-item `flip` flag. */
+    const gn=r.gpus.length, perRow=4, span=0.56, railGap=0.72, rowGap=0.62;
+    const baseZ=-0.62, baseY=DESK.SHELF+0.22;
+    /* Fan direction: rotate every card so the FANS FACE LEFT (-x). Identity did
+       not read as fans-left in-game, so apply an explicit yaw. If the fans come
+       out facing RIGHT, flip FANS_YAW's sign (the whole set turns together). */
+    const FANS_YAW = -Math.PI/2;
+    // riser-board PCB material (shared)
+    const pcbMat=new THREE.MeshStandardMaterial({color:0x0b3d1e,roughness:.75,metalness:.1});
+    const riserGeo=new THREE.BoxGeometry(0.20,0.02,0.085);
     r.gpus.forEach((gid,k)=>{
       const it=ITEMS[gid];
       const raw=instOf(it.key);
+      raw.rotation.set(FRAME_GPU_FLIP?Math.PI:0, FANS_YAW, 0); // uniform, fans LEFT
       const m=normalizeFit(raw,0.60); // ~27cm card at 2.25u/m
-      m.rotation.set(FRAME_GPU_FLIP?Math.PI:0, 0, 0); // uniform, ignore per-item flip
-      const row=Math.floor(k/perRow), col=k%perRow;
-      const inRow=Math.min(perRow, gn-row*perRow);
+      const rail=Math.floor(k/perRow)%2;          // 0 = bottom rail, 1 = top rail
+      const depth=Math.floor(k/(perRow*2));       // >8 cards: next pair of rails behind
+      const col=k%perRow;
+      const inRow=Math.min(perRow, gn-Math.floor(k/perRow)*perRow);
       const x0=-(inRow-1)*span/2;
-      m.position.x+= x0+col*span;
-      m.position.z+= baseZ - row*rowGap;   // each new row of 4 sits behind the last
-      m.position.y+= baseY;
+      const gx=x0+col*span, gy=baseY+rail*railGap, gz=baseZ-depth*rowGap;
+      m.position.x+= gx; m.position.z+= gz; m.position.y+= gy;
       g.add(m); gpuMs.push(m);
+      /* PCI-e riser BOARD at the bottom of the card — a small green PCB the GPU's
+         edge sits in, on the rail. */
+      const riser=new THREE.Mesh(riserGeo, pcbMat);
+      riser.position.set(gx, gy-0.30, gz);
+      g.add(riser);
+      /* riser ribbon cable: from the riser board down to the PC case (mobo). */
+      const from=new THREE.Vector3(gx, gy-0.30, gz+0.05);
+      const to=new THREE.Vector3(-1.35, DESK.SURF+0.95, 0.05);
+      const mid=new THREE.Vector3((from.x+to.x)/2, DESK.SHELF-0.25, (from.z+to.z)/2+0.25);
+      const curve=new THREE.CatmullRomCurve3([from,mid,to]);
+      const cable=new THREE.Mesh(new THREE.TubeGeometry(curve,14,0.012,5),
+        new THREE.MeshStandardMaterial({color:0x101322,roughness:.6,metalness:.3}));
+      g.add(cable);
     });
     /* Cooling upgrade => a bank of RGB fans across the front of the frame,
        one per GPU column, spinning + colour-cycling (animated in the loop). */
@@ -1480,9 +1507,13 @@ const SLOT_Y=0.32;
 function benchSlotDefs(r){
   const defs=[];
   defs.push({kind:'cpu', x:-0.28, z:-0.52, y:0.46, label:'CPU SOCKET', filled:!!r.cpu});
-  const cap=gpuCap(r);
-  for(let k=0;k<cap;k++)
+  const cap=gpuCap(r), onBoard=Math.min(cap,4);
+  for(let k=0;k<onBoard;k++)
     defs.push({kind:'gpu', idx:k, x:0, z:0.12+k*0.26, label:'PCIe x16 · '+(k+1), filled:!!r.gpus[k]});
+  /* frame owned: GPUs 5-8 hang on the open-air rack via PCI-e risers */
+  for(let k=onBoard;k<cap;k++)
+    defs.push({kind:'gpu', idx:k, floor:true, x:2.15+((k-4)%2)*0.8, z:0.6+Math.floor((k-4)/2)*0.6,
+      label:'RACK RISER · '+(k-3), filled:!!r.gpus[k]});
   defs.push({kind:'asic', x:-2.6, z:0.4, floor:true, label:'FLOOR PAD', filled:!!r.asic});
   defs.push({kind:'frame', x:2.6, z:0.4, floor:true, label:'RACK ZONE', filled:!!r.frame});
   return defs;
@@ -1538,7 +1569,30 @@ function benchSync(){
   const r2=S.rigs[benchRi];
   if(r2.cpu){ const m=benchCompMesh('cpu',r2.cpu); m.position.set(-0.28,0.42,-0.52); bMountG.add(m); }
   r2.gpus.forEach((gid,k)=>{
-    const m=benchCompMesh('gpu',gid); m.position.set(0,SLOT_Y+0.06,0.12+k*0.26); bMountG.add(m);
+    if(k<4){
+      /* FASTENED into the PCIe slot: card stands perpendicular to the board,
+         edge connector seated IN the slot (no float gap). */
+      const m=benchCompMesh('gpu',gid);
+      const bb=new THREE.Box3().setFromObject(m); const sz=new THREE.Vector3(); bb.getSize(sz);
+      m.rotation.x=-Math.PI/2;                       // stand the card up, connector down
+      m.position.set(0, SLOT_Y-0.03+sz.z/2, 0.12+k*0.26);
+      bMountG.add(m);
+    } else {
+      /* overflow cards live on the open-air rack, wired back with risers */
+      const col=(k-4)%2, lvl=Math.floor((k-4)/2);
+      const rg=new THREE.Group(); rg.position.set(2.75,0,-0.3); rg.rotation.y=-0.55;
+      const m=benchCompMesh('gpu',gid); m.scale.multiplyScalar(0.48);   // fit the 1.7u frame
+      m.position.set(-0.4+col*0.8, 0.32+lvl*0.55, 0.25);
+      rg.add(m); bScene.add(rg); bSceneBits.push(rg);
+      /* PCI-e riser cable: card -> board edge, sagging between */
+      rg.updateMatrixWorld(true);
+      const from=m.getWorldPosition(new THREE.Vector3()); from.y+=0.1;
+      const to=bBoardG.localToWorld(new THREE.Vector3(0.72, SLOT_Y, 0.3+((k-4)*0.14)));
+      const mid=new THREE.Vector3((from.x+to.x)/2, Math.min(from.y,to.y)-0.35, (from.z+to.z)/2+0.15);
+      const cable=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from,mid,to]),16,0.02,5),
+        new THREE.MeshStandardMaterial({color:0x131628,roughness:.55,metalness:.35}));
+      bScene.add(cable); bSceneBits.push(cable);
+    }
   });
   if(r2.asic){ const m=benchCompMesh('asic',0); m.position.set(-2.6,0,0.4); m.rotation.y=0.7; bScene.add(m); bSceneBits.push(m); }
   if(r2.frame){ const m=benchCompMesh('frame',0); m.position.set(2.75,0,-0.3); m.rotation.y=-0.55; bScene.add(m); bSceneBits.push(m); }
@@ -1870,7 +1924,7 @@ function installPart(ri,id){
   if(it.comp==='Processor'){ if(r.cpu){SFX.err();return;} r.cpu=id; }
   else if(it.comp==='ASIC'){ if(r.asic){SFX.err();return;} r.asic=id; }
   else if(it.comp==='Frame'){ if(r.frame){SFX.err();return;} r.frame=1; }
-  else { if(r.gpus.length>=gpuCap(r)){SFX.err();toast(r.frame?'GPU slots full':'GPU slots full — install a Mining Rig Frame for 4 slots','red');return;} r.gpus.push(id); }
+  else { if(r.gpus.length>=gpuCap(r)){SFX.err();toast(r.frame?'GPU slots full':'GPU slots full — install a Mining Rig Frame for 8 slots','red');return;} r.gpus.push(id); }
   S.inv[id]--;
   SFX.install(); buildRigVis(ri);
   burst(new THREE.Vector3(SLOTS[r.slot][0],2.0,SLOTS[r.slot][1]),14,partMatCyan,2);

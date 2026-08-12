@@ -1330,36 +1330,39 @@ function buildRigVis(i){
     // open-air mining rig frame on the shelf (never larger than the desk).
     const fm=normalizeFit(instOf('frame'),1.9);
     fm.position.x+=0; fm.position.z+=-0.62; fm.position.y+=DESK.SHELF+0.05; g.add(fm);
-    /* Real open-air rig (art direction 2026-08-11): GPUs sit in rows of 4 on
-       BOTH rails — bottom rail fills first, then the top rail — every card the
-       same way round with the FANS FACING LEFT (-x). The per-item `flip` flag
-       used to point mixed gen1/gen2 cards different directions — force ONE
-       uniform orientation instead (FRAME_GPU_FLIP flips the whole set together
-       if the base model sits upside-down). */
+    /* Real open-air rig (user-picked pose 2026-08-11): rows of 4 on BOTH rails
+       (bottom fills first, then the top rail), every card PARALLEL to the rack
+       with its FAN FACE OUT toward the player — the wall-of-fans look. Verified
+       against the inscribed GLBs in an isolated harness: BOTH GP50 and TX120
+       are authored long-axis=x, fans=+z, so IDENTITY rotation is exactly this
+       pose; ignore the per-item `flip` flag (it's what mixed the old cards). */
     const FRAME_GPU_FLIP=false;      // true => rotate every card 180° on X together
-    /* The GLBs' native orientation IS fans-left (-x) — verified in-browser
-       2026-08-11 for both GP50 and TX120. Identity + uniform is correct; the
-       old mixed look came from honoring the per-item `flip` flag. */
-    const gn=r.gpus.length, perRow=4, span=0.56, railGap=0.72, rowGap=0.62;
-    const baseZ=-0.62, baseY=DESK.SHELF+0.22;
-    /* Fan direction: rotate every card so the FANS FACE LEFT (-x). Identity did
-       not read as fans-left in-game, so apply an explicit yaw. If the fans come
-       out facing RIGHT, flip FANS_YAW's sign (the whole set turns together). */
-    const FANS_YAW = -Math.PI/2;
+    const gn=r.gpus.length, perRow=4, span=0.46, railGap=0.72, rowGap=0.62;
+    const baseZ=-0.60, baseY=DESK.SHELF+0.22;
+    /* Per-model pose correction to reach the shared fans-out pose. The gen1
+       GLBs (tx120/gp50) are authored fans=+z so identity is right; the gen2
+       bundle's scenes each carry their own baked orientation — tx190/gp720 are
+       authored LYING FLAT fans-down (why the old `flip` flag existed) and
+       gpx880 stands on end. Determined empirically in-browser 2026-08-11 by
+       bbox-scanning + visual confirm of the fan side. */
+    const RACK_POSE={ tx190:[-Math.PI/2,0,0], gp720:[-Math.PI/2,0,0], gpx880:[0,-Math.PI/2,0] };
     // riser-board PCB material (shared)
     const pcbMat=new THREE.MeshStandardMaterial({color:0x0b3d1e,roughness:.75,metalness:.1});
     const riserGeo=new THREE.BoxGeometry(0.20,0.02,0.085);
     r.gpus.forEach((gid,k)=>{
       const it=ITEMS[gid];
       const raw=instOf(it.key);
-      raw.rotation.set(FRAME_GPU_FLIP?Math.PI:0, FANS_YAW, 0); // uniform, fans LEFT
-      const m=normalizeFit(raw,0.60); // ~27cm card at 2.25u/m
+      const pose=RACK_POSE[it.key]||[0,0,0];
+      raw.rotation.set(pose[0]+(FRAME_GPU_FLIP?Math.PI:0), pose[1], pose[2]); // uniform fans OUT (+z)
+      const m=normalizeFit(raw,0.56); // ~25cm card at 2.25u/m
       const rail=Math.floor(k/perRow)%2;          // 0 = bottom rail, 1 = top rail
       const depth=Math.floor(k/(perRow*2));       // >8 cards: next pair of rails behind
       const col=k%perRow;
       const inRow=Math.min(perRow, gn-Math.floor(k/perRow)*perRow);
       const x0=-(inRow-1)*span/2;
-      const gx=x0+col*span, gy=baseY+rail*railGap, gz=baseZ-depth*rowGap;
+      /* dense row: neighbours slightly overlap in x, so stagger alternate cards
+         a hair in z — reads layered instead of z-fighting */
+      const gx=x0+col*span, gy=baseY+rail*railGap, gz=baseZ-depth*rowGap+(col%2)*0.04;
       m.position.x+= gx; m.position.z+= gz; m.position.y+= gy;
       g.add(m); gpuMs.push(m);
       /* PCI-e riser BOARD snapped onto the card's bottom edge — normalizeFit
@@ -1376,11 +1379,12 @@ function buildRigVis(i){
       const cable=new THREE.Mesh(new THREE.TubeGeometry(curve,14,0.012,5),
         new THREE.MeshStandardMaterial({color:0x101322,roughness:.6,metalness:.3}));
       g.add(cable);
-      /* Cooling upgrade => an RGB fan IN FRONT OF THIS CARD, resting on the
-         same rail the card sits on (ring radius 0.16+0.028 => center +0.19). */
+      /* Cooling upgrade => an RGB fan IN FRONT OF THIS CARD, its BOTTOM resting
+         on the same rail the card sits on (ring outer radius 0.188 => center
+         gy+0.20 puts the ring bottom just on the rail). */
       if(S.upg&&S.upg.cooling>0){
         const fan=makeRGBFan();
-        fan.position.set(gx, gy+0.19, gz+0.30);
+        fan.position.set(gx, gy+0.20, gz+0.24);
         g.add(fan); fanMs.push(fan);
       }
     });
@@ -2093,7 +2097,7 @@ const WEB3CFG={
       nft:'0x970a8b10147e3459d3cbf56329b76ac18d329728', watt:'0xE960d5076cd3169C343Ee287A2c3380A222e5839', staking:'0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275',
       nftV2:null, wattV2:null,
       pools:{ registry:'0xCe347180C3A45151C10366Da43fD822289ebB075', hub:'0x6f8330bB06D93A8932618EC1Fbb2818323EC3bf5',
-              engine:'0x5e6997616c7c53e1E700a97BC9e42C22C4cDb0be', rigNft:'0xf9F94e9fa744DE1209EF28321604a0Aa3B21a884', stakingPool:'0x07ef3eCDB4e4fd9D914787031b6cB746340bF661', migrator:'0xf2DbF910aD1cA08c3879C72AE6277fA903E058c4' },
+              engine:'0x85Dbfc41f745301fe2feE6F2307a28beF6dcEBfB', rigNft:'0xf9F94e9fa744DE1209EF28321604a0Aa3B21a884', stakingPool:'0x07ef3eCDB4e4fd9D914787031b6cB746340bF661', migrator:'0xf2DbF910aD1cA08c3879C72AE6277fA903E058c4' },
       economy:{ items:'0x0CDbf4926a8EdFFaa803B96f8fa90B065DE19Eb2', shop:'0xeE6B67c3993884F1b693A4a66e952Bb563463131', stakingPool:'0x7E8FC9d7D7588F410E1399aC690F901268B08a8d', wattV2:'0x387693eCEC037C61943404F03c097d2ADA15ae3f' },
       /* QuickSwap V2 — real WPOL/WATT pool 0xEC54584a…Bef. Sell POL→WATT native-in. */
       dex:{ kind:'univ2', router:'0xa5E0829CaCED8fFDD4De3c43696c57F7D7A678ff', weth:'0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
@@ -2105,7 +2109,7 @@ const WEB3CFG={
       nft:'0xf9670e5D46834561813CA79854B3d7147BBbFfb2', watt:'0x6645143e49B3a15d8F205658903a55E520444698', staking:'0xe463045318393095F11ed39f1a98332aBCc1A7b1',
       nftV2:null, wattV2:null,
       pools:{ registry:'0x0f1e3C2336fBf35148FdbA21F81fA3B57a1DF254', hub:'0xfbc6168D4c4f112275713B976612891E432e265e',
-              engine:'0x7069E0498bFF3022CF65c7b7F3D0da366B930c74', rigNft:'0x131A875e1bfEB2B3735E5d9Ad5e8871fF6CE9381', stakingPool:'0x62fC935400104371777aD36B78CF73f2c48dcD24', migrator:'0xdB13ecc87960632b8aAe93640F246CdAE1675B78' },
+              engine:'0x5B48e36A3FF8Dc6AA0388807a553eb45609c14Be', rigNft:'0x131A875e1bfEB2B3735E5d9Ad5e8871fF6CE9381', stakingPool:'0x62fC935400104371777aD36B78CF73f2c48dcD24', migrator:'0xdB13ecc87960632b8aAe93640F246CdAE1675B78' },
       economy:{ items:'0x851fd0205348783444Fc9EDe99Ca2321681EC99b', shop:'0x92809C4a46b4D0F11a48BE21fF13202EA56DcEB1', stakingPool:'0xa3f8B04310380cD13Ec85B11420d1fc848af36C4', wattV2:'0xB7635E386283CAE6FB1A710f19CaA8220beF630D' },
       /* SwapinDEX (original live venue) — WATT/wALT pool 0xb2F8e147…. Sell ALT→WATT native-in. */
       dex:{ kind:'univ2', router:'0xae168Ce47cebca9abbC5107a58df0532f1afa4d6', weth:'0x48721ADeFE5b97101722c0866c2AffCE797C32b6',
@@ -2120,7 +2124,7 @@ const WEB3CFG={
       nft:'0x566808D0747662d0a0eeC68A854b695C01BE76a6', watt:'0x99B5503c7144dcf241551aDabFbb58e88829BD3a', staking:'0xBDfdF71830f6FC0C1de4f983EC774d03Aa006474',
       nftV2:null, wattV2:null,
       pools:{ registry:'0x3a02971ceAF9B817e770c36e393A95542bC65Df2', hub:'0x9fAb0fBa9b458A7A0c9D60a26BC33f6E2695F179',
-              engine:'0xb38e119a70F621bf080F51e2A436bEBc248cc0Dc', rigNft:'0x5f9be9282E29fCE419cE2e424ED3fd0be842C7e7', stakingPool:'0x0176566fe72E5733008Bfc68439FB2F3Eb43901B', migrator:'0x2301Fc735d7770f955c47B21d0FE2a66E3A195f9' },
+              engine:'0xE2D4eC76dFFAC5215a03332B4A01ce0AFF9A91c1', rigNft:'0x5f9be9282E29fCE419cE2e424ED3fd0be842C7e7', stakingPool:'0x0176566fe72E5733008Bfc68439FB2F3Eb43901B', migrator:'0x2301Fc735d7770f955c47B21d0FE2a66E3A195f9' },
       economy:{ items:'0x9baaFDE958d0dE13043CBb4292e467EB00ED06B4', shop:'0x0239f289Cca84E7Bb899Fe065ba452293D501355', stakingPool:'0xe9000a1ba29c3e87B4F964E9514eA4e8fd5d5749', wattV2:'0xc4603E2582aE320857379819123dFbFd3093dcfa' } },
   },
   /* PayoutHub target ids, in deploy-script registration order (identical on

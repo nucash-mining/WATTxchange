@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2 } from 'lucide-react';
+import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen } from 'lucide-react';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 interface SidebarProps {
   currentView: string;
-  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'bridge' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool') => void;
+  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'bridge' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook') => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
@@ -14,9 +14,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const menuItems = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'nodes', label: 'Nodes', icon: Server },
+    { id: 'validators', label: 'Validators', icon: ShieldCheck },
     { id: 'explorer', label: 'Explorer', icon: Search },
     { id: 'pool', label: 'Mining Pools', icon: Cpu },
     { id: 'dex', label: 'DEX', icon: TrendingUp },
+    { id: 'orderbook', label: 'Orderbook', icon: BookOpen },
     { id: 'defi', label: 'DeFi Hub', icon: Coins },
     { id: 'bridge', label: 'Bridge', icon: Link2 },
     { id: 'mining', label: 'Mining Game', icon: Gamepad2 },
@@ -36,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           return (
             <motion.button
               key={item.id}
-              onClick={() => onViewChange(item.id as 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool')}
+              onClick={() => onViewChange(item.id as 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool' | 'orderbook')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive
                   ? item.id === 'nuchain'

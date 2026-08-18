@@ -238,6 +238,15 @@ class WalletService {
     return this.addresses.size > 0;
   }
 
+  /**
+   * The active login seed (BIP39 mnemonic), or null when no account is
+   * unlocked. kdf uses this to derive the same UTXO addresses the user owns,
+   * so atomic-swap deposits are recoverable — never an ephemeral session seed.
+   */
+  getMnemonic(): string | null {
+    return this.mnemonic;
+  }
+
   clear(): void {
     this.mnemonic = null;
     this.addresses.clear();

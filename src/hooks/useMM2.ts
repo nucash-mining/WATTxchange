@@ -13,10 +13,14 @@ import {
   SwapStatus,
   CoinConfig
 } from '../services/mm2Service';
+import { walletService } from '../services/walletService';
 
 interface MM2State {
   isConnected: boolean;
   isLoading: boolean;
+  /** True when no wallet seed is loaded yet — the user must sign in before the
+   *  DEX engine boots, so kdf derives their real (funded) addresses. */
+  needsLogin: boolean;
   error: string | null;
   version: string | null;
   enabledCoins: string[];
@@ -114,6 +118,7 @@ export function useMM2(options: UseMM2Options = {}): UseMM2Return {
   const [state, setState] = useState<MM2State>({
     isConnected: false,
     isLoading: false,
+    needsLogin: false,
     error: null,
     version: null,
     enabledCoins: [],
@@ -139,7 +144,23 @@ export function useMM2(options: UseMM2Options = {}): UseMM2Return {
 
   // Connect to mm2
   const connect = useCallback(async (): Promise<boolean> => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    // The DEX engine must boot with the user's wallet seed so kdf derives the
+    // addresses they actually hold funds on. Never boot with a throwaway seed:
+    // any deposit to its address would be unrecoverable after a reload.
+    const seed = walletService.getMnemonic();
+    if (!seed) {
+      setState(prev => ({ ...prev, isConnected: false, isLoading: false, needsLogin: true }));
+      return false;
+    }
+    // kdf can only be seeded once per page load. If it already booted under a
+    // different seed (e.g. a view-only session before sign-in, or a previous
+    // account), a full reload is the only way to re-seed it correctly.
+    if (mm2Service.isBootedWithDifferentSeed(seed)) {
+      if (typeof window !== 'undefined') window.location.reload();
+      return false;
+    }
+
+    setState(prev => ({ ...prev, isLoading: true, error: null, needsLogin: false }));
 
     try {
       const isRunning = await mm2Service.checkStatus();
@@ -528,13 +549,16 @@ export function useMM2(options: UseMM2Options = {}): UseMM2Return {
     }
   }, [refreshSwaps]);
 
-  // Auto-connect on mount
+  // Auto-connect on mount, and (re)connect whenever the auth state changes —
+  // signing in fires 'wattx:auth', which lets the engine boot with the freshly
+  // unlocked seed even if the user opened this tab before logging in.
   useEffect(() => {
-    if (autoConnect) {
-      connect();
-    }
-
+    if (!autoConnect) return;
+    connect();
+    const onAuth = () => { connect(); };
+    window.addEventListener('wattx:auth', onAuth);
     return () => {
+      window.removeEventListener('wattx:auth', onAuth);
       disconnect();
     };
   }, [autoConnect, connect, disconnect]);

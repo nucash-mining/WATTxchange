@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, Zap, LogOut, User } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
@@ -18,6 +18,15 @@ const WalletConnect: React.FC = () => {
     authService.getSession() ? { username: authService.getSession()!.username, address: authService.getSession()!.address } : null
   );
   const { isMobile } = useDeviceDetect();
+
+  // Let other panels (e.g. the DEX "SIGN IN WITH SEED" button) open this modal.
+  // Needed because when an injected EVM wallet is connected the header shows the
+  // wallet chip instead of a Sign-in button, so there's otherwise no way in.
+  useEffect(() => {
+    const open = () => setShowAuth(true);
+    window.addEventListener('wattx:open-auth', open);
+    return () => window.removeEventListener('wattx:open-auth', open);
+  }, []);
 
   const formatAddress = (addr: string) => (isMobile ? `${addr.slice(0, 4)}…${addr.slice(-3)}` : `${addr.slice(0, 6)}…${addr.slice(-4)}`);
   const isAltcoinchain = chainId === 2330;

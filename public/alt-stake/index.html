@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALT Staking — Altcoinchain Validator Staking</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: rgba(30,41,59,.55); --panel-line: rgba(51,65,85,.5);
+    --ink: #e2e8f0; --dim: #94a3b8; --blue: #2563eb; --blue-hi: #3b82f6;
+    --green: #10b981; --red: #ef4444; --yellow: #eab308;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 700px at 70% -10%, #1e293b 0%, var(--bg) 55%);
+    color: var(--ink); font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 26px; }
+  .logo { width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, var(--blue), #7c3aed);
+          display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; }
+  h1 { font-size: 21px; }  h1 small { display: block; font-size: 12px; color: var(--dim); font-weight: 400; }
+  .spacer { flex: 1; }
+  .btn { background: var(--blue); border: 0; color: #fff; padding: 10px 18px; border-radius: 10px;
+         font-weight: 600; font-size: 14px; cursor: pointer; transition: background .15s; }
+  .btn:hover { background: var(--blue-hi); } .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+  .btn.ghost { background: rgba(51,65,85,.6); } .btn.ghost:hover { background: #475569; }
+  .btn.green { background: #059669; } .btn.green:hover { background: var(--green); }
+  .pill { font-size: 12px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--panel-line); color: var(--dim); }
+  .pill.ok { color: var(--green); border-color: rgba(16,185,129,.4); }
+  .banner { border-radius: 12px; padding: 12px 16px; margin-bottom: 18px; font-size: 14px; display: none; }
+  .banner.warn { display: block; background: rgba(234,179,8,.12); border: 1px solid rgba(234,179,8,.35); color: #fde68a; }
+  .banner.err  { display: block; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.35); color: #fecaca; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .stat { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 14px; padding: 14px 16px; }
+  .stat .k { font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+  .stat .v { font-size: 19px; font-weight: 700; word-break: break-word; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 16px; padding: 20px; backdrop-filter: blur(8px); }
+  .card h2 { font-size: 16px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+  input, select { background: rgba(15,23,42,.7); border: 1px solid var(--panel-line); border-radius: 10px;
+          color: var(--ink); padding: 10px 12px; font-size: 14px; flex: 1; min-width: 120px; }
+  input:focus { outline: 1px solid var(--blue); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; color: var(--dim); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--panel-line); }
+  td { padding: 8px; border-bottom: 1px solid rgba(51,65,85,.3); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); } .dot.off { background: #64748b; }
+  .kv { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; border-bottom: 1px solid rgba(51,65,85,.3); }
+  .kv .k { color: var(--dim); }
+  .muted { color: var(--dim); font-size: 13px; }
+  #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1e293b;
+           border: 1px solid var(--panel-line); border-radius: 12px; padding: 12px 20px; font-size: 14px;
+           display: none; max-width: 90vw; box-shadow: 0 8px 30px rgba(0,0,0,.5); z-index: 50; }
+  footer { margin-top: 34px; text-align: center; color: #64748b; font-size: 12.5px; }
+  a { color: var(--blue-hi); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">A</div>
+    <h1>ALT Staking <small>Altcoinchain hybrid PoW/PoS validator staking</small></h1>
+    <div class="spacer"></div>
+    <span class="pill" id="netPill">chain 2330</span>
+    <span class="pill" id="blockPill">block —</span>
+    <button class="btn" id="connectBtn">Connect Wallet</button>
+  </header>
+
+  <div class="banner warn" id="forkBanner"></div>
+  <div class="banner err" id="errBanner"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Total Staked</div><div class="v" id="stTotal">—</div></div>
+    <div class="stat"><div class="k">Validators</div><div class="v" id="stCount">—</div></div>
+    <div class="stat"><div class="k">Online</div><div class="v" id="stOnline">—</div></div>
+    <div class="stat"><div class="k">Reward Pool</div><div class="v" id="stPool">—</div></div>
+    <div class="stat"><div class="k">Min Validator Stake</div><div class="v" id="stMin">32 ALT</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card" id="myCard">
+      <h2>Your Validator</h2>
+      <div id="myInfo"><p class="muted">Connect your wallet to manage a validator.</p></div>
+      <div id="registerBox" style="display:none">
+        <div class="row">
+          <input id="regAmount" type="number" min="32" step="1" placeholder="Stake (min 32 ALT)">
+          <input id="regCommission" type="number" min="0" max="50" step="1" placeholder="Commission % (0–50)">
+        </div>
+        <div class="row"><button class="btn green" id="regBtn">Register Validator</button></div>
+      </div>
+      <div id="manageBox" style="display:none">
+        <div class="row">
+          <input id="addStakeAmount" type="number" min="1" step="1" placeholder="Add self-stake (ALT)">
+          <button class="btn" id="addStakeBtn">Add Stake</button>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="attestBtn">Attest Liveness Now</button>
+        </div>
+        <p class="muted">Your validator node attests automatically every 40 blocks; the manual button is a backup.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Delegate</h2>
+      <div class="row">
+        <select id="delValidator"><option value="">Select a validator…</option></select>
+      </div>
+      <div class="row">
+        <input id="delAmount" type="number" min="10" step="1" placeholder="Amount (min 10 ALT)">
+        <button class="btn" id="delBtn">Delegate</button>
+      </div>
+      <div class="row">
+        <input id="undelAmount" type="number" min="0" step="1" placeholder="Undelegate amount (ALT)">
+        <button class="btn ghost" id="undelBtn">Undelegate</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="claimBtn">Claim Rewards</button>
+        <button class="btn ghost" id="withdrawBtn">Complete Withdrawals</button>
+      </div>
+      <div id="delInfo"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h2>Validator Set</h2>
+    <table>
+      <thead><tr><th>Validator</th><th>Self Stake</th><th>Delegated</th><th>Commission</th><th>Status</th></tr></thead>
+      <tbody id="valRows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Staking contract <span class="mono" id="contractAddr"></span> on Altcoinchain (2330)<br>
+    Rewards: 2 ALT/block after the hybrid fork — 1 ALT to the PoW miner, 1 ALT distributed to online validators by stake.<br>
+    Part of <a href="https://nucash-mining.github.io/WATTxchange/">WATTxchange</a>.
+  </footer>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+// ---------------- chain constants ----------------
+const RPC = "https://rpc.wattxchange.app";
+const CHAIN_ID_HEX = "0x91a"; // 2330
+const CONTRACT = "0x2e05FfB10eF99e3c8B2BE1b752D7D3D45E6AC2a7";
+const HYBRID_BLOCK = 7200000;
+const SEL = {
+  registerValidator: "0x679cdb06", addSelfStake: "0x427d45ec", attest: "0x3084e87f",
+  delegate: "0x5c19a95c", undelegate: "0x4d99dd16", completeWithdrawals: "0x6a887690",
+  claimRewards: "0xef5cfb8c", getValidator: "0x1904bb2e", getAllValidators: "0xf3513a37",
+  getOnlineValidators: "0x42d6fcd6", getDelegation: "0x15049a5a",
+  getPendingWithdrawals: "0xf340c0d0", totalStaked: "0x817b1cd2",
+  getValidatorCount: "0x7071688a", rewardPool: "0x66666aa9", minStake: "0x9c2a2259",
+};
+
+// ---------------- helpers ----------------
+const $ = (id) => document.getElementById(id);
+const padAddr = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
+const padUint = (n) => BigInt(n).toString(16).padStart(64, "0");
+const word = (hex, i) => BigInt("0x" + hex.slice(2).slice(i * 64, (i + 1) * 64 || undefined).padEnd(64, "0").slice(0, 64));
+const toAlt = (wei, dp = 2) => {
+  const s = (wei / 10n ** 14n).toString().padStart(5, "0");
+  return (+((s.slice(0, -4) || "0") + "." + s.slice(-4))).toLocaleString(undefined, { maximumFractionDigits: dp });
+};
+const toWei = (alt) => BigInt(Math.round(parseFloat(alt) * 1e6)) * 10n ** 12n;
+const short = (a) => a.slice(0, 8) + "…" + a.slice(-6);
+let account = null;
+
+function toast(msg, ms = 4200) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = "none"), ms);
+}
+async function rpcCall(method, params) {
+  const res = await fetch(RPC, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+const ethCall = (data) => rpcCall("eth_call", [{ to: CONTRACT, data }, "latest"]);
+
+// ---------------- reads ----------------
+async function refreshStats() {
+  try {
+    const [blockHex, code] = await Promise.all([rpcCall("eth_blockNumber", []), rpcCall("eth_getCode", [CONTRACT, "latest"])]);
+    const block = parseInt(blockHex, 16);
+    $("blockPill").textContent = "block " + block.toLocaleString();
+    if (code === "0x") {
+      const eta = Math.max(0, HYBRID_BLOCK - block);
+      $("forkBanner").className = "banner warn";
+      $("forkBanner").textContent = `Staking activates with the hybrid PoW/PoS fork at block ${HYBRID_BLOCK.toLocaleString()} — ${eta.toLocaleString()} blocks to go. The staking contract is not deployed yet; this dashboard will come alive when it is.`;
+      $("valRows").innerHTML = '<tr><td colspan="5" class="muted">Contract not deployed yet.</td></tr>';
+      return false;
+    }
+    $("forkBanner").className = "banner";
+    const [total, count, pool, min] = await Promise.all([
+      ethCall(SEL.totalStaked), ethCall(SEL.getValidatorCount), ethCall(SEL.rewardPool), ethCall(SEL.minStake),
+    ]);
+    $("stTotal").textContent = toAlt(word(total, 0)) + " ALT";
+    $("stCount").textContent = word(count, 0).toString();
+    $("stPool").textContent = toAlt(word(pool, 0)) + " ALT";
+    $("stMin").textContent = toAlt(word(min, 0), 0) + " ALT";
+    return true;
+  } catch (e) {
+    $("errBanner").className = "banner err";
+    $("errBanner").textContent = "RPC unreachable: " + e.message;
+    return false;
+  }
+}
+
+function decodeAddressArray(ret) {
+  const hex = ret.slice(2);
+  const len = Number(BigInt("0x" + hex.slice(64, 128)));
+  const out = [];
+  for (let i = 0; i < len; i++) out.push("0x" + hex.slice(128 + i * 64 + 24, 128 + (i + 1) * 64));
+  return out;
+}
+
+async function refreshValidators() {
+  try {
+    const [allRet, onlineRet] = await Promise.all([ethCall(SEL.getAllValidators), ethCall(SEL.getOnlineValidators)]);
+    const all = decodeAddressArray(allRet);
+    const online = new Set(decodeAddressArray(onlineRet).map((a) => a.toLowerCase()));
+    $("stOnline").textContent = online.size.toString();
+    const sel = $("delValidator");
+    const keep = sel.value;
+    sel.innerHTML = '<option value="">Select a validator…</option>';
+    if (!all.length) {
+      $("valRows").innerHTML = '<tr><td colspan="5" class="muted">No validators registered yet — be the first.</td></tr>';
+      return;
+    }
+    const rows = [];
+    for (const v of all) {
+      const ret = await ethCall(SEL.getValidator + padAddr(v));
+      const self = word(ret, 0), deleg = word(ret, 1), comm = word(ret, 2);
+      const isOnline = word(ret, 5) !== 0n, isSlashed = word(ret, 6) !== 0n;
+      rows.push(`<tr><td class="mono">${short(v)}</td><td>${toAlt(self)} ALT</td><td>${toAlt(deleg)} ALT</td>
+        <td>${comm}%</td><td>${isSlashed ? '<span style="color:var(--red)">slashed</span>'
+        : `<span class="dot ${isOnline ? "on" : "off"}"></span>${isOnline ? "online" : "offline"}`}</td></tr>`);
+      const o = document.createElement("option");
+      o.value = v; o.textContent = `${short(v)} — ${toAlt(self + deleg)} ALT, ${comm}%${isOnline ? " ●" : ""}`;
+      sel.appendChild(o);
+    }
+    sel.value = keep;
+    $("valRows").innerHTML = rows.join("");
+  } catch (e) { /* stats banner already reports RPC issues */ }
+}
+
+async function refreshMine() {
+  if (!account) return;
+  const ret = await ethCall(SEL.getValidator + padAddr(account)).catch(() => null);
+  if (!ret) return;
+  const self = word(ret, 0), deleg = word(ret, 1), comm = word(ret, 2);
+  const isActive = word(ret, 4) !== 0n, isOnline = word(ret, 5) !== 0n, isSlashed = word(ret, 6) !== 0n;
+  if (!isActive && self === 0n) {
+    $("myInfo").innerHTML = `<p class="muted">${short(account)} is not a validator yet. Stake at least 32 ALT to register.</p>`;
+    $("registerBox").style.display = "block"; $("manageBox").style.display = "none";
+  } else {
+    $("myInfo").innerHTML =
+      `<div class="kv"><span class="k">Status</span><span>${isSlashed ? "SLASHED" : isActive ? (isOnline ? "active · online" : "active · offline") : "inactive"}</span></div>
+       <div class="kv"><span class="k">Self stake</span><span>${toAlt(self)} ALT</span></div>
+       <div class="kv"><span class="k">Delegated to you</span><span>${toAlt(deleg)} ALT</span></div>
+       <div class="kv"><span class="k">Commission</span><span>${comm}%</span></div>`;
+    $("registerBox").style.display = "none"; $("manageBox").style.display = "block";
+  }
+  // delegation + withdrawals overview for the selected validator
+  const target = $("delValidator").value;
+  let html = "";
+  if (target) {
+    const d = await ethCall(SEL.getDelegation + padAddr(account) + padAddr(target)).catch(() => null);
+    if (d) html += `<div class="kv"><span class="k">Your delegation to ${short(target)}</span><span>${toAlt(word(d, 0))} ALT (+${toAlt(word(d, 1), 4)} pending)</span></div>`;
+  }
+  const w = await ethCall(SEL.getPendingWithdrawals + padAddr(account)).catch(() => null);
+  if (w) html += `<div class="kv"><span class="k">Withdrawals</span><span>${toAlt(word(w, 0))} pending · ${toAlt(word(w, 1))} ready</span></div>`;
+  $("delInfo").innerHTML = html;
+}
+
+// ---------------- wallet ----------------
+async function connect() {
+  if (!window.ethereum) { toast("No Web3 wallet found — install MetaMask or Rabby."); return; }
+  const accs = await window.ethereum.request({ method: "eth_requestAccounts" });
+  account = accs[0];
+  $("connectBtn").textContent = short(account);
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] });
+  } catch (e) {
+    if (e.code === 4902) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+        chainId: CHAIN_ID_HEX, chainName: "Altcoinchain",
+        nativeCurrency: { name: "ALT", symbol: "ALT", decimals: 18 }, rpcUrls: [RPC] }] });
+    }
+  }
+  $("netPill").classList.add("ok"); $("netPill").textContent = "Altcoinchain";
+  refreshMine();
+}
+
+async function sendTx(data, valueWei) {
+  if (!account) { toast("Connect your wallet first."); return; }
+  try {
+    const tx = { from: account, to: CONTRACT, data };
+    if (valueWei) tx.value = "0x" + valueWei.toString(16);
+    const hash = await window.ethereum.request({ method: "eth_sendTransaction", params: [tx] });
+    toast("Transaction sent: " + hash.slice(0, 14) + "…");
+    setTimeout(() => { refreshAll(); }, 15000);
+  } catch (e) { toast(/denied|rejected/i.test(e.message) ? "Cancelled in wallet" : "Failed: " + e.message.slice(0, 120)); }
+}
+
+// ---------------- actions ----------------
+$("connectBtn").onclick = connect;
+$("regBtn").onclick = () => {
+  const amt = $("regAmount").value, com = $("regCommission").value || "0";
+  if (!amt || +amt < 32) { toast("Minimum self-stake is 32 ALT."); return; }
+  if (+com > 50) { toast("Commission is capped at 50%."); return; }
+  sendTx(SEL.registerValidator + padUint(com), toWei(amt));
+};
+$("addStakeBtn").onclick = () => {
+  const amt = $("addStakeAmount").value;
+  if (!amt || +amt <= 0) { toast("Enter an amount."); return; }
+  sendTx(SEL.addSelfStake, toWei(amt));
+};
+$("attestBtn").onclick = () => sendTx(SEL.attest);
+$("delBtn").onclick = () => {
+  const v = $("delValidator").value, amt = $("delAmount").value;
+  if (!v) { toast("Select a validator."); return; }
+  if (!amt || +amt < 10) { toast("Minimum delegation is 10 ALT."); return; }
+  sendTx(SEL.delegate + padAddr(v), toWei(amt));
+};
+$("undelBtn").onclick = () => {
+  const v = $("delValidator").value, amt = $("undelAmount").value;
+  if (!v || !amt || +amt <= 0) { toast("Select a validator and an amount."); return; }
+  sendTx(SEL.undelegate + padAddr(v) + padUint(toWei(amt)));
+};
+$("claimBtn").onclick = () => {
+  const v = $("delValidator").value;
+  if (!v) { toast("Select a validator to claim from."); return; }
+  sendTx(SEL.claimRewards + padAddr(v));
+};
+$("withdrawBtn").onclick = () => sendTx(SEL.completeWithdrawals);
+$("delValidator").onchange = refreshMine;
+
+// ---------------- boot ----------------
+$("contractAddr").textContent = CONTRACT;
+async function refreshAll() {
+  const live = await refreshStats();
+  if (live) { await refreshValidators(); await refreshMine(); }
+}
+refreshAll();
+setInterval(refreshAll, 30000);
+if (window.ethereum) {
+  window.ethereum.on?.("accountsChanged", (a) => { account = a[0] || null; $("connectBtn").textContent = account ? short(account) : "Connect Wallet"; refreshMine(); });
+}
+</script>
+</body>
+</html>

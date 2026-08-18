@@ -78,6 +78,9 @@ export default function WattWtxBridge() {
 
   useEffect(() => {
     void refreshInfo();
+    // Re-poll so the WTX-network-paused banner and floats stay current.
+    const t = setInterval(() => void refreshInfo(), 30_000);
+    return () => clearInterval(t);
   }, [refreshInfo]);
 
   // poll tracked swaps while any is active
@@ -251,6 +254,13 @@ export default function WattWtxBridge() {
         </p>
       )}
 
+      {info?.wtxChain && !info.wtxChain.advancing && (
+        <div className="text-sm text-amber-400 mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+          ⚠ WTX network paused — no new blocks for {Math.round(info.wtxChain.tipAgeSeconds / 60)} min.
+          WTX deposits are safe but won&apos;t confirm (and WTX-leg swaps won&apos;t complete) until mining resumes.
+        </div>
+      )}
+
       {/* mode selector */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {([
@@ -402,9 +412,18 @@ export default function WattWtxBridge() {
                           : 'text-gray-500'
                     }
                   >
-                    {STATE_TEXT[s.state] ?? s.state}
+                    {s.state === 'created' && s.deposit?.seen
+                      ? `deposit detected — ${s.deposit.confirmations}/${s.deposit.required} confirmations`
+                      : STATE_TEXT[s.state] ?? s.state}
                   </span>
                 </div>
+                {s.state === 'created' && s.deposit?.seen && (
+                  <div className="text-gray-400">
+                    Your deposit landed{s.deposit.confirmations >= s.deposit.required
+                      ? ' — paying out now…'
+                      : `; the bridge pays out after ${s.deposit.required} confirmations (WTX blocks ~2 min).`}
+                  </div>
+                )}
                 {depositAddr && s.state === 'created' && (
                   <div className="flex items-center space-x-2 text-gray-400">
                     <span>

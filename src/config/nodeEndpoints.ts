@@ -89,8 +89,8 @@ export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
     name: 'Ghost',
     protocol: 'UTXO',
     nativeRpc: env('VITE_GHOST_RPC') || `${ORACLE_HOST}:51725`,
-    electrum: [{ url: env('VITE_GHOST_ELECTRUM') || 'ghost-electrum.wattxchange.app:50042', protocol: 'SSL' }],
-    electrumReady: false,
+    electrum: [{ url: env('VITE_GHOST_ELECTRUM') || 'electrum-ghost.wattxchange.app:443', protocol: 'WSS' }],
+    electrumReady: true,
     explorer: env('VITE_GHOST_EXPLORER') || 'https://explorer.ghostbyjohnmcafee.com'
   },
   TROLL: {
@@ -121,7 +121,12 @@ export const NODE_ENDPOINTS: Record<string, NodeEndpoint> = {
     protocol: 'UTXO',
     nativeRpc: env('VITE_FLOP_RPC') || `${ORACLE_HOST}:32552`,
     electrum: [
-      { url: env('VITE_FLOP_ELECTRUM') || 'flop-electrum.wattxchange.app:50001', protocol: 'TCP' }
+      // Primary: Legion ElectrumX 2.0.0 (Crucial drive) over WSS via the cloudflared
+      // wattx-nodes tunnel -> ws://localhost:50064. Browser kdf-WASM needs WS/WSS.
+      { url: env('VITE_FLOP_ELECTRUM_WSS') || 'electrum-flop.wattxchange.app:443', protocol: 'WSS' },
+      // Fallback: original VPS server (nginx 443 -> electrumx ws://:10003 on 23.95.140.13).
+      { url: env('VITE_FLOP_ELECTRUM_VPS') || 'flop-electrum.wattxchange.app:443', protocol: 'WSS' },
+      { url: env('VITE_FLOP_ELECTRUM') || 'flop-electrum.wattxchange.app:50002', protocol: 'SSL' }
     ],
     electrumReady: true,
     explorer: env('VITE_FLOP_EXPLORER') || 'https://flop-explorer.wattxchange.app'

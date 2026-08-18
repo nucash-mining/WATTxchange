@@ -4,7 +4,7 @@
 // redeploy and must never go stale), cache-first for everything else the page
 // pulls from this scope or the CDNs (three.js, ethers, GLB models from the
 // ordinal gateways — all immutable by content or by version pin).
-const CACHE = "mining-game-v1";
+const CACHE = "mining-game-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {

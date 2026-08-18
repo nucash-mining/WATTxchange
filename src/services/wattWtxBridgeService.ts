@@ -25,6 +25,14 @@ export interface BridgeInfo {
     { enabled: boolean; chainId: number; watt: string; vault: string; confirmations: number }
   >;
   floats: Record<string, string | null>;
+  /** WTX chain liveness. When `advancing` is false, mining has stalled and WTX
+   *  deposits won't confirm until it resumes. */
+  wtxChain?: {
+    height: number;
+    tipTime: number;
+    tipAgeSeconds: number;
+    advancing: boolean;
+  } | null;
 }
 
 export interface BridgeSwap {
@@ -44,6 +52,14 @@ export interface BridgeSwap {
   payoutTx?: string;
   claimTx?: string;
   instructions?: string;
+  /** Live WTX-deposit progress (present on WTX_TO_WATT swaps still confirming). */
+  deposit?: {
+    seen: boolean;
+    confirmations: number;
+    required: number;
+    amountSats?: string;
+    txid?: string | null;
+  };
   lockParams?: {
     vault: string;
     wattToken: string;

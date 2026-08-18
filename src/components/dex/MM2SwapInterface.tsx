@@ -22,7 +22,8 @@ import {
   AlertTriangle,
   Radio,
   ShieldCheck,
-  Power
+  Power,
+  Copy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useMM2 } from '../../hooks/useMM2';
@@ -78,7 +79,7 @@ const CoinBadges: React.FC<{ coin: string }> = ({ coin }) => {
 const MM2SwapInterface: React.FC = () => {
   const mm2 = useMM2({ autoConnect: true, pollInterval: 30000 });
   const {
-    isConnected, isLoading, error, version,
+    isConnected, isLoading, needsLogin, error, version,
     enabledCoins, balances, orderbook,
     activeSwaps, recentSwaps,
     tradeableCoins, wattxchangeCoins,
@@ -92,6 +93,17 @@ const MM2SwapInterface: React.FC = () => {
   const [swapping, setSwapping] = useState(false);
 
   const tradeableSet = useMemo(() => new Set(tradeableCoins), [tradeableCoins]);
+
+  // Pre-fill the pair when the Instant Swap tab hands off a GleecDEX route.
+  useEffect(() => {
+    const setPair = (e: Event) => {
+      const d = (e as CustomEvent).detail as { base?: string; rel?: string } | undefined;
+      if (d?.base) setBase(d.base);
+      if (d?.rel) setRel(d.rel);
+    };
+    window.addEventListener('wattx:dex-pair', setPair);
+    return () => window.removeEventListener('wattx:dex-pair', setPair);
+  }, []);
 
   // Refresh the orderbook whenever the pair changes (and we're connected), then
   // keep polling. The very first fetch after connect often races the libp2p
@@ -171,28 +183,42 @@ const MM2SwapInterface: React.FC = () => {
               style={isConnected ? vb.greenGlow : vb.glow} size={18} />
             <div>
               <div className="font-mono text-sm" style={isConnected ? vb.greenGlow : vb.glow}>
-                {isConnected ? `kdf DAEMON ONLINE` : 'kdf DAEMON OFFLINE'}
+                {isConnected ? `kdf DAEMON ONLINE` : needsLogin ? 'kdf DAEMON — SIGN IN TO START' : 'kdf DAEMON STARTING…'}
               </div>
               <div className="text-[10px] font-mono text-yellow-300/70">
                 {isConnected
-                  ? `v${version ?? '?'} · 127.0.0.1:7783 · trustless HTLC atomic swaps`
-                  : 'start it: scripts/start-mm2.sh (Komodo DeFi Framework)'}
+                  ? `v${version ?? '?'} · trustless HTLC atomic swaps`
+                  : needsLogin
+                    ? 'The swap engine runs in your browser and boots from your wallet seed — sign in (top-right) to start it.'
+                    : 'Booting the in-browser Komodo DeFi engine…'}
               </div>
             </div>
           </div>
           <button
-            onClick={() => connect()}
+            onClick={() =>
+              needsLogin
+                ? window.dispatchEvent(new Event('wattx:open-auth'))
+                : connect()
+            }
             disabled={isLoading}
             className="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs disabled:opacity-50"
             style={vb.boxGlow}
           >
             {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
-            {isConnected ? 'RECONNECT' : 'CONNECT'}
+            {isConnected ? 'RECONNECT' : needsLogin ? 'SIGN IN WITH SEED' : 'CONNECT'}
           </button>
         </div>
         {error && (
           <div className="mt-2 flex items-center gap-2 text-[11px] font-mono text-yellow-400">
             <AlertTriangle size={12} /> {error}
+          </div>
+        )}
+        {needsLogin && (
+          <div className="mt-2 flex items-center gap-2 text-[11px] font-mono text-yellow-300">
+            <AlertTriangle size={12} />
+            Sign in (top-right) with your seed to load your wallet — the DEX derives
+            your real coin addresses and balances from it. Coins & balances stay empty
+            until you do.
           </div>
         )}
       </div>
@@ -213,7 +239,8 @@ const MM2SwapInterface: React.FC = () => {
               const bal = balances[coin];
               return (
                 <div key={coin}
-                  className="flex items-center justify-between p-2 rounded bg-yellow-950/20 border border-yellow-900/40">
+                  className="p-2 rounded bg-yellow-950/20 border border-yellow-900/40">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-mono text-xs text-yellow-200 w-12">{coin}</span>
                     <CoinBadges coin={coin} />
@@ -236,6 +263,21 @@ const MM2SwapInterface: React.FC = () => {
                         : isEnabled ? 'ON' : canTrade ? 'ENABLE' : 'PENDING'}
                     </button>
                   </div>
+                </div>
+                {/* Deposit address (derived from your seed) — send funds here to trade */}
+                {isEnabled && bal?.address && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span className="text-[9px] font-mono text-yellow-700 shrink-0">DEPOSIT</span>
+                    <code className="text-[10px] font-mono text-yellow-300/80 truncate">{bal.address}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(bal.address); toast.success(`${coin} address copied`, { style: toastStyle(true) }); }}
+                      title={`Copy your ${coin} deposit address`}
+                      className="shrink-0 p-0.5 hover:text-yellow-300 text-yellow-600"
+                    >
+                      <Copy size={11} />
+                    </button>
+                  </div>
+                )}
                 </div>
               );
             })}

@@ -145,6 +145,9 @@ class AuthService {
     this.session = null;
     walletService.clear();
     localStorage.removeItem(SESSION_KEY);
+    // kdf can't hot-swap seeds in-page, so a full reload is the only clean way
+    // to drop the logged-in wallet from the running engine.
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('wattx:auth'));
   }
 
   /** Remove a saved account from this device (does not touch on-chain funds). */
@@ -177,6 +180,9 @@ class AuthService {
     const address = ethers.HDNodeWallet.fromPhrase(mnemonic).address;
     this.session = { method: 'seed', username, address };
     localStorage.setItem(SESSION_KEY, username);
+    // Notify the DEX engine that a wallet seed is now available so it can boot
+    // kdf with the user's seed (deriving their real, funded addresses).
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('wattx:auth'));
     return address;
   }
 }

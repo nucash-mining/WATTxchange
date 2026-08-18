@@ -8,22 +8,20 @@ import {
   ExternalLink,
   AlertCircle,
   CheckCircle2,
-  Clock,
   Loader2,
   Info,
   Zap,
   Shield,
   Globe,
   Cpu,
-  Radio,
-  Droplets,
-  TrendingUp
+  Radio
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
-import { wattxBridgeService, type BridgeQuote, type PoolStats } from '../services/wattxBridgeService';
+import { wattxBridgeService, type BridgeQuote } from '../services/wattxBridgeService';
 import MM2SwapInterface from './dex/MM2SwapInterface';
 import WattWtxBridge from './bridge/WattWtxBridge';
+import InstantSwap from './swap/InstantSwap';
 
 // Site-themed styles (dark slate + amber/yellow accents) — matches the rest of the app
 const vbStyles = {
@@ -221,7 +219,39 @@ const DeFiHubView: React.FC = () => {
   const [recipient, setRecipient] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isBridging, setIsBridging] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bridge' | 'swap' | 'liquidity' | 'history' | 'status'>('bridge');
+  // DeFi Hub sub-tabs are URL-addressable: #/defi/bridge, #/defi/instant-swap,
+  // #/defi/atomic-swap (also reachable at defi.wattxchange.app/<seg>).
+  type DefiTab = 'bridge' | 'instant' | 'swap';
+  const TAB_SEG: Record<DefiTab, string> = { bridge: 'bridge', instant: 'instant-swap', swap: 'atomic-swap' };
+  const TAB_LABEL: Record<DefiTab, string> = { bridge: 'Bridge', instant: 'Instant Swap', swap: 'Atomic Swap' };
+  const SEG_TAB: Record<string, DefiTab> = { bridge: 'bridge', 'instant-swap': 'instant', 'atomic-swap': 'swap' };
+  const tabFromHash = (): DefiTab => SEG_TAB[window.location.hash.replace(/^#\/?/, '').split('/')[1]?.toLowerCase()] ?? 'bridge';
+
+  const [activeTab, setActiveTab] = useState<DefiTab>(tabFromHash);
+  const selectTab = (t: DefiTab) => {
+    setActiveTab(t);
+    const target = `#/defi/${TAB_SEG[t]}`;
+    if (window.location.hash !== target) window.location.hash = target;
+  };
+  useEffect(() => {
+    const onHash = () => setActiveTab(tabFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Instant Swap hands off GleecDEX (kdf) routes to the Swap tab, since those
+  // execute as a trustless atomic swap in the user's browser.
+  useEffect(() => {
+    const goDex = (e: Event) => {
+      const d = (e as CustomEvent).detail as { base?: string; rel?: string } | undefined;
+      if (d?.base && d?.rel) {
+        window.dispatchEvent(new CustomEvent('wattx:dex-pair', { detail: d }));
+      }
+      selectTab('swap');
+    };
+    window.addEventListener('wattx:goto-dex', goDex);
+    return () => window.removeEventListener('wattx:goto-dex', goDex);
+  }, []);
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [balances, setBalances] = useState({
@@ -235,7 +265,6 @@ const DeFiHubView: React.FC = () => {
     altcoinchain: '0'
   });
   const [bridgeQuote, setBridgeQuote] = useState<BridgeQuote | null>(null);
-  const [poolStats, setPoolStats] = useState<Record<string, PoolStats | null>>({});
 
   // Fetch pool liquidity
   const fetchPoolLiquidity = async () => {
@@ -250,9 +279,6 @@ const DeFiHubView: React.FC = () => {
         wattx: wattxLiq,
         altcoinchain: altLiq
       });
-
-      const stats = await wattxBridgeService.getAllPoolStats();
-      setPoolStats(stats);
     } catch (err) {
       console.error('Failed to fetch pool liquidity:', err);
     }
@@ -692,10 +718,10 @@ const DeFiHubView: React.FC = () => {
 
         {/* Tab Navigation */}
         <div className="flex border border-yellow-900">
-          {['bridge', 'swap', 'liquidity', 'history', 'status'].map(tab => (
+          {(['bridge', 'instant', 'swap'] as DefiTab[]).map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as any)}
+              onClick={() => selectTab(tab)}
               className={`flex-1 py-3 uppercase tracking-wider text-sm transition-all ${
                 activeTab === tab
                   ? 'bg-yellow-900/30 text-yellow-400'
@@ -703,7 +729,7 @@ const DeFiHubView: React.FC = () => {
               }`}
               style={activeTab === tab ? vbStyles.glowSubtle : {}}
             >
-              {tab}
+              {TAB_LABEL[tab]}
             </button>
           ))}
         </div>
@@ -721,107 +747,14 @@ const DeFiHubView: React.FC = () => {
             </motion.div>
           )}
 
-          {activeTab === 'liquidity' && (
+          {activeTab === 'instant' && (
             <motion.div
-              key="liquidity"
+              key="instant"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
             >
-              <VBCard className="p-6">
-                <p className="text-yellow-800 text-xs mb-4">&gt; BRIDGE POOL LIQUIDITY</p>
-                <p className="text-yellow-700 text-xs mb-6">
-                  All WATT tokens on Polygon and Altcoinchain are backed by WATTx on the mainnet.
-                  Add liquidity to enable instant bridging.
-                </p>
-
-                <div className="space-y-4">
-                  {/* Pool Cards */}
-                  {[
-                    { key: 'polygon' as ChainKey, name: 'POLYGON', color: '#8247e5' },
-                    { key: 'wattx' as ChainKey, name: 'WATTX (MAINNET)', color: '#fcd34d' },
-                    { key: 'altcoinchain' as ChainKey, name: 'ALTCOINCHAIN', color: '#f59e0b' }
-                  ].map((pool) => (
-                    <div key={pool.key} className="p-4 border border-yellow-900/50 bg-black/30">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Droplets className="w-5 h-5" style={{ color: pool.color }} />
-                          <span className="font-bold" style={{ color: pool.color }}>{pool.name}</span>
-                        </div>
-                        <span className="text-xs text-yellow-700">
-                          {pool.key === 'wattx' ? 'BACKING CHAIN' : 'WRAPPED WATT'}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mb-3">
-                        <div>
-                          <p className="text-yellow-800 text-xs">AVAILABLE LIQUIDITY</p>
-                          <p className="font-bold text-lg" style={vbStyles.glowSubtle}>
-                            {parseFloat(poolLiquidity[pool.key] || '0').toFixed(4)} WATT
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-yellow-800 text-xs">YOUR BALANCE</p>
-                          <p className="font-bold text-lg" style={vbStyles.glowSubtle}>
-                            {pool.key === 'polygon' ? parseFloat(balances.polygon.WATT).toFixed(4) :
-                             pool.key === 'wattx' ? parseFloat(balances.wattx.tWATTx).toFixed(4) :
-                             parseFloat(balances.altcoinchain.WATT).toFixed(4)} WATT
-                          </p>
-                        </div>
-                      </div>
-
-                      {poolStats[pool.key] && (
-                        <div className="grid grid-cols-3 gap-2 text-xs border-t border-yellow-900/30 pt-3">
-                          <div>
-                            <p className="text-yellow-900">TOTAL LOCKED</p>
-                            <p className="text-yellow-600">{parseFloat(poolStats[pool.key]?.totalLocked || '0').toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-yellow-900">TOTAL RELEASED</p>
-                            <p className="text-yellow-600">{parseFloat(poolStats[pool.key]?.totalReleased || '0').toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-yellow-900">PENDING</p>
-                            <p className="text-yellow-600">{poolStats[pool.key]?.pendingCount || 0}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Liquidity Info */}
-                <div className="mt-6 p-4 border border-yellow-900/30 bg-yellow-950/20">
-                  <div className="flex items-start gap-3">
-                    <TrendingUp className="w-5 h-5 text-yellow-700 mt-0.5" />
-                    <div className="text-xs text-yellow-700 space-y-1">
-                      <p className="font-bold">HOW LIQUIDITY WORKS:</p>
-                      <p>▸ Bridge pools hold WATT tokens on each chain</p>
-                      <p>▸ When you bridge, tokens are locked on source and released on destination</p>
-                      <p>▸ If destination has no liquidity, transfer is queued until liquidity arrives</p>
-                      <p>▸ Liquidity providers earn 0.1% of all bridge fees</p>
-                    </div>
-                  </div>
-                </div>
-              </VBCard>
-            </motion.div>
-          )}
-
-          {activeTab === 'history' && (
-            <motion.div
-              key="history"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-            >
-              <VBCard className="p-6">
-                <p className="text-yellow-800 text-xs mb-4">&gt; TRANSACTION LOG</p>
-                <div className="text-center py-12">
-                  <Clock className="w-12 h-12 mx-auto mb-4" style={{ color: '#713f12' }} />
-                  <p style={vbStyles.glowSubtle}>NO TRANSACTIONS RECORDED</p>
-                  <p className="text-yellow-900 text-xs mt-2">Bridge history will appear here</p>
-                </div>
-              </VBCard>
+              <InstantSwap />
             </motion.div>
           )}
 
@@ -833,38 +766,6 @@ const DeFiHubView: React.FC = () => {
               exit={{ opacity: 0, x: 20 }}
             >
               <MM2SwapInterface />
-            </motion.div>
-          )}
-
-          {activeTab === 'status' && (
-            <motion.div
-              key="status"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-            >
-              <VBCard className="p-6">
-                <p className="text-yellow-800 text-xs mb-4">&gt; SYSTEM STATUS</p>
-                <div className="space-y-4">
-                  {[
-                    { label: 'POLYGON RPC', status: 'ONLINE', ok: true },
-                    { label: 'WATTX NODE', status: 'ONLINE', ok: true },
-                    { label: 'ALTCOINCHAIN NODE', status: 'ONLINE', ok: true },
-                    { label: 'RELAYER', status: 'ACTIVE', ok: true },
-                    { label: 'VAULT CONTRACTS', status: 'VERIFIED', ok: true }
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between p-3 border border-yellow-900/50">
-                      <span className="text-yellow-700">{item.label}</span>
-                      <span
-                        className={item.ok ? 'text-green-500' : 'text-yellow-500'}
-                        style={{ textShadow: item.ok ? '0 0 10px #00ff00' : '0 0 10px #eab308' }}
-                      >
-                        [{item.status}]
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </VBCard>
             </motion.div>
           )}
         </AnimatePresence>

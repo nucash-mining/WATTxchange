@@ -10,6 +10,7 @@
 import { WATTXCHANGE_COINS, getCoinConfig, electrumFor, toKdfCoinsFile } from '../config/mm2Coins';
 import { getEndpoint, tradeableCoins } from '../config/nodeEndpoints';
 import { bootKdf, kdfRpc, kdfIsUp } from '../kdf/kdfClient';
+import { walletService } from './walletService';
 
 interface MM2Config {
   gui: string;
@@ -176,6 +177,10 @@ class MM2Service {
     .map((s) => s.trim())
     .filter(Boolean);
   private wasmBooting: Promise<void> | null = null;
+  // The seed kdf actually booted with. kdf-WASM cannot re-seed in-page (one
+  // mm2_main per page load), so if a login later supplies a different seed the
+  // only way to switch is a full reload — isBootedWithDifferentSeed() detects it.
+  private bootedSeed: string | null = null;
 
   // WATTx coin configuration
   private readonly WTX_CONFIG: CoinConfig = {
@@ -325,16 +330,20 @@ class MM2Service {
 
   /**
    * Boot the in-browser kdf (WASM) engine and block until its RPC is up.
-   * Idempotent. `passphrase` is the wallet seed; when omitted a random
-   * view-only session seed is generated (fine for browsing orderbooks — no
-   * user funds are exposed until they deposit to a derived address).
+   * Idempotent. Seed priority: explicit `passphrase` → the unlocked login
+   * seed (walletService) → a random view-only session seed. Using the login
+   * seed means kdf derives the SAME UTXO addresses the user owns, so swap
+   * deposits are recoverable. The random session seed is view-only: fine for
+   * browsing orderbooks, but funds sent to its derived address are lost on
+   * reload — so the UI must require login before taking a funded swap.
    */
   async startWasm(passphrase?: string): Promise<void> {
     if (!this.useWasm) return;
     if (kdfIsUp()) { this.isRunning = true; return; }
     if (this.wasmBooting) return this.wasmBooting;
 
-    const seed = passphrase ?? this.generateSessionSeed();
+    const seed = passphrase ?? walletService.getMnemonic() ?? this.generateSessionSeed();
+    this.bootedSeed = seed;
     this.wasmBooting = bootKdf(
       {
         gui: 'WATTxchange',
@@ -356,6 +365,16 @@ class MM2Service {
     const words = new Uint32Array(8);
     crypto.getRandomValues(words);
     return 'wattxchange-session-' + Array.from(words, (w) => w.toString(16)).join('');
+  }
+
+  /**
+   * True when kdf is already running under a DIFFERENT seed than `seed` — e.g.
+   * kdf auto-booted with a view-only session seed before the user signed in.
+   * kdf-WASM can't hot-swap seeds, so the caller must reload the page to re-boot
+   * with the correct (login) seed and derive the user's real addresses.
+   */
+  isBootedWithDifferentSeed(seed: string): boolean {
+    return this.isRunning && this.bootedSeed !== null && this.bootedSeed !== seed;
   }
 
   /**
@@ -438,14 +457,18 @@ class MM2Service {
     } = {}
   ): Promise<Balance | null> {
     try {
-      const coinConfig = this.SUPPORTED_COINS.find(c => c.coin === coin);
+      // Validate against the full WATTxchange coin config (WATTXCHANGE_COINS),
+      // NOT the small legacy SUPPORTED_COINS list — otherwise every app-native
+      // coin (HTH, FLOP, TROLL, RTM, GHOST, BITN, BTCZ, …) is wrongly rejected
+      // as "not found" here even after enableCoinAuto resolved it correctly.
+      const coinConfig = getCoinConfig(coin);
       if (!coinConfig) {
         console.error(`Coin ${coin} not found in supported coins`);
         return null;
       }
 
-      // Use provided electrum servers or defaults
-      let servers = options.electrumServers || coinConfig.electrum || [];
+      // Use provided electrum servers or the node registry's defaults.
+      let servers = options.electrumServers || electrumFor(coin) || [];
 
       // In the browser, kdf-WASM can ONLY reach electrum over WS/WSS — it returns
       // an IRRECOVERABLE error for any TCP/SSL server ("'TCP' and 'SSL' are not

@@ -26,7 +26,7 @@ jobs:
           node-version: 20
 
       - name: Install deps
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Build (root base for custom domain)
         env:

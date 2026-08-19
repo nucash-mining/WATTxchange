@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wifi, WifiOff, Settings, Menu } from 'lucide-react';
+import { Wifi, WifiOff, Settings, Menu, Store } from 'lucide-react';
 import WalletConnect from './WalletConnect';
 import { useWallet } from '../hooks/useWallet';
 
@@ -56,6 +56,19 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
+          <motion.a
+            href="https://nft.wattxchange.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="NFT Marketplace — ordinals, Binary Maker and the 100K WATT Club"
+            className={`flex items-center space-x-2 bg-gray-900/50 rounded-lg hover:bg-gray-800/50 transition-colors ${isMobile ? 'px-2 py-1' : 'px-3 py-2'}`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Store className="w-4 h-4 text-yellow-400" />
+            {!isMobile && <span className="text-sm">NFTs</span>}
+          </motion.a>
+
           <WalletConnect />
           
           <div className={`flex items-center space-x-2 bg-gray-900/50 rounded-lg ${isMobile ? 'px-2 py-1' : 'px-3 py-2'}`}>

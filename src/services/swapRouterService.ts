@@ -8,9 +8,14 @@
  * Exposed via the bridge endpoint's /router/* passthrough (reuses its TLS/CORS).
  */
 
-const BASE =
-  ((import.meta as { env?: Record<string, string> }).env?.VITE_WATT_BRIDGE_API ||
-    'https://bridge.wattxchange.app') + '/router';
+const ORIGIN =
+  (import.meta as { env?: Record<string, string> }).env?.VITE_WATT_BRIDGE_API ||
+  'https://bridge.wattxchange.app';
+const BASE = ORIGIN + '/router';
+// The always-on cross-chain scanner runs natively on the Oracle box (not the
+// desktop tunnel), so it answers 24/7 even when the desktop is asleep. Used as
+// a fallback for the arb/book/venues reads when /router is unreachable.
+const ARB_ENGINE = ORIGIN + '/arb-engine';
 
 export interface SwapRoute {
   provider: string;
@@ -71,12 +76,16 @@ export interface ArbOpportunity {
   note?: string;
 }
 export interface ArbSnapshot {
+  /** Which backend answered: 'desktop' full book (incl. kdf) or 'oracle' 24/7 cross-chain. */
+  source?: 'desktop' | 'oracle';
   lastScan: string | null;
   scans: number;
   opportunities: ArbOpportunity[];
   surveyed: { pair: string; venues: string[]; note?: string; error?: string }[];
   history: ArbOpportunity[];
 }
+export interface Market { base: string; rel: string; venues: string[]; }
+export interface MarketsResult { markets: Market[]; quotes: string[]; count: number; source?: 'desktop' | 'oracle'; }
 export interface Venue { id: string; kind: string; custody?: string; coins?: string[]; tokens?: string[]; }
 
 export interface RouterSwap {
@@ -104,6 +113,20 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+/** Try the desktop /router endpoint; on any failure fall back to the Oracle
+ *  /arb-engine (24/7). Returns the parsed body plus which source answered. */
+async function callWithFallback<T>(path: string): Promise<T & { source: 'desktop' | 'oracle' }> {
+  try {
+    const res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) throw new Error(`router ${res.status}`);
+    return { ...(await res.json()), source: 'desktop' };
+  } catch {
+    const res = await fetch(`${ARB_ENGINE}${path}`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`arb-engine ${res.status}`);
+    return { ...(await res.json()), source: 'oracle' };
+  }
+}
+
 export const swapRouterService = {
   /** Coins the router can currently route (THORChain + own WATT/WTX rails). */
   coins: ['BTC', 'ETH', 'LTC', 'DOGE', 'BCH', 'AVAX', 'ATOM', 'USDC', 'USDT', 'WTX', 'WATT', 'HTH', 'FLOP', 'ALT'],
@@ -121,15 +144,22 @@ export const swapRouterService = {
     }).then((r) => r.swap);
   },
 
-  /** Aggregated cross-venue orderbook for a pair. */
+  /** Aggregated cross-venue orderbook for a pair. Falls back to the Oracle
+   *  24/7 engine (cross-chain venues only; no kdf book) when /router is offline. */
   getBook(base: string, rel: string) {
     const qs = new URLSearchParams({ base, rel });
-    return call<AggBook>(`/book?${qs}`);
+    return callWithFallback<AggBook>(`/book?${qs}`);
   },
 
-  /** Latest always-on arbitrage scan (dry-run signals). */
+  /** Latest always-on arbitrage scan (dry-run signals). Falls back to the
+   *  Oracle 24/7 scanner when the desktop /router is offline. */
   getArb() {
-    return call<ArbSnapshot>(`/arb`);
+    return callWithFallback<ArbSnapshot>(`/arb`);
+  },
+
+  /** All tradeable markets grouped by quote currency (data-driven). Falls back to Oracle. */
+  getMarkets() {
+    return callWithFallback<MarketsResult>(`/markets`);
   },
 
   /** Venues feeding the book + scanner. */

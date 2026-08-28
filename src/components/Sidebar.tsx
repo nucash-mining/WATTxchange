@@ -1,21 +1,22 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen } from 'lucide-react';
+import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen, MessagesSquare, Boxes, ExternalLink } from 'lucide-react';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 interface SidebarProps {
   currentView: string;
-  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'bridge' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook') => void;
+  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'bridge' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook' | 'datcord') => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const { isMobile } = useDeviceDetect();
   
-  const menuItems = [
+  const menuItems: Array<{ id: string; label: string; icon: React.ComponentType<{ className?: string }>; href?: string }> = [
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'nodes', label: 'Nodes', icon: Server },
     { id: 'validators', label: 'Validators', icon: ShieldCheck },
     { id: 'explorer', label: 'Explorer', icon: Search },
+    { id: 'explorers', label: 'Block Explorers', icon: Boxes, href: 'https://explorers.wattxchange.app' },
     { id: 'pool', label: 'Mining Pools', icon: Cpu },
     { id: 'dex', label: 'DEX', icon: TrendingUp },
     { id: 'orderbook', label: 'Orderbook', icon: BookOpen },
@@ -23,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'bridge', label: 'Bridge', icon: Link2 },
     { id: 'mining', label: 'Mining Game', icon: Gamepad2 },
     { id: 'nuchain', label: 'nuChain L2', icon: Zap },
+    { id: 'datcord', label: 'Datcord', icon: MessagesSquare },
     { id: 'marketplace', label: 'Tech Marketplace', icon: ShoppingCart },
     { id: 'swap', label: 'Atomic Swap', icon: ArrowLeftRight },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -38,7 +40,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           return (
             <motion.button
               key={item.id}
-              onClick={() => onViewChange(item.id as 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool' | 'orderbook')}
+              onClick={() => item.href
+                ? window.open(item.href, '_blank', 'noopener,noreferrer')
+                : onViewChange(item.id as 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool' | 'orderbook')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive
                   ? item.id === 'nuchain'
@@ -54,6 +58,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
             >
               <Icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
+              {item.href && (
+                <ExternalLink className="ml-auto w-4 h-4 opacity-60" />
+              )}
               {item.id === 'nuchain' && (
                 <span className="ml-auto text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">
                   L2

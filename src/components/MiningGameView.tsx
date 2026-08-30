@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Zap, Trophy, Gift, ExternalLink, Maximize2, Minimize2, Download, AppWindow } from 'lucide-react';
+import { Gamepad2, Zap, Trophy, Gift, ExternalLink, Maximize2, Minimize2, Download, AppWindow, FileText } from 'lucide-react';
 import NFTStaking from './mining/NFTStaking';
 import MiningStats from './mining/MiningStats';
 import RewardsClaiming from './mining/RewardsClaiming';
@@ -13,6 +13,7 @@ import MiningRigConfigurator from './mining/MiningRigConfigurator';
 const GAME_URL = 'https://mining-game.wattxchange.app/';
 const GAME_EMBED = '/mining-game/';
 const STAKE_URL = 'https://stake.mining-game.wattxchange.app/';
+const WHITEPAPER_URL = 'https://mining-game.wattxchange.app/whitepaper.html';
 
 const MiningGameView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dapp' | 'stakeclaim' | 'stake' | 'mine' | 'rewards' | 'configure'>('dapp');
@@ -224,6 +225,19 @@ const MiningGameView: React.FC = () => {
                   <Download className="w-4 h-4" />
                   <span>Install App</span>
                 </motion.button>
+
+                <motion.a
+                  href={WHITEPAPER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Read The Mining Game whitepaper"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Whitepaper</span>
+                </motion.a>
 
                 <motion.button
                   onClick={() => openWindow(GAME_URL)}

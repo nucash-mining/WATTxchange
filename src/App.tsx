@@ -17,15 +17,16 @@ import DeFiHubView from './components/DeFiHubView';
 import BridgeView from './components/BridgeView';
 import ValidatorsView from './components/ValidatorsView';
 import DatcordView from './components/DatcordView';
+import LiquidityView from './components/LiquidityView';
 import MobileNavbar from './components/mobile/MobileNavbar';
 import { useDeviceDetect } from './hooks/useDeviceDetect';
 
-type ViewType = 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook' | 'datcord';
+type ViewType = 'wallet' | 'nodes' | 'dex' | 'defi' | 'bridge' | 'mining' | 'marketplace' | 'swap' | 'settings' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook' | 'datcord' | 'liquidity';
 
 const VIEW_ALIASES: Record<string, ViewType> = {
   wallet: 'wallet', nodes: 'nodes', dex: 'dex', defi: 'defi', bridge: 'bridge',
   mining: 'mining', marketplace: 'marketplace', swap: 'swap', settings: 'settings',
-  nuchain: 'nuchain', explorer: 'explorer', pool: 'pool', validators: 'validators', orderbook: 'orderbook', book: 'orderbook', datcord: 'datcord',
+  nuchain: 'nuchain', explorer: 'explorer', pool: 'pool', validators: 'validators', orderbook: 'orderbook', book: 'orderbook', datcord: 'datcord', liquidity: 'liquidity', lp: 'liquidity',
   // short forms used by the dedicated subdomains (dex./mm./exp.wattxchange.app
   // redirect here with these fragments)
   mm: 'pool', 'merged-mining': 'pool', pools: 'pool', exp: 'explorer',
@@ -129,6 +130,8 @@ function App() {
         return <MergedMiningView />;
       case 'mining':
         return <MiningGameView />;
+      case 'liquidity':
+        return <LiquidityView />;
       case 'datcord':
         return <DatcordView />;
       case 'nuchain':

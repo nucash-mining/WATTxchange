@@ -1,12 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen, Boxes, ExternalLink } from 'lucide-react';
+import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen, Boxes, ExternalLink, Droplets } from 'lucide-react';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
 import DatcordLogo from './DatcordLogo';
 
 interface SidebarProps {
   currentView: string;
-  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'bridge' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook' | 'datcord') => void;
+  onViewChange: (view: 'wallet' | 'dex' | 'defi' | 'bridge' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool' | 'validators' | 'orderbook' | 'datcord' | 'liquidity') => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
@@ -20,6 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'explorers', label: 'Block Explorers', icon: Boxes, href: 'https://explorers.wattxchange.app' },
     { id: 'pool', label: 'Mining Pools', icon: Cpu },
     { id: 'dex', label: 'DEX', icon: TrendingUp },
+    { id: 'liquidity', label: 'Liquidity', icon: Droplets },
     { id: 'orderbook', label: 'Orderbook', icon: BookOpen },
     { id: 'defi', label: 'DeFi Hub', icon: Coins },
     { id: 'bridge', label: 'Bridge', icon: Link2 },

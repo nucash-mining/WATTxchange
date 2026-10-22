@@ -6,7 +6,7 @@ import { useWallet } from '../hooks/useWallet';
 import OrderBook from './dex/OrderBook';
 import TradingChart from './dex/TradingChart';
 import TradeForm from './dex/TradeForm';
-import LiquidityPools from './dex/LiquidityPools';
+import LiquidityView from './LiquidityView';
 import SwapInterface from './dex/SwapInterface';
 import SwapinV2Interface from './dex/SwapinV2Interface';
 import CrossChainBridge from './dex/AxelarBridgeInterface';
@@ -272,7 +272,7 @@ const DEXView: React.FC = () => {
             </div>
           </div>
         )}
-        {activeTab === 'pools' && <LiquidityPools />}
+        {activeTab === 'pools' && <LiquidityView />}
         {activeTab === 'bridge' && <CrossChainBridge />}
         {activeTab === 'perps' && <TradingTerminal />}
         {activeTab === 'atomic' && <EnhancedAtomicSwapInterface />}

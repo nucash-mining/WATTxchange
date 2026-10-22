@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, Gamepad2, Cpu, Zap, MoreHorizontal } from 'lucide-react';
 
-type ViewType = 'wallet' | 'dex' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool';
+type ViewType = 'wallet' | 'dex' | 'mining' | 'swap' | 'settings' | 'marketplace' | 'nodes' | 'nuchain' | 'explorer' | 'pool' | 'liquidity' | 'datcord';
 
 interface MobileNavbarProps {
   currentView: string;
@@ -22,6 +22,8 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({ currentView, onViewChange, 
   const [showMore, setShowMore] = React.useState(false);
 
   const MORE_ITEMS: { id: ViewType; label: string }[] = [
+    { id: 'liquidity',   label: 'Liquidity'   },
+    { id: 'datcord',     label: 'Datcord'     },
     { id: 'explorer',    label: 'Explorer'    },
     { id: 'nodes',       label: 'Nodes'       },
     { id: 'marketplace', label: 'Marketplace' },

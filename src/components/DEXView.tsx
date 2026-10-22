@@ -3,14 +3,11 @@ import { motion } from 'framer-motion';
 import { TrendingUp, BarChart3, DollarSign, Network, Key, AlertTriangle, ChevronDown, Check } from 'lucide-react';
 import { usePrices } from '../hooks/usePrices';
 import { useWallet } from '../hooks/useWallet';
-import OrderBook from './dex/OrderBook';
-import TradingChart from './dex/TradingChart';
-import TradeForm from './dex/TradeForm';
 import LiquidityView from './LiquidityView';
 import SwapInterface from './dex/SwapInterface';
 import SwapinV2Interface from './dex/SwapinV2Interface';
 import CrossChainBridge from './dex/AxelarBridgeInterface';
-import TradingTerminal from './dex/TradingTerminal';
+import MarketsTerminal from './dex/MarketsTerminal';
 import ExchangeApiManager from './dex/ExchangeApiManager';
 import EnhancedAtomicSwapInterface from './swap/EnhancedAtomicSwapInterface';
 import NavigatorPerpInterface from './dex/NavigatorPerpInterface';
@@ -22,7 +19,7 @@ type DexTab =
 
 // Desktop pill order.
 const DEX_TABS: { id: DexTab; label: string }[] = [
-  { id: 'perps', label: 'Trade' },
+  { id: 'perps', label: 'Trade · all markets' },
   { id: 'uniswap', label: 'Swapin V2' },
   { id: 'multichain', label: 'Multi-Chain' },
   { id: 'spot', label: 'Spot' },
@@ -40,7 +37,7 @@ type DexTabGroup = { label: string; items: { id: DexTab; label: string }[] };
 const DEX_TAB_GROUPS: DexTabGroup[] = [
   { label: 'Trade', items: [
     { id: 'spot', label: 'Spot' },
-    { id: 'perps', label: 'Trading Terminal' },
+    { id: 'perps', label: 'All markets' },
     { id: 'navigator', label: 'Navigator PERP' },
   ] },
   { label: 'Swap', items: [
@@ -261,20 +258,10 @@ const DEXView: React.FC = () => {
       >
         {activeTab === 'uniswap' && <SwapinV2Interface />}
         {activeTab === 'multichain' && <SwapInterface />}
-        {activeTab === 'spot' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-3 space-y-6">
-              <TradingChart />
-              <OrderBook />
-            </div>
-            <div className="lg:col-span-1">
-              <TradeForm />
-            </div>
-          </div>
-        )}
+        {activeTab === 'spot' && <MarketsTerminal />}
         {activeTab === 'pools' && <LiquidityView />}
         {activeTab === 'bridge' && <CrossChainBridge />}
-        {activeTab === 'perps' && <TradingTerminal />}
+        {activeTab === 'perps' && <MarketsTerminal />}
         {activeTab === 'atomic' && <EnhancedAtomicSwapInterface />}
         {activeTab === 'navigator' && <NavigatorPerpInterface />}
         {activeTab === 'sonic' && <SonicBridgeInterface />}

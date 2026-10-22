@@ -66,6 +66,7 @@ export default function WattWtxBridge() {
   const [busy, setBusy] = useState(false);
   const [swapIds, setSwapIds] = useState<string[]>(loadIds);
   const [swaps, setSwaps] = useState<Record<string, BridgeSwap>>({});
+  const [feeHash, setFeeHash] = useState<Record<string, string>>({});
 
   const refreshInfo = useCallback(async () => {
     try {
@@ -221,6 +222,45 @@ export default function WattWtxBridge() {
     }
   };
 
+  // Relay fee: pay the quoted POL/ALT from the connected wallet, or report a
+  // tx hash paid from elsewhere. The desk checks it on-chain before paying out.
+  const payFee = async (swap: BridgeSwap) => {
+    setBusy(true);
+    try {
+      const f = swap.relayFee;
+      if (!f || !info) throw new Error('no relay fee on this swap');
+      if (!wallet.isConnected || !wallet.signer) throw new Error('Connect your wallet first');
+      const chainId = info.chains[f.chain]?.chainId;
+      if (wallet.chainId !== chainId)
+        throw new Error(`Switch your wallet to ${CHAIN_LABELS[f.chain]} (chain ${chainId}) to pay the fee`);
+      const payer = swap.direction === 'WTX_TO_WATT' ? swap.destAddress : swap.evm?.sender;
+      if (payer && wallet.address && payer.toLowerCase() !== wallet.address.toLowerCase())
+        throw new Error(`Pay the fee from ${payer}`);
+      const s = await wattWtxBridgeService.payRelayFee(wallet.signer, swap);
+      setSwaps((prev) => ({ ...prev, [s.id]: s }));
+      toast.success('Relay fee paid — payout continues');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitFeeHash = async (swap: BridgeSwap) => {
+    setBusy(true);
+    try {
+      const h = (feeHash[swap.id] ?? '').trim();
+      if (!h) throw new Error('Paste the fee tx hash');
+      const s = await wattWtxBridgeService.submitRelayFee(swap.id, h);
+      setSwaps((prev) => ({ ...prev, [s.id]: s }));
+      toast.success('Relay fee verified — payout continues');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className={cardCls}>
       <div className="flex items-center justify-between mb-1">
@@ -363,6 +403,11 @@ export default function WattWtxBridge() {
                 {direction === 'WATT_TO_WTX' ? 'WTX' : 'WATT'}
                 {direction === 'EVM_TO_EVM' ? ` on ${CHAIN_LABELS[destChainKey]}` : ''}
               </span>
+              {(direction !== 'WATT_TO_WTX' || chainKey !== 'bsv') && !(direction === 'WTX_TO_WATT' && chainKey === 'bsv') && (
+                <span className="text-gray-500"> · plus a small relay fee in {
+                  chainKey === 'polygon' ? 'POL' : 'ALT'
+                } (gas at cost)</span>
+              )}
             </>
           )}
         </span>
@@ -446,6 +491,52 @@ export default function WattWtxBridge() {
                       Lock now
                     </button>
                   </div>
+                )}
+                {s.relayFee && !s.relayFeePaid && ACTIVE_STATES.includes(s.state) && (
+                  <div className="space-y-1 text-gray-400">
+                    <div className="flex items-center justify-between">
+                      <span>
+                        Relay fee: <span className="text-gray-200">{s.relayFee.amount} {s.relayFee.coin}</span> on{' '}
+                        {CHAIN_LABELS[s.relayFee.chain]} to{' '}
+                        <span className="font-mono text-gray-300">{s.relayFee.payTo}</span>
+                        <button className="ml-1" onClick={() => copy(s.relayFee!.payTo, 'Fee address')}>
+                          <Copy className="inline w-3 h-3 text-gray-500 hover:text-gray-300" />
+                        </button>
+                      </span>
+                      {s.direction === 'WTX_TO_WATT' || s.evm?.sender ? (
+                        <button
+                          onClick={() => void payFee(s)}
+                          disabled={busy}
+                          className="underline text-yellow-400 hover:text-yellow-300 disabled:opacity-50"
+                        >
+                          Pay fee
+                        </button>
+                      ) : (
+                        <span className="text-gray-500">pay after your lock confirms</span>
+                      )}
+                    </div>
+                    <div className="text-gray-500">
+                      Send it from {s.direction === 'WTX_TO_WATT' ? s.destAddress : 'the wallet that locked'}. The payout waits until it is verified.
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        className={`${inputCls} py-1 text-xs`}
+                        placeholder="Paid from another wallet app? Paste the fee tx hash"
+                        value={feeHash[s.id] ?? ''}
+                        onChange={(e) => setFeeHash((p) => ({ ...p, [s.id]: e.target.value }))}
+                      />
+                      <button
+                        onClick={() => void submitFeeHash(s)}
+                        disabled={busy}
+                        className="underline text-yellow-400 hover:text-yellow-300 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        Submit
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {s.relayFeePaid && (
+                  <div className="text-gray-500">Relay fee paid: {s.relayFee?.amount} {s.relayFee?.coin}</div>
                 )}
                 {s.wtxTxid && <div className="text-gray-500">WTX payout: {s.wtxTxid}</div>}
                 {s.payoutTx && <div className="text-gray-500">WATT payout: {s.payoutTx}</div>}

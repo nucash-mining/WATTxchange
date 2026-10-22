@@ -52,6 +52,13 @@ export interface BridgeSwap {
   payoutTx?: string;
   claimTx?: string;
   instructions?: string;
+  /** Relay fee, paid separately in the chain's gas coin (POL on Polygon, ALT
+   *  on Altcoinchain). The EVM payout waits until it is paid and verified. */
+  relayFee?: { chain: 'alt' | 'polygon'; coin: 'POL' | 'ALT'; wei: string; amount: string; payTo: string } | null;
+  relayFeePaid?: { txHash: string; from: string; wei: string; at: string } | null;
+  feeNote?: string;
+  /** EVM lock details once the desk has seen the lock (sender = fee payer). */
+  evm?: { sender?: string };
   /** Live WTX-deposit progress (present on WTX_TO_WATT swaps still confirming). */
   deposit?: {
     seen: boolean;
@@ -102,6 +109,25 @@ class WattWtxBridgeService {
 
   async getSwap(id: string): Promise<BridgeSwap | null> {
     const r = await api<{ swap: BridgeSwap | null }>(`/api/swap/${id}`);
+    return r.swap;
+  }
+
+  /** Pay the relay fee: send the quoted POL/ALT to the desk, wait for it to
+   *  mine, then hand the tx hash to the desk for verification. */
+  async payRelayFee(signer: ethers.Signer, swap: BridgeSwap): Promise<BridgeSwap> {
+    const f = swap.relayFee;
+    if (!f) throw new Error('this swap has no relay fee');
+    const tx = await signer.sendTransaction({ to: f.payTo, value: BigInt(f.wei) });
+    const rcpt = await tx.wait();
+    return await this.submitRelayFee(swap.id, (rcpt?.hash ?? tx.hash) as string);
+  }
+
+  /** Report a relay-fee payment made from any wallet tool. */
+  async submitRelayFee(id: string, txHash: string): Promise<BridgeSwap> {
+    const r = await api<{ swap: BridgeSwap }>(`/api/swap/${id}/relayfee`, {
+      method: 'POST',
+      body: JSON.stringify({ txHash }),
+    });
     return r.swap;
   }
 

@@ -108,7 +108,7 @@ const DatcordView: React.FC = () => {
       <iframe
         src={DATCORD_APP_URL}
         title="Datcord"
-        className="w-full block h-[calc(100vh-14rem)] min-h-[560px]"
+        className="w-full block h-[calc(100vh-17rem)] min-h-[480px]"
         allow="clipboard-write; clipboard-read"
       />
     </motion.div>

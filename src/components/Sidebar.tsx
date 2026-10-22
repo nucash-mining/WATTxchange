@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen, MessagesSquare, Boxes, ExternalLink } from 'lucide-react';
+import { Wallet, TrendingUp, Gamepad2, ArrowLeftRight, Settings, ShoppingCart, Server, Zap, Search, Cpu, Coins, Link2, ShieldCheck, BookOpen, Boxes, ExternalLink } from 'lucide-react';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
+import DatcordLogo from './DatcordLogo';
 
 interface SidebarProps {
   currentView: string;
@@ -24,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'bridge', label: 'Bridge', icon: Link2 },
     { id: 'mining', label: 'Mining Game', icon: Gamepad2 },
     { id: 'nuchain', label: 'nuChain L2', icon: Zap },
-    { id: 'datcord', label: 'Datcord', icon: MessagesSquare },
+    { id: 'datcord', label: 'Datcord', icon: DatcordLogo },
     { id: 'marketplace', label: 'Tech Marketplace', icon: ShoppingCart },
     { id: 'swap', label: 'Atomic Swap', icon: ArrowLeftRight },
     { id: 'settings', label: 'Settings', icon: Settings },

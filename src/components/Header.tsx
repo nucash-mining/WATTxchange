@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
             <h1 className={`${isMobile ? "text-xl" : "text-3xl"} font-bold bg-gradient-to-r from-yellow-400 to-emerald-400 bg-clip-text text-transparent leading-tight whitespace-nowrap`}>
               WATTxchange
             </h1>
-            <p className={`${isMobile ? "text-xs" : "text-sm"} text-gray-400 leading-tight`}>Multi-Chain DeFi Hub</p>
+            {!isMobile && <p className="text-sm text-gray-400 leading-tight">Multi-Chain DeFi Hub</p>}
           </div>
         </motion.div>
 
@@ -71,15 +71,20 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
 
           <WalletConnect />
           
-          <div className={`flex items-center space-x-2 bg-gray-900/50 rounded-lg ${isMobile ? 'px-2 py-1' : 'px-3 py-2'}`}>
+          <div
+            className={`flex items-center space-x-2 bg-gray-900/50 rounded-lg ${isMobile ? 'p-2' : 'px-3 py-2'}`}
+            title={isConnected ? 'Connected' : 'Disconnected'}
+          >
             {isConnected ? (
               <Wifi className="w-4 h-4 text-emerald-400" />
             ) : (
               <WifiOff className="w-4 h-4 text-red-400" />
             )}
-            <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>
-              {isConnected ? `Connected${chainId === 2330 ? ' (Altcoinchain)' : ''}` : 'Disconnected'}
-            </span>
+            {!isMobile && (
+              <span className="text-sm">
+                {isConnected ? `Connected${chainId === 2330 ? ' (Altcoinchain)' : ''}` : 'Disconnected'}
+              </span>
+            )}
           </div>
           
           {!isMobile && (

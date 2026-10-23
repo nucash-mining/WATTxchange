@@ -3253,10 +3253,10 @@ function musicLoop(){
       kg.gain.setValueAtTime(section?0.9:0.55,t); kg.gain.exponentialRampToValueAtTime(0.001,t+0.28);
       k.connect(kg).connect(AU.musG); k.start(t); k.stop(t+0.3); }
     // clap on 2 and 4
-    if(section && (s===4||s===12)) musNoise(t,0.16,0.35,'bandpass',1600);
+    if(section && (s===4||s===12)) musNoise(t,0.14,0.16,'bandpass',1600);
     // offbeat hats, a ghost 16th now and then
-    if(s%4===2) musNoise(t,0.05,0.22,'highpass',7500);
-    else if(section && Math.random()<0.18) musNoise(t,0.03,0.08,'highpass',9000);
+    if(s%4===2) musNoise(t,0.04,0.09,'highpass',7500);
+    else if(section && Math.random()<0.12) musNoise(t,0.03,0.035,'highpass',9000);
     // rolling bass: root 16ths, octave pops on the "and"s
     const bn = root + (s===6||s===14 ? 12 : 0) + (s===11 ? 7 : 0);
     musVoice('sawtooth', mtof(bn), t, st*0.9, s%4===0?0.26:0.18, sweep, null, s%2?7:-7);
@@ -3267,7 +3267,7 @@ function musicLoop(){
       musVoice('square', mtof(root+arp), t, st*0.8, 0.05, 2600, null, s%2?9:-9);
     }
     // glitch: a data packet chirp
-    if(Math.random() < (section?0.05:0.02)){
+    if(Math.random() < (section?0.02:0.01)){
       const o=AU.ctx.createOscillator(), g=AU.ctx.createGain(); o.type='square';
       o.frequency.setValueAtTime(1800+Math.random()*2600,t); o.frequency.exponentialRampToValueAtTime(300+Math.random()*400,t+0.07);
       g.gain.setValueAtTime(0.05,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
@@ -5024,7 +5024,7 @@ function simTick(dt){ // dt seconds (fixed 0.1)
   // hum follows draw
   // lab hum: grows gently with power draw (log scale) and stays under the music. The old
   // linear curve hit full volume at ~110W, so LIVE farms were drowned in static.
-  if(AU.humG) AU.humG.gain.value=(S.muted?0:Math.min(0.05,0.015+Math.log10(1+draw)*0.01))*(noWatt?0.3:1);
+  if(AU.humG) AU.humG.gain.value=(S.muted?0:0)*(noWatt?0.3:1);
 }
 /* Tower's own crash/wear tick — same rules as a desk rig (see the S.rigs.forEach
    above), just addressed differently: no SLOTS[r.slot]/rigVis[ri] (the tower

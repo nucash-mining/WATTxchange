@@ -5,6 +5,7 @@
    Chips are FREE PLAY ONLY: no cash value, can't be bought, sold or withdrawn. Everyone
    starts with 1,000 and can top back up to 1,000 for free. */
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const MG = () => window.MG;
 const LX = 0, LZ = -120, LW = 30, LD = 24;
@@ -400,7 +401,19 @@ function pokerTable(x, z) {
   [[-0.5, 0.2, 0xffd23f], [0.6, -0.1, 0xff3b3b], [0.1, 0.35, 0x35e0ff]].forEach(([cx, cz, col]) => { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 14), std(col, 0.4)); s.position.set(cx, 1.03, cz); g.add(s); });
   for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.01, 0.2), std(0xfbfbf7, 0.5)); c.position.set(-0.36 + i * 0.18, 0.98, 0); g.add(c); }
   // stools
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; const s = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.6, 16), std(0x2a2050, 0.6, 0xb14bff, 0.25)); s.position.set(Math.cos(a) * 1.9, 0.3, Math.sin(a) * 1.25); g.add(s); }
+  // padded casino chairs (seat + back on a chrome post), each turned to face the felt
+  const pad = std(0x2a2050, 0.55, 0xb14bff, 0.12), chrome = std(0xc0c4d0, 0.2);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4, ch = new THREE.Group();
+    ch.position.set(Math.cos(a) * 1.95, 0, Math.sin(a) * 1.3);
+    ch.lookAt(g.position.x, 0, g.position.z); ch.rotation.set(0, Math.atan2(-ch.position.x, -ch.position.z), 0);
+    const seat = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.12, 0.48, 4, 0.05), pad); seat.position.y = 0.6; ch.add(seat);
+    const back = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.5, 0.1, 4, 0.05), pad); back.position.set(0, 0.92, -0.22); back.rotation.x = -0.12; ch.add(back);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.55, 12), chrome); post.position.y = 0.3; ch.add(post);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.04, 24), chrome); base.position.y = 0.02; ch.add(base);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.012, 8, 24), chrome); ring.rotation.x = Math.PI / 2; ring.position.y = 0.3; ch.add(ring);
+    g.add(ch);
+  }
   const sign = label('🃏 HOLD’EM · free play', '#3dff8a'); sign.position.set(0, 2.2, 0); g.add(sign);
   const lt = new THREE.PointLight(0x3dff8a, 0.5, 5); lt.position.set(0, 2, 0); g.add(lt);
   MG().scene.add(g); props.push({ g, open: openPoker, name: "HOLD'EM" });
@@ -409,15 +422,23 @@ function slotMachine(x, z, rotY) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY;
   const body = std(0x150c28, 0.5);
   const add = (geo, m, px, py, pz) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); g.add(o); return o; };
-  add(new THREE.BoxGeometry(0.9, 1.7, 0.7), body, 0, 0.85, 0);
-  add(new THREE.BoxGeometry(0.92, 0.3, 0.72), std(0x150c28, 0.4, 0xb14bff, 1.3), 0, 1.85, 0);
+  // cabinet: rounded body, glowing arched topper, chrome trim
+  add(new RoundedBoxGeometry(0.9, 1.62, 0.7, 4, 0.07), body, 0, 0.81, 0);
+  add(new RoundedBoxGeometry(0.96, 0.08, 0.76, 3, 0.03), std(0x8a8fa8, 0.25), 0, 0.04, 0);            // plinth
+  const top = add(new THREE.CylinderGeometry(0.45, 0.45, 0.66, 32, 1, false, -Math.PI / 2, Math.PI), std(0x150c28, 0.35, 0xb14bff, 1.1), 0, 1.62, 0);
+  top.rotation.x = Math.PI / 2;
+  [-1, 1].forEach((sx) => add(new THREE.BoxGeometry(0.02, 1.5, 0.02), std(0x111111, 0.3, 0xffd23f, 1.4), sx * 0.455, 0.85, 0.34));   // gold edge lights
+  add(new RoundedBoxGeometry(0.8, 0.42, 0.06, 3, 0.025), std(0x05060c, 0.3), 0, 1.25, 0.33);          // reel window bezel
+  add(new RoundedBoxGeometry(0.78, 0.16, 0.22, 3, 0.04), std(0x2a2050, 0.4, 0xb14bff, 0.25), 0, 0.92, 0.42);   // button deck
+  [-0.22, 0, 0.22].forEach((bx, i) => add(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 16), std(0x111111, 0.3, [0x3dff8a, 0xffd23f, 0xff3b3b][i], 1), bx, 1.01, 0.44));
+  add(new RoundedBoxGeometry(0.5, 0.1, 0.18, 3, 0.04), std(0x8a8fa8, 0.25), 0, 0.32, 0.4);             // coin tray
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const cx = cv.getContext('2d');
   cx.fillStyle = '#fbfbf7'; cx.fillRect(0, 0, 256, 96); cx.font = 'bold 56px system-ui'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
   ['7', '⚡', '💎'].forEach((s, i) => { cx.fillStyle = '#d11a2a'; cx.fillText(s, 43 + i * 85, 50); });
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  add(new THREE.PlaneGeometry(0.7, 0.26), new THREE.MeshBasicMaterial({ map: tex }), 0, 1.25, 0.351);
-  add(new THREE.CylinderGeometry(0.025, 0.025, 0.5), std(0x888888, 0.3), 0.52, 1.25, 0);
-  add(new THREE.SphereGeometry(0.07, 12, 10), std(0xff3b3b, 0.3, 0xff3b3b, 0.4), 0.52, 1.52, 0);
+  add(new THREE.PlaneGeometry(0.7, 0.3), new THREE.MeshBasicMaterial({ map: tex }), 0, 1.25, 0.364);
+  add(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 12), std(0xc0c4d0, 0.2), 0.5, 1.25, 0.05);
+  add(new THREE.SphereGeometry(0.07, 16, 12), std(0xff3b3b, 0.3, 0xff3b3b, 0.4), 0.5, 1.52, 0.05);
   const sign = label('🎰 WATT SLOTS', '#b14bff'); sign.position.set(0, 2.35, 0); sign.scale.set(1.4, 0.35, 1); g.add(sign);
   MG().scene.add(g); props.push({ g, open: openSlots, name: 'WATT SLOTS' });
 }

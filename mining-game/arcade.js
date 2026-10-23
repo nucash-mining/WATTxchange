@@ -483,25 +483,45 @@ const GAMES = [makeRaiders(), makeMiner()];
 const cabinets = [];
 function cabinet(game, x, z) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2;   // face into the room
-  const body = new THREE.MeshStandardMaterial({ color: 0x0d0f1c, roughness: 0.6, metalness: 0.2 });
-  const glow = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: new THREE.Color(game.color), emissiveIntensity: 1.2 });
+  const body = new THREE.MeshStandardMaterial({ color: 0x14172a, roughness: 0.45, metalness: 0.25 });
+  const side = new THREE.MeshStandardMaterial({ color: 0x0b0d18, roughness: 0.5, metalness: 0.3 });
+  const glow = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: new THREE.Color(game.color), emissiveIntensity: 1.6 });
   const add = (geo, m, px, py, pz, rx = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); o.rotation.x = rx; g.add(o); return o; };
-  add(new THREE.BoxGeometry(1.1, 1.0, 0.8), body, 0, 0.5, 0);                    // base
-  add(new THREE.BoxGeometry(1.1, 0.12, 0.55), body, 0, 1.06, 0.18, -0.25);        // control deck
-  add(new THREE.BoxGeometry(1.1, 1.05, 0.55), body, 0, 1.6, -0.12);               // screen housing
-  add(new THREE.BoxGeometry(1.1, 0.32, 0.7), body, 0, 2.28, -0.05);               // marquee box
-  [-0.56, 0.56].forEach((sx) => add(new THREE.BoxGeometry(0.03, 2.4, 0.82), glow, sx, 1.2, 0));   // neon side trims
-  add(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: 0xff3b3b }), -0.22, 1.18, 0.26);
-  add(new THREE.CylinderGeometry(0.015, 0.015, 0.14), body, -0.22, 1.12, 0.26);
-  [0.12, 0.28].forEach((bx) => add(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 12), glow, bx, 1.13, 0.22));
-  // live attract screen + marquee
+  // classic upright side profile (z = toward the player, y = up), extruded across the width
+  const P = [[-0.42, 0], [0.42, 0], [0.42, 0.92], [0.5, 1.02], [0.46, 1.1], [0.16, 1.16], [0.12, 1.2],
+    [-0.05, 2.05], [0.26, 2.12], [0.26, 2.46], [-0.42, 2.46]];
+  const shape = new THREE.Shape(); P.forEach(([pz, py], i) => (i ? shape.lineTo(pz, py) : shape.moveTo(pz, py))); shape.closePath();
+  const WID = 1.04;
+  const shell = new THREE.ExtrudeGeometry(shape, { depth: WID, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 3 });
+  shell.translate(0, 0, -WID / 2); shell.rotateY(-Math.PI / 2);              // shape-x -> +z (front), extrusion -> x
+  g.add(new THREE.Mesh(shell, [side, body]));
+  // neon T-molding: a glowing tube tracing the side profile on both sides
+  const path = new THREE.CurvePath();
+  P.concat([P[0]]).forEach((q, i, arr) => { if (i) path.add(new THREE.LineCurve3(new THREE.Vector3(0, arr[i - 1][1], arr[i - 1][0]), new THREE.Vector3(0, q[1], q[0]))); });
+  [-1, 1].forEach((sx) => { const t = new THREE.Mesh(new THREE.TubeGeometry(path, 160, 0.018, 6, false), glow); t.position.x = sx * (WID / 2 + 0.03); g.add(t); });
+  // screen on the slanted face, set in a black bezel
+  const tilt = -Math.atan2(0.17, 0.85), sy = 1.625, sz = 0.12 - 0.17 * ((sy - 1.2) / 0.85);
+  const nrm = new THREE.Vector3(0, Math.sin(-tilt), Math.cos(tilt));
+  const bez = add(new THREE.PlaneGeometry(0.9, 0.84), new THREE.MeshStandardMaterial({ color: 0x020205, roughness: 0.2, metalness: 0.4 }), 0, sy + nrm.y * 0.03, sz + nrm.z * 0.03, tilt);
   const sc = document.createElement('canvas'); sc.width = W; sc.height = H;
   const tex = new THREE.CanvasTexture(sc); tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = THREE.NearestFilter;
-  add(new THREE.PlaneGeometry(0.78, 0.96), new THREE.MeshBasicMaterial({ map: tex }), 0, 1.62, 0.162, -0.1);
-  const mc = document.createElement('canvas'); mc.width = 512; mc.height = 128; const mx = mc.getContext('2d');
-  mx.fillStyle = '#05060c'; mx.fillRect(0, 0, 512, 128); mx.fillStyle = game.color; mx.font = 'bold 64px "Courier New", monospace'; mx.textAlign = 'center'; mx.textBaseline = 'middle'; mx.fillText(game.name, 256, 66);
+  add(new THREE.PlaneGeometry(0.62, 0.8), new THREE.MeshBasicMaterial({ map: tex }), 0, sy + nrm.y * 0.034, sz + nrm.z * 0.034, tilt);
+  // control panel: joystick + two buttons on the sloped deck
+  const deck = -Math.atan2(0.06, 0.3);
+  add(new THREE.CylinderGeometry(0.06, 0.07, 0.02, 16), side, -0.2, 1.11, 0.33, deck);
+  add(new THREE.CylinderGeometry(0.012, 0.012, 0.13), new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.8, roughness: 0.3 }), -0.2, 1.18, 0.33);
+  add(new THREE.SphereGeometry(0.045, 14, 10), new THREE.MeshStandardMaterial({ color: 0xff3b3b, roughness: 0.3 }), -0.2, 1.255, 0.33);
+  [0.08, 0.24].forEach((bx, i) => add(new THREE.CylinderGeometry(0.042, 0.042, 0.035, 18), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: new THREE.Color(i ? 0x35e0ff : game.color), emissiveIntensity: 0.9 }), bx, 1.13, 0.31, deck));
+  // coin door
+  add(new THREE.PlaneGeometry(0.34, 0.3), new THREE.MeshStandardMaterial({ color: 0x24283c, metalness: 0.7, roughness: 0.35 }), 0, 0.6, 0.451);
+  [-0.07, 0.07].forEach((cx2) => add(new THREE.PlaneGeometry(0.05, 0.09), new THREE.MeshBasicMaterial({ color: 0xff5a3c }), cx2, 0.64, 0.453));
+  // lit marquee
+  const mc = document.createElement('canvas'); mc.width = 512; mc.height = 160; const mx = mc.getContext('2d');
+  const grd = mx.createLinearGradient(0, 0, 0, 160); grd.addColorStop(0, '#0b0e1c'); grd.addColorStop(1, '#05060c');
+  mx.fillStyle = grd; mx.fillRect(0, 0, 512, 160); mx.shadowColor = game.color; mx.shadowBlur = 24;
+  mx.fillStyle = game.color; mx.font = 'bold 70px "Courier New", monospace'; mx.textAlign = 'center'; mx.textBaseline = 'middle'; mx.fillText(game.name, 256, 84);
   const mt = new THREE.CanvasTexture(mc); mt.colorSpace = THREE.SRGBColorSpace;
-  add(new THREE.PlaneGeometry(1.06, 0.27), new THREE.MeshBasicMaterial({ map: mt }), 0, 2.28, 0.301);
+  add(new THREE.PlaneGeometry(1.02, 0.32), new THREE.MeshBasicMaterial({ map: mt }), 0, 2.29, 0.29);
   const light = new THREE.PointLight(new THREE.Color(game.color), 0.6, 4); light.position.set(0, 1.7, 0.8); g.add(light);
   g.userData.arcade = game;
   MG().scene.add(g);

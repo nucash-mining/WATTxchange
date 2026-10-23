@@ -13,6 +13,7 @@ import { HyperliquidPanel, HyperliquidPairPanel, ThorPanel } from './VenuePanels
 
 const FAMILIES = ['SwapinDEX', 'Uniswap', 'PancakeSwap', 'QuickSwap', 'Hyperliquid', 'THORChain'];
 const TFS = ['1m', '5m', '15m', '1h', '4h', '1D'] as const;
+const TF_SEC: Record<typeof TFS[number], number> = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14_400, '1D': 86_400 };
 const LS = { quote: 'wxc.dex.quote.v2', dust: 'wxc.dex.dust.v1', families: 'wxc.dex.families.v1', favs: 'wxc.dex.favs.v1', last: 'wxc.dex.last.v1' };
 
 const load = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) ?? 'null') ?? d; } catch { return d; } };
@@ -211,6 +212,7 @@ function MarketChart({ market: m }: { market: Market }) {
     let cancelled = false;
     const key = `${m.id}|${tf}`;
     page.current = { key, loading: false, done: false, shift: 0, fit: true };
+    renderedLen.current = 0;
     setCandles(null); setError(null);
     fetchCandles(m.id, tf).then((c) => { if (!cancelled) setCandles(c); }).catch((e) => { if (!cancelled) setError(e.message); });
     // live refresh: merge the newest page into whatever history is loaded
@@ -246,20 +248,48 @@ function MarketChart({ market: m }: { market: Market }) {
     return () => c.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
   }, []);
 
+  // Thin pools only print a candle when someone trades. Fill every empty period up to
+  // now with a flat candle at the last price (muted red, no volume) so the chart shows
+  // real time instead of a few candles squashed together.
+  const renderedLen = useRef(0);
   useEffect(() => {
-    const data = (candles ?? []).filter((c, i, a) => i === 0 || c.time > a[i - 1].time);
+    const raw = (candles ?? []).filter((c, i, a) => i === 0 || c.time > a[i - 1].time);
+    const step = TF_SEC[tf];
+    const FLAT = 'rgba(239,68,68,0.45)';
+    type Pt = Candle & { flat?: boolean };
+    const data: Pt[] = [];
+    const nowBucket = Math.floor(Date.now() / 1000 / step) * step;
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (data.length) {
+        const prev = data[data.length - 1];
+        for (let t = prev.time + step; t < c.time && data.length < 20_000; t += step) {
+          data.push({ time: t, open: prev.close, high: prev.close, low: prev.close, close: prev.close, volume: 0, flat: true });
+        }
+      }
+      data.push(c);
+    }
+    const lastC = data[data.length - 1];
+    if (lastC) for (let t = lastC.time + step; t <= nowBucket && data.length < 20_000; t += step) {
+      data.push({ time: t, open: lastC.close, high: lastC.close, low: lastC.close, close: lastC.close, volume: 0, flat: true });
+    }
+    const shown = data.slice(-6000);                         // keep the chart responsive
     const ts = chart.current?.timeScale();
     const before = ts?.getVisibleLogicalRange();
-    candleS.current?.setData(data.map((c) => ({ ...c, time: c.time as UTCTimestamp })));
-    volS.current?.setData(data.map((c) => ({ time: c.time as UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)' })));
+    candleS.current?.setData(shown.map((c) => (c.flat
+      ? { time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close, color: FLAT, borderColor: FLAT, wickColor: FLAT }
+      : { time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
+    volS.current?.setData(shown.map((c) => ({ time: c.time as UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)' })));
     const p = page.current;
-    if (!data.length) return;
+    const grew = shown.length - renderedLen.current;
+    renderedLen.current = shown.length;
+    if (!shown.length) return;
     if (p.fit) {
-      // open on the most recent ~150 candles; older ones are a scroll away
+      // open on the most recent ~150 periods; older ones are a scroll away
       p.fit = false;
-      ts?.setVisibleLogicalRange({ from: Math.max(0, data.length - 150), to: data.length + 2 });
+      ts?.setVisibleLogicalRange({ from: Math.max(0, shown.length - 150), to: shown.length + 2 });
     } else if (p.shift && before) {
-      ts?.setVisibleLogicalRange({ from: before.from + p.shift, to: before.to + p.shift });
+      ts?.setVisibleLogicalRange({ from: before.from + grew, to: before.to + grew });
       p.shift = 0;
     }
   }, [candles]);

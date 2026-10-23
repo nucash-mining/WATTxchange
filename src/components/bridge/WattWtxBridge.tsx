@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ArrowDownUp, Zap, Copy, RefreshCw } from 'lucide-react';
-import { useWallet } from '../../hooks/useWallet';
+import { ethers } from 'ethers';
+import { EVM_CHAINS } from '../../config/evmChains';
+import { walletOn } from '../../services/marketsService';
 import {
   wattWtxBridgeService,
   type BridgeInfo,
@@ -49,13 +51,23 @@ function loadIds(): string[] {
   }
 }
 
+/**
+ * A fresh signer on `chainId`. Asks the wallet which network it is on right now (the
+ * shared wallet hook can hold a stale chain/signer after a network switch), switches
+ * or adds the network if needed, and returns a signer bound to it.
+ */
+async function signerOn(chainId: number): Promise<ethers.JsonRpcSigner> {
+  const chain = EVM_CHAINS[chainId];
+  if (!chain) throw new Error(`unsupported chain ${chainId}`);
+  return walletOn(chain);
+}
+
 function copy(text: string, label: string) {
   void navigator.clipboard.writeText(text);
   toast.success(`${label} copied`);
 }
 
 export default function WattWtxBridge() {
-  const wallet = useWallet();
   const [info, setInfo] = useState<BridgeInfo | null>(null);
   const [infoError, setInfoError] = useState<string | null>(null);
   const [direction, setDirection] = useState<'WATT_TO_WTX' | 'WTX_TO_WATT' | 'EVM_TO_EVM'>('WATT_TO_WTX');
@@ -156,15 +168,10 @@ export default function WattWtxBridge() {
         } else {
           // EVM leg: approve + lock in one go if the wallet is ready
           const chain = info.chains[chainKey];
-          if (!wallet.isConnected || !wallet.signer) {
-            toast('Intent created. Connect your wallet and lock from the tracker below.', { icon: 'ℹ️' });
-          } else if (wallet.chainId !== chain.chainId) {
-            toast.error(`Switch your wallet to ${CHAIN_LABELS[chainKey]} (chain ${chain.chainId}), then lock from the tracker`);
-          } else {
-            if (!amount) throw new Error('Enter the WATT amount to lock');
-            const txHash = await wattWtxBridgeService.lockWatt(wallet.signer, swap, amount);
-            toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WTX after confirmations`);
-          }
+          if (!amount) throw new Error('Enter the WATT amount to lock');
+          const signer = await signerOn(chain.chainId);
+          const txHash = await wattWtxBridgeService.lockWatt(signer, swap, amount);
+          toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WTX after confirmations`);
         }
       } else if (direction === 'WTX_TO_WATT') {
         if (!destAddr.trim()) throw new Error(`Enter your ${CHAIN_LABELS[chainKey]} WATT address`);
@@ -188,15 +195,10 @@ export default function WattWtxBridge() {
         });
         track(swap.id);
         const chain = info.chains[chainKey];
-        if (!wallet.isConnected || !wallet.signer) {
-          toast('Intent created. Connect your wallet and lock from the tracker below.', { icon: 'ℹ️' });
-        } else if (wallet.chainId !== chain.chainId) {
-          toast.error(`Switch your wallet to ${CHAIN_LABELS[chainKey]} (chain ${chain.chainId}), then lock from the tracker`);
-        } else {
-          if (!amount) throw new Error('Enter the WATT amount to lock');
-          const txHash = await wattWtxBridgeService.lockWatt(wallet.signer, swap, amount);
-          toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WATT on ${CHAIN_LABELS[destChainKey]} after confirmations`);
-        }
+        if (!amount) throw new Error('Enter the WATT amount to lock');
+        const signer = await signerOn(chain.chainId);
+        const txHash = await wattWtxBridgeService.lockWatt(signer, swap, amount);
+        toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WATT on ${CHAIN_LABELS[destChainKey]} after confirmations`);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -208,12 +210,10 @@ export default function WattWtxBridge() {
   const lockFromTracker = async (swap: BridgeSwap) => {
     setBusy(true);
     try {
-      if (!wallet.isConnected || !wallet.signer) throw new Error('Connect your wallet first');
       if (!swap.lockParams) throw new Error('not an EVM lock swap');
-      if (wallet.chainId !== swap.lockParams.chainId)
-        throw new Error(`Switch your wallet to chain ${swap.lockParams.chainId} first`);
       if (!amount) throw new Error('Enter the WATT amount above first');
-      const txHash = await wattWtxBridgeService.lockWatt(wallet.signer, swap, amount);
+      const signer = await signerOn(swap.lockParams.chainId);
+      const txHash = await wattWtxBridgeService.lockWatt(signer, swap, amount);
       toast.success(`WATT locked (${txHash.slice(0, 10)}…)`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -229,14 +229,14 @@ export default function WattWtxBridge() {
     try {
       const f = swap.relayFee;
       if (!f || !info) throw new Error('no relay fee on this swap');
-      if (!wallet.isConnected || !wallet.signer) throw new Error('Connect your wallet first');
       const chainId = info.chains[f.chain]?.chainId;
-      if (wallet.chainId !== chainId)
-        throw new Error(`Switch your wallet to ${CHAIN_LABELS[f.chain]} (chain ${chainId}) to pay the fee`);
+      if (!chainId) throw new Error(`unknown fee chain ${f.chain}`);
+      const signer = await signerOn(chainId);
+      const me = await signer.getAddress();
       const payer = swap.direction === 'WTX_TO_WATT' ? swap.destAddress : swap.evm?.sender;
-      if (payer && wallet.address && payer.toLowerCase() !== wallet.address.toLowerCase())
-        throw new Error(`Pay the fee from ${payer}`);
-      const s = await wattWtxBridgeService.payRelayFee(wallet.signer, swap);
+      if (payer && payer.toLowerCase() !== me.toLowerCase())
+        throw new Error(`Pay the fee from ${payer} (your wallet is on ${me.slice(0, 6)}…${me.slice(-4)})`);
+      const s = await wattWtxBridgeService.payRelayFee(signer, swap);
       setSwaps((prev) => ({ ...prev, [s.id]: s }));
       toast.success('Relay fee paid — payout continues');
     } catch (e) {

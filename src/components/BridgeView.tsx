@@ -12,6 +12,8 @@ import {
   Package,
 } from 'lucide-react';
 import { ethers } from 'ethers';
+import { EVM_CHAINS } from '../config/evmChains';
+import { walletOn } from '../services/marketsService';
 import { BRIDGE_DEPLOYMENTS, WRAPPED_FACTORY_ABI, WRAPPED_TOKEN_ABI } from '../config/bridgeContracts';
 import { htlcBridgeService, type HtlcStage } from '../services/htlcBridgeService';
 import { useWallet } from '../hooks/useWallet';
@@ -95,21 +97,21 @@ export default function BridgeView() {
     saveSwaps(next);
   }, []);
 
-  const requireSigner = useCallback(
-    (chainId: number): ethers.JsonRpcSigner => {
-      if (!wallet.isConnected || !wallet.signer) throw new Error('Connect your wallet first');
-      if (wallet.chainId !== chainId) {
-        throw new Error(`Switch your wallet to ${chainName(chainId)} (chain ${chainId}) first`);
-      }
-      return wallet.signer;
-    },
-    [wallet.isConnected, wallet.signer, wallet.chainId]
-  );
+  // Ask the wallet for a fresh signer on `chainId` at click time: switch/add the network if
+  // needed. (The shared wallet hook can keep a stale chain/signer after a network switch.)
+  const requireSigner = useCallback(async (chainId: number): Promise<ethers.JsonRpcSigner> => {
+    const chain = EVM_CHAINS[chainId];
+    if (chain) return walletOn(chain);
+    if (!wallet.isConnected || !wallet.signer) throw new Error('Connect your wallet first');
+    const live = Number(await wallet.signer.provider.send('eth_chainId', []));
+    if (live !== chainId) throw new Error(`Switch your wallet to ${chainName(chainId)} (chain ${chainId}) first`);
+    return wallet.signer;
+  }, [wallet.isConnected, wallet.signer]);
 
   const doLock = async () => {
     setBusy(true);
     try {
-      const signer = requireSigner(fromChain);
+      const signer = await requireSigner(fromChain);
       if (!ethers.isAddress(recipient)) throw new Error('Invalid recipient address');
       const amountWei = ethers.parseEther(amount || '0');
       if (amountWei <= 0n) throw new Error('Enter an amount');
@@ -165,7 +167,7 @@ export default function BridgeView() {
   const doClaim = async (chainId: number, swapId: string, preimage: string) => {
     setBusy(true);
     try {
-      const signer = requireSigner(chainId);
+      const signer = await requireSigner(chainId);
       const tx = await htlcBridgeService.claim(signer, chainId, swapId, preimage);
       toast.success(`Claimed — ${tx.slice(0, 14)}…`);
       await refreshStages();
@@ -179,7 +181,7 @@ export default function BridgeView() {
   const doRefund = async (chainId: number, swapId: string) => {
     setBusy(true);
     try {
-      const signer = requireSigner(chainId);
+      const signer = await requireSigner(chainId);
       const tx = await htlcBridgeService.refund(signer, chainId, swapId);
       toast.success(`Refunded — ${tx.slice(0, 14)}…`);
       await refreshStages();
@@ -226,7 +228,7 @@ export default function BridgeView() {
   const deployWrapper = async () => {
     setBusy(true);
     try {
-      const signer = requireSigner(fromChain);
+      const signer = await requireSigner(fromChain);
       const d = htlcBridgeService.deployment(fromChain)!;
       const factory = new ethers.Contract(d.factory!, WRAPPED_FACTORY_ABI, signer);
       const tx = await factory.deployWrapper(underlying);
@@ -243,7 +245,7 @@ export default function BridgeView() {
   const wrapOrUnwrap = async (unwrap: boolean) => {
     setBusy(true);
     try {
-      const signer = requireSigner(fromChain);
+      const signer = await requireSigner(fromChain);
       if (!wrapperAddr) throw new Error('Look up the wrapper first');
       const amt = ethers.parseEther(wrapAmount || '0');
       if (amt <= 0n) throw new Error('Enter an amount');
@@ -328,7 +330,7 @@ export default function BridgeView() {
         </div>
         {wallet.isConnected && wallet.chainId !== fromChain && (
           <p className="text-xs text-amber-400 mt-3">
-            Wallet is on chain {wallet.chainId} — switch to {chainName(fromChain)} ({fromChain}) to sign.
+            Your wallet will be switched to {chainName(fromChain)} ({fromChain}) when you sign.
             {fromChain === 2330 && (
               <button onClick={() => wallet.switchToAltcoinchain()} className="ml-2 underline hover:text-amber-300">
                 Switch now

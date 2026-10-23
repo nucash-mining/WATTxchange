@@ -6,7 +6,7 @@ import {
 } from 'lightweight-charts';
 import { Search, RefreshCw, ExternalLink, Star, ShieldCheck, ArrowDownUp, Filter } from 'lucide-react';
 import {
-  fetchMarkets, fetchCandles, routeFor, quote, swap, walletOn, balanceOf, poolUrl, decimalsOf, connectedAccount,
+  fetchMarkets, fetchCandles, routeFor, quote, swap, walletOn, balanceOf, poolUrl, decimalsOf, connectedAccount, contractLinks,
   type Market, type Candle, type TradeRoute,
 } from '../../services/marketsService';
 import { HyperliquidPanel, HyperliquidPairPanel, ThorPanel } from './VenuePanels';
@@ -214,9 +214,9 @@ function MarketChart({ market: m }: { market: Market }) {
     page.current = { key, loading: false, done: false, shift: 0, fit: true };
     renderedLen.current = 0;
     setCandles(null); setError(null);
-    fetchCandles(m.id, tf).then((c) => { if (!cancelled) setCandles(c); }).catch((e) => { if (!cancelled) setError(e.message); });
+    fetchCandles(m.id, tf, 0, !!m.inverted).then((c) => { if (!cancelled) setCandles(c); }).catch((e) => { if (!cancelled) setError(e.message); });
     // live refresh: merge the newest page into whatever history is loaded
-    const t = setInterval(() => fetchCandles(m.id, tf).then((fresh) => {
+    const t = setInterval(() => fetchCandles(m.id, tf, 0, !!m.inverted).then((fresh) => {
       if (cancelled || !fresh.length) return;
       setCandles((cur) => {
         if (!cur?.length) return fresh;
@@ -233,7 +233,7 @@ function MarketChart({ market: m }: { market: Market }) {
     if (p.loading || p.done || !candles?.length) return;
     p.loading = true;
     const key = p.key, oldest = candles[0].time;
-    fetchCandles(m.id, tf, oldest).then((older) => {
+    fetchCandles(m.id, tf, oldest, !!m.inverted).then((older) => {
       if (page.current.key !== key) return;
       const add = older.filter((c) => c.time < oldest);
       if (!add.length) { page.current.done = true; return; }
@@ -302,8 +302,17 @@ function MarketChart({ market: m }: { market: Market }) {
         <div>
           <div className="text-xl font-bold">{m.base.symbol}<span className="text-slate-500">/{m.quote.symbol}</span></div>
           <div className="text-xs text-slate-400">{m.venueLabel}{m.fee ? ` · ${m.fee}%` : ''} · {m.chain}
-            {poolUrl(m) && <>{' · '}<a href={poolUrl(m)!} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-yellow-400 inline-flex items-center gap-0.5">pool <ExternalLink className="w-3 h-3" /></a></>}
           </div>
+          {contractLinks(m).length > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px]">
+              {contractLinks(m).map((c) => (
+                <a key={c.label + c.address} href={c.url} target="_blank" rel="noopener noreferrer" title={c.address}
+                  className="text-slate-500 hover:text-yellow-400 inline-flex items-center gap-0.5">
+                  {c.label} {c.address.slice(0, 6)}…{c.address.slice(-4)} <ExternalLink className="w-3 h-3" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-4 text-xs">
           <div><div className="text-slate-500">Price</div><div className="font-semibold">{fmt(m.price)} {m.quote.symbol}</div><div className="text-slate-500">{fmt(m.priceUsd, true)}</div></div>
@@ -366,8 +375,10 @@ function EvmTradePanel({ market: m, route }: { market: Market; route: Extract<Tr
   const outSym = sell ? m.quote.symbol : m.base.symbol;
   const chain = route.chain;
   const wrapped = chain?.wrappedNative.toLowerCase();
-  const nativeSide = chain && (sell ? m.quote.address : m.quote.address)?.toLowerCase() === wrapped;
-  const nativeApplies = Boolean(nativeSide) && !(route.kind === 'v3' && sell); // v3 router pays out wrapped
+  // the chain's native coin can stand in for its wrapped token on either side of the pair
+  const wrappedIn = (sell ? m.base.address : m.quote.address)?.toLowerCase() === wrapped;
+  const wrappedOut = (sell ? m.quote.address : m.base.address)?.toLowerCase() === wrapped;
+  const nativeApplies = wrappedIn || (wrappedOut && route.kind !== 'v3'); // v3 router pays out wrapped
   const [via, setVia] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -384,7 +395,7 @@ function EvmTradePanel({ market: m, route }: { market: Market; route: Extract<Tr
   useEffect(() => {
     if (!account || !chain) { setBalance(null); return; }
     const token = sell ? m.base.address! : m.quote.address!;
-    const native = useNative && nativeApplies && !sell;
+    const native = useNative && wrappedIn;
     balanceOf(chain, native ? 'native' : token, account)
       .then(async (b) => {
         const dec = native ? 18 : await decimalsOf(chain, token);
@@ -404,7 +415,10 @@ function EvmTradePanel({ market: m, route }: { market: Market; route: Extract<Tr
       setError(err.code === 'ACTION_REJECTED' ? 'Cancelled in the wallet.' : err.shortMessage ?? err.message);
     } finally { setStep(null); }
   };
-  const label = (s: string) => (useNative && nativeApplies && s === m.quote.symbol ? route.chain.native.symbol : s);
+  const label = (s: string) => {
+    const w = [m.base, m.quote].find((t) => t.address?.toLowerCase() === wrapped);
+    return useNative && nativeApplies && w && s === w.symbol ? route.chain.native.symbol : s;
+  };
 
   return (
     <div className="space-y-3">
@@ -428,12 +442,12 @@ function EvmTradePanel({ market: m, route }: { market: Market; route: Extract<Tr
           <span className="text-sm font-semibold">{label(outSym)}</span>
         </div>
         {quoteErr && <div className="text-xs text-red-400 mt-1">Quote failed: {quoteErr}</div>}
-        {route.kind === 'agg' && via && via.length > 0 && <div className="text-[11px] text-slate-500 mt-1">Best route via {via.slice(0, 3).join(', ')}{via.length > 3 ? ` +${via.length - 3}` : ''}</div>}
+        {via && via.length > 0 && <div className="text-[11px] text-slate-500 mt-1">Best price via {via.slice(0, 3).join(', ')}{via.length > 3 ? ` +${via.length - 3}` : ''}</div>}
       </div>
       {nativeApplies && (
         <label className="flex items-center gap-2 text-xs text-slate-300">
           <input type="checkbox" checked={useNative} onChange={(e) => setUseNative(e.target.checked)} />
-          Use {route.chain.native.symbol} instead of {m.quote.symbol}
+          Use native {route.chain.native.symbol} (not the wrapped token)
         </label>
       )}
       <div className="flex items-center gap-2 text-xs text-slate-400">Slippage

@@ -36,6 +36,7 @@ export interface Market {
   coin?: string;
   quoteCoin?: string;          // Hyperliquid cross pairs: the perp on the short leg
   suspect?: boolean;           // fake-looking volume / dust liquidity: hidden unless asked for
+  inverted?: boolean;          // shown flipped vs the pool's own order (candles are inverted to match)
 }
 export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number }
 
@@ -43,8 +44,27 @@ export async function fetchMarkets(): Promise<{ markets: Market[]; updatedAt: nu
   const res = await fetch(`${MARKETS_API}/markets`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`markets: HTTP ${res.status}`);
   const body = await res.json() as { markets: Market[]; updatedAt: number };
-  const markets = body.markets.map((m) => (suspicious(m) ? { ...m, suspect: true } : m));
+  const markets = body.markets.map((m) => orient(suspicious(m) ? { ...m, suspect: true } : m));
   return { ...body, markets: [...markets, ...hlPairs(markets)] };
+}
+
+// What a pair is priced IN: stablecoins first, then each chain's native coin. A pool that
+// lists one of these first (e.g. wALT/WATT) is shown the trader's way round (WATT/ALT).
+const STABLE = /^(USDC|USDC\.E|USDBC|USDT|USDT0|USD₮0|DAI|USDX|BUSD|USDS|FDUSD|USDE)$/i;
+const NATIVE_OF: Record<number, string> = Object.fromEntries(Object.values(EVM_CHAINS).map((c) => [c.chainId, c.wrappedNative.toLowerCase()]));
+const quoteRank = (m: Market, t: MarketToken) =>
+  STABLE.test(t.symbol) ? 2 : (m.chainId && t.address?.toLowerCase() === NATIVE_OF[m.chainId]) ? 1 : 0;
+function orient(m: Market): Market {
+  if (m.source !== 'own' && m.source !== 'gecko') return m;
+  const chain = m.chainId ? EVM_CHAINS[m.chainId] : undefined;
+  const native = (t: MarketToken) => (chain && t.address?.toLowerCase() === chain.wrappedNative.toLowerCase() ? { ...t, symbol: chain.native.symbol } : t);
+  if (quoteRank(m, m.base) <= quoteRank(m, m.quote)) return { ...m, base: native(m.base), quote: native(m.quote) };
+  const price = m.price ? 1 / m.price : null;
+  return {
+    ...m, inverted: true, base: native(m.quote), quote: native(m.base), name: `${m.quote.symbol} / ${m.base.symbol}`,
+    price, priceUsd: m.priceUsd != null && m.price ? m.priceUsd / m.price : null,
+    change24h: m.change24h != null && m.change24h > -100 ? (1 / (1 + m.change24h / 100) - 1) * 100 : m.change24h,
+  };
 }
 
 /**
@@ -86,12 +106,16 @@ function hlPairs(markets: Market[]): Market[] {
   return out;
 }
 
-/** Candles ending before `before` (unix s); page back with before = oldest candle's time. */
-export async function fetchCandles(id: string, tf: string, before = 0): Promise<Candle[]> {
+/** Candles ending before `before` (unix s); page back with before = oldest candle's time.
+ *  `invert` flips them for markets shown the other way round from the pool. */
+export async function fetchCandles(id: string, tf: string, before = 0, invert = false): Promise<Candle[]> {
   const res = await fetch(`${MARKETS_API}/candles?id=${encodeURIComponent(id)}&tf=${tf}${before ? `&before=${before}` : ''}`, { signal: AbortSignal.timeout(30_000) });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error ?? `candles: HTTP ${res.status}`);
-  return body.candles;
+  const c: Candle[] = body.candles;
+  if (!invert) return c;
+  const inv = (x: number) => (x > 0 ? 1 / x : 0);
+  return c.map((k) => ({ time: k.time, open: inv(k.open), high: inv(k.low), low: inv(k.high), close: inv(k.close), volume: k.volume }));
 }
 
 // ----------------------------------------------------------- trade routing ----
@@ -111,6 +135,17 @@ const isEvmAddress = (a?: string) => !!a && /^0x[0-9a-fA-F]{40}$/.test(a);
 export function poolUrl(m: Market): string | null {
   const chain = m.chainId ? EVM_CHAINS[m.chainId] : undefined;
   return chain && isEvmAddress(m.pool) ? `${chain.explorer}/address/${m.pool}` : null;
+}
+
+/** Explorer links for every contract behind a market: pool, base token, quote token. */
+export function contractLinks(m: Market): { label: string; address: string; url: string }[] {
+  const chain = m.chainId ? EVM_CHAINS[m.chainId] : undefined;
+  if (!chain) return [];
+  const out: { label: string; address: string; url: string }[] = [];
+  if (isEvmAddress(m.pool)) out.push({ label: 'Pool', address: m.pool, url: `${chain.explorer}/address/${m.pool}` });
+  else if (/^0x[0-9a-fA-F]{64}$/.test(m.pool)) out.push({ label: 'Pool ID', address: m.pool, url: `${chain.explorer}/address/${m.pool}` });
+  for (const t of [m.base, m.quote]) if (isEvmAddress(t.address)) out.push({ label: t.symbol, address: t.address!, url: `${chain.explorer}/token/${t.address}` });
+  return out;
 }
 
 export function routeFor(m: Market): TradeRoute {
@@ -180,7 +215,32 @@ async function verifyRouter(route: TradeRoute & { kind: 'v2' | 'v3' }, pool: str
   return ok;
 }
 
-export interface Quote { amountOut: bigint; decimalsOut: number; decimalsIn: number; via?: string[] }
+export interface Quote {
+  amountOut: bigint; decimalsOut: number; decimalsIn: number; via?: string[];
+  path?: string[];      // v2: the token path that won (direct or through a hop token)
+  useAgg?: boolean;     // the KyberSwap aggregator beat every direct/hop route on this chain
+}
+
+/** Hop tokens for two-step routes on each chain (wrapped native is always tried too). */
+const HOPS: Record<number, string[]> = {
+  2330: ['0x6645143e49B3a15d8F205658903a55E520444698', '0xB7635E386283CAE6FB1A710f19CaA8220beF630D', '0x3e6fde898ae42bec26ef8eaf4751f20241a16c44', '0xd350ecd60912913cc15d312ef38adeca909ecdd5'],
+  137: ['0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619', '0x387693eCEC037C61943404F03c097d2ADA15ae3f'],
+  1: ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', '0xdAC17F958D2ee523a2206206994597C13D831ec7'],
+  56: ['0x55d398326f99059fF775485246999027B3197955', '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d'],
+  42161: ['0xaf88d065e77c8cC2239327C5EDb3A432268e5831', '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'],
+  8453: ['0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'],
+  10: ['0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'],
+  43114: ['0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'],
+};
+const symbolCache = new Map<string, string>();
+async function symbolOf(c: EvmChain, t: string) {
+  const k = `${c.chainId}:${t.toLowerCase()}`;
+  if (!symbolCache.has(k)) {
+    const sym = await new ethers.Contract(addr(t), ['function symbol() view returns (string)'], reader(c)).symbol().catch(() => t.slice(0, 6));
+    symbolCache.set(k, String(sym));
+  }
+  return symbolCache.get(k)!;
+}
 /** Kyber uses 0xEeee… for the native coin. */
 const aggToken = (c: EvmChain, t: string, useNative: boolean) => (useNative && t.toLowerCase() === c.wrappedNative.toLowerCase() ? NATIVE : addr(t));
 
@@ -195,17 +255,41 @@ export async function quote(m: Market, route: TradeRoute, sell: boolean, amountI
   const [decimalsIn, decimalsOut] = await Promise.all([decimalsOf(route.chain, tokenIn), decimalsOf(route.chain, tokenOut)]);
   const raw = ethers.parseUnits(amountIn || '0', decimalsIn);
   if (raw === 0n) return { amountOut: 0n, decimalsIn, decimalsOut };
+  const kyber = kyberSupports(route.chain.chainId)
+    ? kyberQuote(route.chain.chainId, aggToken(route.chain, tokenIn, useNative), aggToken(route.chain, tokenOut, useNative), raw).catch(() => null)
+    : Promise.resolve(null);
   if (route.kind === 'agg') {
-    const k = await kyberQuote(route.chain.chainId, aggToken(route.chain, tokenIn, useNative), aggToken(route.chain, tokenOut, useNative), raw);
-    return { amountOut: k.amountOut, decimalsIn, decimalsOut, via: k.dexes };
+    const k = await kyber;
+    if (!k) throw new Error('No route found for this pair.');
+    return { amountOut: k.amountOut, decimalsIn, decimalsOut, via: k.dexes, useAgg: true };
   }
+  let best: Quote | null = null;
   if (route.kind === 'v2') {
-    const amounts = await new ethers.Contract(addr(route.router), V2_ROUTER, reader(route.chain)).getAmountsOut(raw, [addr(tokenIn), addr(tokenOut)]);
-    return { amountOut: amounts[amounts.length - 1], decimalsIn, decimalsOut };
+    // best of: the pool directly, or two hops through the chain's main tokens (same router/factory)
+    const r = new ethers.Contract(addr(route.router), V2_ROUTER, reader(route.chain));
+    const hops = [route.chain.wrappedNative, ...(HOPS[route.chain.chainId] ?? [])]
+      .filter((h, i, a) => a.findIndex((x) => x.toLowerCase() === h.toLowerCase()) === i)
+      .filter((h) => h.toLowerCase() !== tokenIn.toLowerCase() && h.toLowerCase() !== tokenOut.toLowerCase());
+    const paths = [[tokenIn, tokenOut], ...hops.map((h) => [tokenIn, h, tokenOut])].map((p) => p.map(addr));
+    const outs = await Promise.all(paths.map((p) => r.getAmountsOut(raw, p).then((a: bigint[]) => a[a.length - 1]).catch(() => 0n)));
+    let bi = -1;
+    outs.forEach((o, i) => { if (o > 0n && (bi < 0 || o > outs[bi])) bi = i; });
+    if (bi >= 0) {
+      const path = paths[bi];
+      const via = path.length > 2 ? [`${m.venueLabel} via ${await symbolOf(route.chain, path[1])}`] : [m.venueLabel];
+      best = { amountOut: outs[bi], decimalsIn, decimalsOut, path, via };
+    }
+  } else {
+    const q = new ethers.Contract(addr(route.quoter), V3_QUOTER, reader(route.chain));
+    const out = await q.quoteExactInputSingle.staticCall({ tokenIn: addr(tokenIn), tokenOut: addr(tokenOut), amountIn: raw, fee: route.fee, sqrtPriceLimitX96: 0 })
+      .then((r: bigint[]) => r[0]).catch(() => 0n);
+    if (out > 0n) best = { amountOut: out, decimalsIn, decimalsOut, via: [m.venueLabel] };
   }
-  const q = new ethers.Contract(addr(route.quoter), V3_QUOTER, reader(route.chain));
-  const [out] = await q.quoteExactInputSingle.staticCall({ tokenIn: addr(tokenIn), tokenOut: addr(tokenOut), amountIn: raw, fee: route.fee, sqrtPriceLimitX96: 0 });
-  return { amountOut: out, decimalsIn, decimalsOut };
+  // the aggregator searches every DEX on the chain; take it when it pays more
+  const k = await kyber;
+  if (k && (!best || k.amountOut > best.amountOut)) return { amountOut: k.amountOut, decimalsIn, decimalsOut, via: k.dexes, useAgg: true };
+  if (!best) throw new Error('No liquidity for this amount.');
+  return best;
 }
 
 type Eip1193 = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
@@ -295,7 +379,9 @@ export async function swap(opts: {
 }): Promise<string> {
   const { m, route, sell, amountIn, slippageBps, useNative, onStep } = opts;
   if (!isEvmRoute(route)) throw new Error('Not an EVM route.');
-  if (route.kind === 'agg') {
+  onStep('Finding the best price…');
+  const best = await quote(m, route, sell, amountIn, useNative);
+  if (best.useAgg) {
     onStep(`Connecting to ${route.chain.name}…`);
     const signer = await walletOn(route.chain);
     const tokenIn = sell ? m.base.address! : m.quote.address!;
@@ -307,6 +393,7 @@ export async function swap(opts: {
       amountIn: ethers.parseUnits(amountIn, decimalsIn),
     });
   }
+  if (route.kind === 'agg') throw new Error('No route found for this pair.');
   onStep('Checking the router on-chain…');
   if (!(await verifyRouter(route, m.pool))) {
     throw new Error(`Safety check failed: this router is not the one for this ${m.venueLabel} pool. Nothing was approved.`);
@@ -316,13 +403,14 @@ export async function swap(opts: {
   const me = await signer.getAddress();
   const tokenIn = addr(sell ? m.base.address! : m.quote.address!);
   const tokenOut = addr(sell ? m.quote.address! : m.base.address!);
-  const q = await quote(m, route, sell, amountIn);
+  const q = best;
   const amount = ethers.parseUnits(amountIn, q.decimalsIn);
   const minOut = (q.amountOut * BigInt(10_000 - slippageBps)) / 10_000n;
   const deadline = Math.floor(Date.now() / 1000) + 1200;
   const wrapped = route.chain.wrappedNative.toLowerCase();
-  const nativeIn = useNative && !sell && tokenIn.toLowerCase() === wrapped;
-  const nativeOut = useNative && sell && tokenOut.toLowerCase() === wrapped;
+  // pay or receive the chain's native coin whenever that side is its wrapped token
+  const nativeIn = useNative && tokenIn.toLowerCase() === wrapped;
+  const nativeOut = useNative && tokenOut.toLowerCase() === wrapped && route.kind === 'v2';
 
   if (!nativeIn) {
     const t = new ethers.Contract(tokenIn, ERC20, signer);
@@ -335,7 +423,7 @@ export async function swap(opts: {
   let tx;
   if (route.kind === 'v2') {
     const r = new ethers.Contract(addr(route.router), V2_ROUTER, signer);
-    const path = [tokenIn, tokenOut];
+    const path = q.path ?? [tokenIn, tokenOut];
     if (nativeIn) tx = await r.swapExactETHForTokensSupportingFeeOnTransferTokens(minOut, path, me, deadline, { value: amount });
     else if (nativeOut) tx = await r.swapExactTokensForETHSupportingFeeOnTransferTokens(amount, minOut, path, me, deadline);
     else tx = await r.swapExactTokensForTokensSupportingFeeOnTransferTokens(amount, minOut, path, me, deadline);

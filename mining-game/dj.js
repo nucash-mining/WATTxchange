@@ -162,27 +162,85 @@ async function analyse(deck, track) {
 }
 
 // ───────────────────────────────────────────────────────────── library ──
-const lib = { tab: 'trending', genre: 'Electronic', q: '', results: [], files: [], queue: [], loading: false, err: '' };
-const GENRES = ['All', 'Electronic', 'House', 'Techno', 'Deep House', 'Tech House', 'Trance', 'Dubstep', 'Drum & Bass', 'Trap', 'Hip-Hop/Rap', 'Hyperpop', 'Lo-Fi', 'Pop', 'R&B/Soul'];
+const lib = { tab: 'trending', genre: 'Electronic', time: 'week', q: '', results: [], offset: 0, more: false, playlists: [], openList: null,
+  mcTag: 'house', mcResults: [], mcNext: null, files: [], queue: [], loading: false, err: '' };
+const GENRES = ['All', 'Electronic', 'House', 'Techno', 'Deep House', 'Tech House', 'Trance', 'Dubstep', 'Drum & Bass', 'Trap', 'Hip-Hop/Rap', 'Hyperpop', 'Lo-Fi', 'Pop', 'R&B/Soul', 'Dance', 'Ambient', 'Experimental', 'Alternative', 'Jungle', 'Moombahton', 'Reggae', 'Latin', 'Afrobeats'];
+const MC_TAGS = ['house', 'deep house', 'tech house', 'techno', 'drum and bass', 'dubstep', 'trance', 'disco', 'hip hop', 'afro house', 'garage', 'ambient', 'jungle', 'funk', 'soul'];
 const audiusTrack = (t) => ({
   kind: 'audius', id: t.id, title: t.title, artist: t.user?.name || '', bpm: t.bpm ? Math.round(t.bpm * 2) / 2 : 0, duration: t.duration,
   art: t.artwork?.['150x150'] || '', url: `${AUDIUS}/tracks/${t.id}/stream?${APP}`,
 });
-async function fetchLib() {
-  lib.loading = true; lib.err = ''; ui.render();
+const mixcloudItem = (c) => ({ kind: 'mixcloud', id: c.key, title: c.name, artist: c.user?.name || '', duration: c.audio_length || 0, art: c.pictures?.medium || c.pictures?.thumbnail || '', bpm: 0 });
+async function fetchLib(append = false) {
+  lib.loading = true; lib.err = ''; if (!append) { lib.offset = 0; } ui.render();
   try {
-    let url;
-    if (lib.tab === 'search' && lib.q.trim()) url = `${AUDIUS}/tracks/search?query=${encodeURIComponent(lib.q.trim())}&${APP}`;
-    else url = `${AUDIUS}/tracks/trending?${lib.genre !== 'All' ? `genre=${encodeURIComponent(lib.genre)}&` : ''}${APP}`;
-    const j = await (await fetch(url)).json();
-    lib.results = (j.data || []).filter((t) => t.is_streamable !== false).slice(0, 50).map(audiusTrack);
-  } catch (e) { lib.err = 'Couldn’t reach Audius — try again.'; }
+    if (lib.tab === 'mixcloud') {
+      const url = append && lib.mcNext ? lib.mcNext
+        : lib.q.trim() ? `https://api.mixcloud.com/search/?q=${encodeURIComponent(lib.q.trim())}&type=cloudcast&limit=50`
+          : `https://api.mixcloud.com/discover/${encodeURIComponent(lib.mcTag.replace(/ /g, '-'))}/popular/?limit=50`;
+      const j = await (await fetch(url)).json();
+      const items = (j.data || []).map(mixcloudItem);
+      lib.mcResults = append ? lib.mcResults.concat(items) : items; lib.mcNext = j.paging?.next || null;
+    } else if (lib.tab === 'playlists') {
+      if (lib.openList) {
+        const j = await (await fetch(`${AUDIUS}/playlists/${lib.openList.id}/tracks?${APP}`)).json();
+        lib.results = (j.data || []).filter((t) => t.is_streamable !== false).map(audiusTrack); lib.more = false;
+      } else {
+        const q = lib.q.trim() || lib.genre.replace('All', 'dj mix');
+        const j = await (await fetch(`${AUDIUS}/playlists/search?query=${encodeURIComponent(q)}&limit=40&${APP}`)).json();
+        lib.playlists = (j.data || []).map((x) => ({ id: x.id, name: x.playlist_name, by: x.user?.name || '', n: x.track_count || 0, art: x.artwork?.['150x150'] || '' }));
+      }
+    } else {
+      const off = append ? lib.offset + 100 : 0;
+      let url;
+      if (lib.tab === 'search' && lib.q.trim()) url = `${AUDIUS}/tracks/search?query=${encodeURIComponent(lib.q.trim())}&limit=100&offset=${off}&${APP}`;
+      else if (lib.tab === 'underground') url = `${AUDIUS}/tracks/trending/underground?limit=100&offset=${off}&${APP}`;
+      else url = `${AUDIUS}/tracks/trending?time=${lib.time}&limit=100&offset=${off}&${lib.genre !== 'All' ? `genre=${encodeURIComponent(lib.genre)}&` : ''}${APP}`;
+      const j = await (await fetch(url)).json();
+      const items = (j.data || []).filter((t) => t.is_streamable !== false).map(audiusTrack);
+      lib.results = append ? lib.results.concat(items) : items; lib.offset = off; lib.more = items.length >= 50;
+    }
+  } catch (e) { lib.err = 'Couldn’t reach the music service — try again.'; }
   lib.loading = false; ui.render();
 }
 function addFiles(list) {
   for (const f of list) lib.files.push({ kind: 'file', id: 'f' + Math.random().toString(36).slice(2, 8), title: f.name.replace(/\.[^.]+$/, ''), artist: 'your file', bpm: 0, duration: 0, art: '', url: URL.createObjectURL(f) });
   lib.tab = 'files'; ui.render();
 }
+
+// ───────────────────────────────────────────────────────────── Mixcloud ──
+// Mixcloud only allows playback through its own widget, so a mix plays beside the
+// decks (no EQ/crossfader). The DJ shares key + position; listeners load the same
+// widget and seek to match (some mixes forbid seeking — then they start from the top).
+const mc = { key: null, title: '', playing: false, pos: 0, iframe: null, widget: null, loading: false };
+function mcScript() {
+  if (window.Mixcloud) return Promise.resolve();
+  return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://widget.mixcloud.com/media/js/widgetApi.js'; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+}
+async function mcLoad(key, title, startPos = 0) {
+  if (mc.loading) return; mc.loading = true;
+  try {
+    await mcScript();
+    mcRemove();
+    const f = document.createElement('iframe');
+    f.allow = 'autoplay; encrypted-media'; f.title = 'Mixcloud';
+    f.style.cssText = 'position:fixed;right:12px;bottom:64px;width:320px;height:60px;border:0;border-radius:10px;z-index:35;box-shadow:0 6px 24px rgba(0,0,0,.5)';
+    f.src = `https://player-widget.mixcloud.com/widget/iframe/?feed=${encodeURIComponent(key)}&mini=1&hide_cover=1&light=0&autoplay=1`;
+    document.body.appendChild(f);
+    Object.assign(mc, { key, title, iframe: f, widget: null, pos: startPos });
+    const w = window.Mixcloud.PlayerWidget(f); await w.ready; mc.widget = w;
+    w.events.play.on(() => { mc.playing = true; broadcastSoon(); ui.render(); });
+    w.events.pause.on(() => { mc.playing = false; broadcastSoon(); ui.render(); });
+    w.events.ended.on(() => { mc.playing = false; broadcastSoon(); ui.render(); });
+    w.events.progress.on((p) => { mc.pos = p; });
+    if (startPos > 3) { try { await w.seek(startPos); } catch (e) { /* seeking not allowed for this mix */ } }
+    try { await w.play(); } catch (e) { /* autoplay blocked until a tap */ }
+  } catch (e) { toast('Mixcloud player couldn’t load'); }
+  mc.loading = false; ui.render();
+}
+function mcRemove() { try { mc.widget?.pause(); } catch (e) { /* */ } mc.iframe?.remove(); Object.assign(mc, { key: null, title: '', playing: false, iframe: null, widget: null, pos: 0 }); }
+function mcPlay(t) { mcLoad(t.id, t.title, 0).then(broadcastSoon); }
+function mcStop() { mcRemove(); broadcastSoon(); ui.render(); }
 
 // ───────────────────────────────────────────────────────── room sync (look.dj) ──
 // The DJ publishes a compact snapshot; listeners mirror it with their own engine.
@@ -192,6 +250,7 @@ function snapshot() {
   const now = Date.now();
   return {
     at: now, xf: +mix.xf.toFixed(3), m: +mix.master.toFixed(2),
+    mc: mc.key ? { k: mc.key, t: mc.title.slice(0, 32), p: +(mc.pos || 0).toFixed(1), pl: mc.playing ? 1 : 0 } : 0,
     d: decks.map((d) => (d.track && d.track.kind === 'audius' ? {
       i: d.track.id, t: d.track.title.slice(0, 32), p: +d.pos.toFixed(2), r: +d.rate.toFixed(4), pl: d.playing ? 1 : 0,
       v: +d.state.vol.toFixed(2), tr: d.state.trim, eq: d.state.eq, f: +d.state.filter.toFixed(2), a: d.state.assign, b: d.bpm, g: +d.grid.toFixed(3),
@@ -209,6 +268,7 @@ function stopDJ() {
   role = 'idle';
   try { window.MGSKIN?.setMyLook?.({ dj: null }); } catch (e) { /* */ }
   decks.forEach((d) => d.el.pause());
+  mcStop();
 }
 const peers = () => { try { return window.MGNET?.peerLooks?.() || []; } catch (e) { return []; } };
 function remoteDJ() {
@@ -221,6 +281,15 @@ function follow(rdj) {
   audio(); if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   const s = rdj.dj, age = (Date.now() - s.at) / 1000;
   mix.xf = s.xf;
+  if (s.mc) {
+    const target = s.mc.p + (s.mc.pl ? age : 0);
+    if (mc.key !== s.mc.k) { if (!mc.loading) mcLoad(s.mc.k, s.mc.t, target); }
+    else if (mc.widget) {
+      if (s.mc.pl && !mc.playing) mc.widget.play().catch(() => {});
+      if (!s.mc.pl && mc.playing) mc.widget.pause().catch(() => {});
+      if (s.mc.pl && Math.abs((mc.pos || 0) - target) > 5) mc.widget.seek(target).catch(() => {});
+    }
+  } else if (mc.key) mcRemove();
   s.d.forEach((r, k) => {
     const d = decks[k];
     if (!r) { if (d.track) d.eject(); return; }
@@ -321,23 +390,32 @@ function mixerHTML() {
     <div class="note">Cue 🎧 sends a channel to your headphones (pick an output). Speakers carry the master.</div></div>`;
 }
 function libHTML() {
-  const list = lib.tab === 'files' ? lib.files : lib.tab === 'queue' ? lib.queue : lib.results;
+  const list = lib.tab === 'files' ? lib.files : lib.tab === 'queue' ? lib.queue : lib.tab === 'mixcloud' ? lib.mcResults : (lib.tab === 'playlists' && !lib.openList) ? [] : lib.results;
+  const tabs = { trending: '🔥 Trending', underground: '🌀 Underground', search: '🔎 Search', playlists: '📚 Playlists', mixcloud: '☁ Mixcloud', files: '📁 My files', queue: `🗒 Queue (${lib.queue.length})` };
+  const row = (t, n) => `<div class="trk">${t.art ? `<img src="${esc(t.art)}" alt="">` : '<div class="ph"></div>'}
+      <div class="t"><b>${esc(t.title)}</b><small>${esc(t.artist)}${t.bpm ? ` · ${t.bpm} BPM` : ''}${t.duration ? ` · ${fmtT(t.duration)}` : ''}${t.kind === 'mixcloud' ? ' · Mixcloud mix' : ''}</small></div>
+      ${t.kind === 'mixcloud' ? `<button data-mc="${n}" style="padding:4px 8px">${mc.key === t.id && mc.playing ? '■ Stop' : '▶ Play'}</button>`
+        : ['A', 'B', 'C', 'D'].map((L, k) => `<button data-load="${k}" data-n="${n}" style="padding:4px 7px">${L}</button>`).join('')}
+      ${lib.tab === 'queue' ? `<button data-qup="${n}" style="padding:4px 6px">↑</button><button data-qrm="${n}" style="padding:4px 6px">✕</button>` : t.kind === 'mixcloud' ? '' : `<button data-qadd="${n}" style="padding:4px 6px" title="Add to queue">＋</button>`}</div>`;
   return `<div class="lib"><div class="row" style="margin-bottom:6px">
-      ${['trending', 'search', 'files', 'queue'].map((t) => `<button data-tab="${t}" class="${lib.tab === t ? 'on' : ''}">${{ trending: '🔥 Trending', search: '🔎 Search', files: '📁 My files', queue: `🗒 Queue (${lib.queue.length})` }[t]}</button>`).join('')}
-      ${lib.tab === 'trending' ? `<select data-genre>${GENRES.map((g) => `<option ${g === lib.genre ? 'selected' : ''}>${g}</option>`).join('')}</select>` : ''}
-      ${lib.tab === 'search' ? `<input type="search" data-q placeholder="Search Audius…" value="${esc(lib.q)}" style="flex:1;min-width:140px"><button data-a="search">Go</button>` : ''}
+      ${Object.keys(tabs).map((t) => `<button data-tab="${t}" class="${lib.tab === t ? 'on' : ''}">${tabs[t]}</button>`).join('')}</div>
+    <div class="row" style="margin-bottom:6px">
+      ${lib.tab === 'trending' ? `<select data-genre>${GENRES.map((g) => `<option ${g === lib.genre ? 'selected' : ''}>${g}</option>`).join('')}</select>
+        <select data-time>${[['week', 'This week'], ['month', 'This month'], ['allTime', 'All time']].map(([v, l]) => `<option value="${v}" ${v === lib.time ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
+      ${['search', 'playlists', 'mixcloud'].includes(lib.tab) ? `<input type="search" data-q placeholder="${lib.tab === 'mixcloud' ? 'Search Mixcloud mixes…' : lib.tab === 'playlists' ? 'Search playlists…' : 'Search Audius…'}" value="${esc(lib.q)}" style="flex:1;min-width:140px"><button data-a="search">Go</button>` : ''}
+      ${lib.tab === 'mixcloud' ? MC_TAGS.map((g) => `<button data-mctag="${g}" class="${!lib.q && lib.mcTag === g ? 'on' : ''}" style="padding:3px 7px;font-size:11px">${g}</button>`).join('') : ''}
+      ${lib.tab === 'playlists' && lib.openList ? `<button data-a="back">← Playlists</button><b>${esc(lib.openList.name)}</b>` : ''}
       ${lib.tab === 'files' ? '<label style="cursor:pointer"><input type="file" accept="audio/*" multiple data-files style="display:none"><span style="border:1px dashed #2a3350;border-radius:8px;padding:6px 10px">＋ Add music files</span></label><span class="note">Only you hear your own files.</span>' : ''}
     </div>
+    ${lib.tab === 'mixcloud' ? '<div class="note" style="margin-bottom:6px">Mixcloud mixes play through Mixcloud’s own player (their rules), so they skip the decks/EQ — the room hears them as-is, in sync. Some mixes don’t allow skipping ahead.</div>' : ''}
     ${lib.loading ? '<div class="note">Loading…</div>' : ''}${lib.err ? `<div class="note" style="color:#f87171">${esc(lib.err)}</div>` : ''}
-    ${list.length ? list.map((t, n) => `<div class="trk">${t.art ? `<img src="${esc(t.art)}" alt="">` : '<div class="ph"></div>'}
-      <div class="t"><b>${esc(t.title)}</b><small>${esc(t.artist)}${t.bpm ? ` · ${t.bpm} BPM` : ''}${t.duration ? ` · ${fmtT(t.duration)}` : ''}</small></div>
-      ${['A', 'B', 'C', 'D'].map((L, k) => `<button data-load="${k}" data-n="${n}" style="padding:4px 7px">${L}</button>`).join('')}
-      ${lib.tab === 'queue' ? `<button data-qup="${n}" style="padding:4px 6px">↑</button><button data-qrm="${n}" style="padding:4px 6px">✕</button>` : `<button data-qadd="${n}" style="padding:4px 6px" title="Add to queue">＋</button>`}</div>`).join('')
-    : `<div class="note" style="padding:10px">${lib.tab === 'queue' ? 'Queue is empty — tap ＋ on any track.' : lib.tab === 'files' ? 'Add MP3/WAV/M4A files from your device.' : lib.loading ? '' : 'No tracks.'}</div>`}
-    <div class="note" style="margin-top:6px">Music streams from Audius (artists publish there for free streaming). Mixes stay in the lounge — nothing is recorded or rebroadcast elsewhere.</div></div>`;
+    ${lib.tab === 'playlists' && !lib.openList ? (lib.playlists.length ? lib.playlists.map((pl, n) => `<div class="trk">${pl.art ? `<img src="${esc(pl.art)}" alt="">` : '<div class="ph"></div>'}<div class="t"><b>${esc(pl.name)}</b><small>${esc(pl.by)} · ${pl.n} tracks</small></div><button data-pl="${n}">Open</button></div>`).join('') : (lib.loading ? '' : '<div class="note" style="padding:10px">Search for a playlist (or press Go for DJ mixes).</div>'))
+      : list.length ? list.map(row).join('') : `<div class="note" style="padding:10px">${lib.tab === 'queue' ? 'Queue is empty — tap ＋ on any track.' : lib.tab === 'files' ? 'Add MP3/WAV/M4A files from your device.' : lib.loading ? '' : 'No tracks.'}</div>`}
+    ${(['trending', 'underground', 'search'].includes(lib.tab) && lib.more) || (lib.tab === 'mixcloud' && lib.mcNext) ? '<button data-a="more" style="width:100%;margin-top:6px">Load more</button>' : ''}
+    <div class="note" style="margin-top:6px">Tracks stream from Audius and Mixcloud. Mixes stay in the lounge — nothing is recorded or rebroadcast elsewhere.</div></div>`;
 }
 function wire(body) {
-  const listNow = () => (lib.tab === 'files' ? lib.files : lib.tab === 'queue' ? lib.queue : lib.results);
+  const listNow = () => (lib.tab === 'files' ? lib.files : lib.tab === 'queue' ? lib.queue : lib.tab === 'mixcloud' ? lib.mcResults : lib.results);
   body.querySelectorAll('[data-deck]').forEach((el) => {
     const d = decks[+el.dataset.deck];
     el.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('pointerdown', (e) => {
@@ -383,7 +461,13 @@ function wire(body) {
       try { if (cueEl.setSinkId) await cueEl.setSinkId(outSel.value); cueEl.muted = false; cueEl.play().catch(() => {}); } catch (e) { /* unsupported */ }
     });
   }
-  body.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { lib.tab = b.dataset.tab; if (lib.tab === 'trending' || (lib.tab === 'search' && lib.q)) fetchLib(); else ui.render(); }));
+  body.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { lib.tab = b.dataset.tab; lib.openList = null; if (['trending', 'underground', 'mixcloud', 'playlists'].includes(lib.tab) || (lib.tab === 'search' && lib.q)) fetchLib(); else ui.render(); }));
+  body.querySelector('[data-time]')?.addEventListener('change', (e) => { lib.time = e.target.value; fetchLib(); });
+  body.querySelectorAll('[data-mctag]').forEach((b) => b.addEventListener('click', () => { lib.mcTag = b.dataset.mctag; lib.q = ''; fetchLib(); }));
+  body.querySelectorAll('[data-pl]').forEach((b) => b.addEventListener('click', () => { lib.openList = lib.playlists[+b.dataset.pl]; fetchLib(); }));
+  body.querySelector('[data-a=back]')?.addEventListener('click', () => { lib.openList = null; ui.render(); });
+  body.querySelector('[data-a=more]')?.addEventListener('click', () => fetchLib(true));
+  body.querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => { const t = lib.mcResults[+b.dataset.mc]; if (!t) return; if (mc.key === t.id && mc.playing) mcStop(); else mcPlay(t); }));
   body.querySelector('[data-genre]')?.addEventListener('change', (e) => { lib.genre = e.target.value; fetchLib(); });
   const q = body.querySelector('[data-q]');
   if (q) { q.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { lib.q = q.value; fetchLib(); } }); }
@@ -427,9 +511,10 @@ function openDJ() {
   ov?.remove();
   ov = document.createElement('div'); ov.id = 'mg-dj';
   ov.innerHTML = `<div class="bar"><b style="font-size:15px;letter-spacing:.08em">🎛 DJ BOOTH</b><span id="dj-status"></span><span style="flex:1"></span>
-    <button id="dj-live" class="on">Go live</button><button id="dj-x">✕ Close</button></div><div id="dj-body"></div>`;
+    <button id="dj-ext" title="Play Serato / Traktor / rekordbox (or any audio input) to the room">🎚 Serato / line-in</button><button id="dj-live" class="on">Go live</button><button id="dj-x">✕ Close</button></div><div id="dj-body"></div>`;
   document.body.appendChild(ov);
   ov.querySelector('#dj-x').onclick = closeDJ;
+  ov.querySelector('#dj-ext').onclick = () => { if (window.MGSTAGE) window.MGSTAGE.open('booth'); else toast('Stage module still loading — try again'); };
   ov.querySelector('#dj-live').onclick = () => { if (role === 'dj') stopDJ(); else { role = 'dj'; broadcast(); } ui.render(); };
   if (!lib.results.length) fetchLib(); else ui.render();
   try { document.exitPointerLock?.(); } catch (e) { /* */ }
@@ -509,10 +594,11 @@ const fbuf = new Uint8Array(512);
 function updateBeat(now) {
   const lead = decks.filter((d) => d.playing && d.bpm).sort((a, b) => b.state.vol - a.state.vol)[0];
   if (analyser) { analyser.getByteFrequencyData(fbuf); let b = 0; for (let i = 1; i < 10; i++) b += fbuf[i]; b /= 9 * 255; let all = 0; for (let i = 0; i < 200; i++) all += fbuf[i]; energy = all / (200 * 255); bassAvg = bassAvg * 0.95 + b * 0.05; if (!lead && b > bassAvg * 1.35 && b > 0.25 && now - lastBeatAt > 280) { lastBeatAt = now; beatOn = 1; } }
+  if (!lead && (mc.playing || window.MGSTAGE?.live?.())) { const ph = ((Date.now() / 1000) * (122 / 60)) % 1; beatPhase = ph; beatOn = Math.pow(1 - ph, 3); return; }
   if (lead) { const bl = 60 / lead.effBpm; const ph = (((lead.pos - lead.grid) / (60 / lead.bpm)) % 1 + 1) % 1; void bl; beatPhase = ph; beatOn = Math.pow(1 - ph, 3); }
   else beatOn *= 0.86;
 }
-const anyPlaying = () => decks.some((d) => d.playing);
+const anyPlaying = () => decks.some((d) => d.playing) || mc.playing || !!window.MGSTAGE?.live?.();
 
 // ── dance mode (third person) ──────────────────────────────────────────────────
 const MOVES = [['groove', '🕺 Groove'], ['shake', '🙌 Shake'], ['cheer', '🎉 Cheer'], ['cheer2', '🔥 Hype'], ['cheer3', '⚡ Jump'], ['clap', '👏 Clap'], ['wave', '👋 Wave'], ['strut', '😎 Strut']];
@@ -560,7 +646,7 @@ setInterval(() => {
   const vis = !!inLoungeNow();
   const r = role === 'dj' ? null : remoteDJ();
   if (r && vis) { role = 'listen'; follow(r); }
-  else if (role === 'listen') { role = 'idle'; decks.forEach((d) => d.el.pause()); }
+  else if (role === 'listen') { role = 'idle'; decks.forEach((d) => d.el.pause()); if (mc.key) mcRemove(); }
   if (role === 'dj' && Date.now() - lastSent > 450) broadcast();
 }, 500);
 const inLoungeNow = () => { const c = MG()?.cam; return c && c.position.z < LZ + 40; };
@@ -585,6 +671,7 @@ function tick(now) {
   const AU = MG()?.AU;
   const wantDuck = vis && anyPlaying();
   if (AU?.musG && wantDuck !== ducked) { ducked = wantDuck; AU.musG.gain.setTargetAtTime(ducked ? 0 : 0.17, AU.ctx.currentTime, 0.6); }
+  if (mc.iframe) mc.iframe.style.display = vis || ov ? 'block' : 'none';
   if (!vis) { if (prompt) prompt.style.display = 'none'; if (danceBar) danceBar.style.display = 'none'; if (dancing) stopDance(); return; }
   updateBeat(now);
   if (ov) updateLive();
@@ -614,7 +701,8 @@ function tick(now) {
     lastMarquee = now;
     const lead = decks.filter((d) => d.playing).sort((a, b) => b.state.vol - a.state.vol)[0];
     const rdj = role === 'listen' ? remoteDJ() : null;
-    drawMarquee(lead ? `♪ ${lead.track.title}${rdj ? '  ·  DJ ' + rdj.name : ''}` : role === 'dj' ? 'DJ booth · live' : '🎛 DJ BOOTH · tap to spin', beat);
+    const stg = window.MGSTAGE?.live?.();
+    drawMarquee(lead ? `♪ ${lead.track.title}${rdj ? '  ·  DJ ' + rdj.name : ''}` : mc.playing ? `☁ ${mc.title}${rdj ? '  ·  DJ ' + rdj.name : ''}` : stg ? `🔴 LIVE · ${stg}` : role === 'dj' ? 'DJ booth · live' : '🎛 DJ BOOTH · tap to spin', beat);
   }
   if (me) { me.userData.update?.({ look: { ...(window.MGSKIN?.myLook?.() || {}), emote: dancing }, sit: false }); }
   // prompts
@@ -636,7 +724,7 @@ function tick(now) {
     danceBar.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:31;display:none;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:96vw;background:rgba(8,10,18,.85);border:1px solid #2a3350;border-radius:14px;padding:8px;color:#e6ebf5;font:13px system-ui';
     document.body.appendChild(danceBar); renderDanceBar();
     drawMarquee('🎛 DJ BOOTH · tap to spin', 0);
-    window.MGDJ = { open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
+    window.MGDJ = { _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);
 })();

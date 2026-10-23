@@ -65,17 +65,6 @@ const WalletConnect: React.FC = () => {
         </motion.button>
       ) : (
         <div className={`flex items-center ${isMobile ? 'space-x-2' : 'space-x-3'}`}>
-          {isConnected && !isAltcoinchain && (
-            <motion.button
-              onClick={switchToAltcoinchain}
-              className={`flex items-center space-x-2 ${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'} bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors touch-target`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Zap className="w-4 h-4" />
-              <span>{isMobile ? 'ALT' : 'Switch to ALT'}</span>
-            </motion.button>
-          )}
 
           <div
             className={`bg-slate-900/50 rounded-lg ${isMobile ? 'px-2 py-1' : 'px-3 py-2'} cursor-pointer hover:bg-slate-800/50 transition-colors touch-target`}

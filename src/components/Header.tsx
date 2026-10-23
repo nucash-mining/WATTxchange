@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Wifi, WifiOff, Settings, Menu, Store } from 'lucide-react';
 import WalletConnect from './WalletConnect';
+import NetworkSwitch from './NetworkSwitch';
 import { useWallet } from '../hooks/useWallet';
 
 interface HeaderProps {
@@ -11,7 +12,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) => {
-  const { isConnected, chainId } = useWallet();
+  const { isConnected } = useWallet();
 
   return (
     <header className={`bg-black/80 backdrop-blur-xl border-b border-gray-800 ${isMobile ? 'p-3' : 'p-4'} ${isNativeApp ? 'safe-area-top' : ''}`}>
@@ -69,6 +70,7 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
             {!isMobile && <span className="text-sm">NFTs</span>}
           </motion.a>
 
+          <NetworkSwitch compact={isMobile} />
           <WalletConnect />
           
           <div
@@ -82,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ isMobile, onMenuToggle, isNativeApp }) 
             )}
             {!isMobile && (
               <span className="text-sm">
-                {isConnected ? `Connected${chainId === 2330 ? ' (Altcoinchain)' : ''}` : 'Disconnected'}
+                {isConnected ? 'Connected' : 'Disconnected'}
               </span>
             )}
           </div>

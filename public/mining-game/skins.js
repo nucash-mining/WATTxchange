@@ -56,6 +56,7 @@ function avatar(look) {
   const group = new THREE.Group();
   group.userData.skinned = true;
   const id = look.skin, sex = sexOf(id);
+  let baseLift = 0;
   let mixer = null, current = null, model = null, lastT = performance.now(), wantLook = look;
   const actions = new Map();
   let wanted = null;                                 // newest pose asked for (play runs every frame)
@@ -72,7 +73,7 @@ function avatar(look) {
   }
   loadSkin(id).then(({ scene, scale, lift }) => {
     model = SkeletonUtils.clone(scene);
-    model.scale.setScalar(scale); model.position.y = lift;
+    model.scale.setScalar(scale); model.position.y = lift; baseLift = lift;
     group.add(model);
     mixer = new THREE.AnimationMixer(model);
     play('idle', 0);
@@ -97,6 +98,8 @@ function avatar(look) {
     play(pose);
     if (current) current.action.timeScale = pose === POSES.walk ? Math.min(1.6, Math.max(0.7, speed / 2.6)) : 1;
     mixer.update(dt);
+    // dancers bounce on the DJ's beat
+    if (model) model.position.y = baseLift + (lk.emote && window.MGDJ ? window.MGDJ.bounce() * 0.18 : 0);
   };
   return group;
 }

@@ -18,8 +18,7 @@
   }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
   header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 26px; }
-  .logo { width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, var(--blue), #7c3aed);
-          display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; }
+  .logo { width: 42px; height: 42px; border-radius: 50%; object-fit: contain; flex-shrink: 0; }
   h1 { font-size: 21px; }  h1 small { display: block; font-size: 12px; color: var(--dim); font-weight: 400; }
   .spacer { flex: 1; }
   .btn { background: var(--blue); border: 0; color: #fff; padding: 10px 18px; border-radius: 10px;
@@ -63,7 +62,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="logo">A</div>
+    <img class="logo" src="altcoinchain-logo.png" alt="Altcoinchain">
     <h1>ALT Staking <small>Altcoinchain hybrid PoW/PoS validator staking</small></h1>
     <div class="spacer"></div>
     <span class="pill" id="netPill">chain 2330</span>
@@ -99,6 +98,7 @@
           <button class="btn" id="addStakeBtn">Add Stake</button>
         </div>
         <div class="row">
+          <button class="btn" id="claimValBtn">Claim Validator Rewards</button>
           <button class="btn ghost" id="attestBtn">Attest Liveness Now</button>
         </div>
         <p class="muted">Your validator node attests automatically every 40 blocks; the manual button is a backup.</p>
@@ -154,6 +154,7 @@ const SEL = {
   delegate: "0x5c19a95c", undelegate: "0x4d99dd16", completeWithdrawals: "0x6a887690",
   claimRewards: "0xef5cfb8c", getValidator: "0x1904bb2e", getAllValidators: "0xf3513a37",
   getOnlineValidators: "0x42d6fcd6", getDelegation: "0x15049a5a",
+  validators: "0xfa52c7d8", claimValidatorRewards: "0xbe22c64c",
   getPendingWithdrawals: "0xf340c0d0", totalStaked: "0x817b1cd2",
   getValidatorCount: "0x7071688a", rewardPool: "0x66666aa9", minStake: "0x9c2a2259",
 };
@@ -267,7 +268,12 @@ async function refreshMine() {
       `<div class="kv"><span class="k">Status</span><span>${isSlashed ? "SLASHED" : isActive ? (isOnline ? "active · online" : "active · offline") : "inactive"}</span></div>
        <div class="kv"><span class="k">Self stake</span><span>${toAlt(self)} ALT</span></div>
        <div class="kv"><span class="k">Delegated to you</span><span>${toAlt(deleg)} ALT</span></div>
-       <div class="kv"><span class="k">Commission</span><span>${comm}%</span></div>`;
+       <div class="kv"><span class="k">Commission</span><span>${comm}%</span></div>
+       <div class="kv"><span class="k">Validator earnings (claimable)</span><span id="myOwnerRewards">…</span></div>`;
+    // Self-stake share + commission accrue in validators(addr).ownerRewards (struct slot 6),
+    // separate from delegator rewards; claimed with claimValidatorRewards().
+    const vr = await ethCall(SEL.validators + padAddr(account)).catch(() => null);
+    if (vr && $("myOwnerRewards")) $("myOwnerRewards").textContent = toAlt(word(vr, 6), 4) + " ALT";
     $("registerBox").style.display = "none"; $("manageBox").style.display = "block";
   }
   // delegation + withdrawals overview for the selected validator
@@ -326,6 +332,7 @@ $("addStakeBtn").onclick = () => {
   sendTx(SEL.addSelfStake, toWei(amt));
 };
 $("attestBtn").onclick = () => sendTx(SEL.attest);
+$("claimValBtn").onclick = () => sendTx(SEL.claimValidatorRewards);
 $("delBtn").onclick = () => {
   const v = $("delValidator").value, amt = $("delAmount").value;
   if (!v) { toast("Select a validator."); return; }

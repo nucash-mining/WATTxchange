@@ -1,0 +1,62 @@
+[
+{
+"id": "Construction_Male_01",
+"sex": "m",
+"name": "Miner (hard hat)"
+},
+{
+"id": "Male_Adult_01",
+"sex": "m",
+"name": "Leo"
+},
+{
+"id": "Female_Adult_01",
+"sex": "f",
+"name": "Maya"
+},
+{
+"id": "Male_Adult_05",
+"sex": "m",
+"name": "Marcus"
+},
+{
+"id": "Female_Adult_04",
+"sex": "f",
+"name": "Jade"
+},
+{
+"id": "Male_Adult_08",
+"sex": "m",
+"name": "Dev"
+},
+{
+"id": "Female_Adult_08",
+"sex": "f",
+"name": "Sofia"
+},
+{
+"id": "Male_Adult_14",
+"sex": "m",
+"name": "Theo"
+},
+{
+"id": "Female_Adult_12",
+"sex": "f",
+"name": "Nina"
+},
+{
+"id": "Business_Male_02",
+"sex": "m",
+"name": "Exec"
+},
+{
+"id": "Female_Party_01",
+"sex": "f",
+"name": "Party Night"
+},
+{
+"id": "Sports_Female_01",
+"sex": "f",
+"name": "Runner"
+}
+]

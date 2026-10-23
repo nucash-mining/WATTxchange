@@ -611,6 +611,7 @@ function startDance(move) {
   window.MGSKIN.setMyLook({ emote: move });
   const cam = MG().cam, ctl = MG().controls;
   if (!dancing) {
+    try { window.MGFP?.exit?.(false); if (window.MGFP) window.MGFP.auto = false; } catch (e) { /* */ }
     saved = { pos: cam.position.clone(), tgt: ctl.target.clone() };
     const d = new THREE.Vector3(); cam.getWorldDirection(d); d.y = 0; d.normalize();
     const at = new THREE.Vector3(cam.position.x, 0, cam.position.z);
@@ -628,6 +629,7 @@ function stopDance() {
   dancing = null; window.MGSKIN?.setMyLook?.({ emote: null });
   if (me) { MG().scene.remove(me); me = null; }
   if (saved) { MG().cam.position.copy(saved.pos); MG().controls.target.copy(saved.tgt); MG().controls.update?.(); saved = null; }
+  try { if (window.MGFP) window.MGFP.auto = true; } catch (e) { /* */ }
   renderDanceBar();
 }
 function renderDanceBar() {

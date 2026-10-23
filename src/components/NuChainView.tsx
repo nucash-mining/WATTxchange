@@ -205,7 +205,8 @@ const NuChainView: React.FC = () => {
               </div>
             </div>
             <div className="text-xs text-slate-400 space-y-1">
-              <p>• Cosmos chain-id: 9001 · EVM chain-id: 28277 · prefix: cosmos (nu1 prefix planned with the nuchain_28277-1 relaunch)</p>
+              <p>• Cosmos chain-id: nuchain_28277-1 · EVM chain-id: 28277 · prefix: nu · coin: NU</p>
+              <p>• No pre-mine: 50 NU per block, halving every 210,000 blocks, mined with zhash (equihash 144,5) merged with BitcoinZ and WATTx</p>
               <p>• Bridged: WTX, WATT, ALT (LayerZero hub + Solana gateway) · settles to WATTx (22356)</p>
               <p>• EVM RPC: <a className="text-cyan-400" href="https://evm-nu.wattxchange.app">https://evm-nu.wattxchange.app</a></p>
               <p>• Explorer: <a className="text-cyan-400" href="https://nu-exp.wattxchange.app">https://nu-exp.wattxchange.app</a></p>

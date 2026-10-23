@@ -5,11 +5,11 @@
 
 export const NUCHAIN = {
   name: 'nuChain',
-  cosmosChainId: '9001',
+  cosmosChainId: 'nuchain_28277-1',
   evmChainId: 28277,
-  bech32Prefix: 'cosmos', // nu1 prefix is a planned relaunch item
-  nativeDenom: 'atest',
-  nativeSymbol: 'TEST',
+  bech32Prefix: 'nu',
+  nativeDenom: 'anu',
+  nativeSymbol: 'NU',
   rpc: 'https://rpc-nu.wattxchange.app',
   rest: 'https://api-nu.wattxchange.app',
   evmRpc: 'https://evm-nu.wattxchange.app',
@@ -17,15 +17,26 @@ export const NUCHAIN = {
 };
 
 export const HUB = {
-  endpoint: '0x53F807E5ff81974642F84A78E725e8cDc756a9CE',
-  multisig: '0x0846CfF2F9E9a8AcCe0eB9C1059EDfeB84dE3F97',
+  endpoint: '0xE2d9d84a4f05aabD057C4a96dF14Df6a8bc56d7A',
+  multisig: '0x8f1D4324d4A3a773BAD20Db67c82c8F3b27d93CD',
   tokens: {
-    WTX: '0x37071D5dDA373c018F65123C1D870f30f654D629', // escrow for wWTX
-    WATT: '0x980EaB17a6Ce46C0C60fc53b57b96558262a95f2',
-    ALT: '0xf1e6a69E57158966b5761808B27BFCde5682901E',
+    WTX: '0x065d1C37F5CcAb8722ECB8E977F066aA33409Fc6', // escrow for wWTX
+    WATT: '0x064bbeFF89c195E7F7c4Afe8432ECd4f505246fe',
+    ALT: '0x3a88375d88cA84c50e82665dCe2b18523eCdCAc1',
   },
-  wWTX: '0x3D641a2791533B4A0000345eA8d509d01E1ec301',
-  solanaGateway: '0xc8B21BA219e67966c97F0FDAd602252DAD648770',
+  wWTX: '0x65b935838679E2b75231a59F118655ea981e1999',
+  solanaGateway: '0x60802b643775268FaF1462fE40D1A451b07c6758',
+};
+
+// Emission: no pre-mine. 50 NU per block, halving every 210,000 blocks (21M cap),
+// minted into the MiningPot and claimed with equihash 144,5 (zhash) work merged-mined
+// with BitcoinZ and WATTx (zk-proof mining to follow). Unclaimed rewards roll over.
+export const MINING = {
+  pot: '0x0000000000000000000000000000000000004E55',
+  zhashVerifier: '0x0000000000000000000000000000000000004E56',
+  initialReward: 50,
+  halvingInterval: 210_000,
+  maxSupply: 21_000_000,
 };
 
 export type LaneStatus = 'live' | 'pending-connect' | 'pending-deploy' | 'pending-funding';

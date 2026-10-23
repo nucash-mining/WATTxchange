@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, ExternalLink, Wallet } from 'lucide-react';
-import { NUCHAIN, HUB, BRIDGE_CHAINS, TOKEN_HOMES, KEPLR_CHAIN_INFO, LaneStatus } from '../../config/nuchainBridges';
+import { NUCHAIN, HUB, MINING, BRIDGE_CHAINS, TOKEN_HOMES, KEPLR_CHAIN_INFO, LaneStatus } from '../../config/nuchainBridges';
 
 const STATUS_LABEL: Record<LaneStatus, { text: string; cls: string }> = {
   'live': { text: 'Live', cls: 'bg-emerald-500/20 text-emerald-300' },
@@ -24,6 +24,7 @@ async function rpc(method: string, params: unknown[]) {
 const NuChainBridges: React.FC = () => {
   const [height, setHeight] = useState<number | null>(null);
   const [solLocks, setSolLocks] = useState<number | null>(null);
+  const [pot, setPot] = useState<number | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   const [keplrMsg, setKeplrMsg] = useState('');
 
@@ -34,7 +35,8 @@ const NuChainBridges: React.FC = () => {
         const h = await rpc('eth_blockNumber', []);
         // SolanaGateway.lockNonce() selector
         const n = await rpc('eth_call', [{ to: HUB.solanaGateway, data: '0xb5a9096e' }, 'latest']);
-        if (!stop) { setHeight(parseInt(h, 16)); setSolLocks(parseInt(n, 16)); setOnline(true); }
+        const p = await rpc('eth_getBalance', [MINING.pot, 'latest']);
+        if (!stop) { setHeight(parseInt(h, 16)); setSolLocks(parseInt(n, 16)); setPot(Number(BigInt(p) / 10n ** 14n) / 1e4); setOnline(true); }
       } catch {
         if (!stop) setOnline(false);
       }
@@ -58,7 +60,14 @@ const NuChainBridges: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50">
+          <p className="text-slate-400 text-sm">Mining pot</p>
+          <p className="text-2xl font-bold">{pot !== null ? `${pot.toLocaleString()} NU` : '–'}</p>
+          <p className="text-sm text-slate-400">
+            {height !== null ? `${MINING.initialReward / 2 ** Math.floor((height - 1) / MINING.halvingInterval)} NU per block` : 'zhash 144,5 merged with BTCZ + WTX'}
+          </p>
+        </div>
         <div className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50">
           <p className="text-slate-400 text-sm">nuChain status</p>
           <p className="text-2xl font-bold">

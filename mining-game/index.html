@@ -3200,7 +3200,7 @@ function auInit(){
   noise.connect(nf).connect(AU.humG); hum.connect(humF).connect(AU.humG);
   AU.humG.connect(AU.master); noise.start(); hum.start();
   // --- music: procedural cypherpunk darksynth (see musicLoop) ---
-  AU.musG = AU.ctx.createGain(); AU.musG.gain.value=0.13; AU.musG.connect(AU.master);
+  AU.musG = AU.ctx.createGain(); AU.musG.gain.value=0.17; AU.musG.connect(AU.master);
   // tempo-synced echo for the arp + glitch blips
   AU.echo = AU.ctx.createDelay(1.5); AU.echo.delayTime.value = MUS.step()*3;
   const efb = AU.ctx.createGain(); efb.gain.value=0.38;
@@ -5024,7 +5024,7 @@ function simTick(dt){ // dt seconds (fixed 0.1)
   // hum follows draw
   // lab hum: grows gently with power draw (log scale) and stays under the music. The old
   // linear curve hit full volume at ~110W, so LIVE farms were drowned in static.
-  if(AU.humG) AU.humG.gain.value=(S.muted?0:Math.min(0.14,0.035+Math.log10(1+draw)*0.03))*(noWatt?0.3:1);
+  if(AU.humG) AU.humG.gain.value=(S.muted?0:Math.min(0.05,0.015+Math.log10(1+draw)*0.01))*(noWatt?0.3:1);
 }
 /* Tower's own crash/wear tick — same rules as a desk rig (see the S.rigs.forEach
    above), just addressed differently: no SLOTS[r.slot]/rigVis[ri] (the tower

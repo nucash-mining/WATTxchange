@@ -442,6 +442,7 @@ body.touch.walkoff #net-ui{bottom:12px!important}
     <button class="hbtn" id="b-pool">🏊 POOLS</button>
     <button class="hbtn" id="b-lounge" title="Enter the shared multiplayer lounge (6)">🛋 LOUNGE</button>
     <button class="hbtn" id="b-skin" title="Choose how you look in the lounge">👕 SKIN</button>
+    <button class="hbtn" id="b-view" title="First person / overview (V)" onclick="window.MGFP&&window.MGFP.toggle()">👁 VIEW</button>
     <button class="hbtn" id="b-stats">📊</button>
     <button class="hbtn" id="b-mute">🔊</button>
   </div>
@@ -8172,6 +8173,7 @@ if(matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window)){
   }
 }
 function tickWalk(dt){
+  fpTick(dt,!!(WALK.f||WALK.b||WALK.l||WALK.r));
   const blocked=walkBlocked();
   if(blocked){ if(WALK.f||WALK.b||WALK.l||WALK.r) walkStop(); walkVel.multiplyScalar(0);
     if(LOOK.on&&document.exitPointerLock) document.exitPointerLock(); return; }
@@ -8223,6 +8225,85 @@ document.addEventListener('mousemove',e=>{
   sph.makeSafe();
   controls.target.copy(cam.position).add(dir.setFromSpherical(sph));
 });
+/* ---------- VIEWS: first person · third person · overview ----------
+   Starting to walk (keys or joystick) puts you in FIRST PERSON (eye height, head bob).
+   V or the 👁 button cycles first person → THIRD PERSON (your own avatar — skin or
+   Milady — walks ahead of the camera) → OVERVIEW orbit. Drag (mouse/touch) or F turns
+   your head. Orientation lives in controls.target, kept 4 units ahead so OrbitControls'
+   own clamps never fight it. Lounge presence reports your body position (bodyPos). */
+const FP={ mode:'orbit', dist:4.6, auto:true, eye:1.62*2.25, bob:0, saved:null, drag:null, av:null, avKey:'' };
+const TP_DIST=4.6, TP_UP=1.35;
+function fpDir(){ const d=new THREE.Vector3().subVectors(controls.target,cam.position); if(d.lengthSq()<1e-6) cam.getWorldDirection(d); return d.normalize(); }
+function fpFlat(){ const d=fpDir(); d.y=0; if(d.lengthSq()<1e-6) d.set(0,0,-1); return d.normalize(); }
+function fpBody(){ return FP.mode==='third' ? cam.position.clone().addScaledVector(fpFlat(),FP.dist).setY(0) : cam.position.clone().setY(0); }
+function fpAvatar(on){
+  if(!on){ if(FP.av){ scene.remove(FP.av); FP.av=null; FP.avKey=''; } return; }
+  let lk={}; try{ lk=(window.MGSKIN&&window.MGSKIN.myLook())||{}; }catch(_){}
+  const look={ ...lk, skin: lk.skin||'Male_Adult_01', emote:null };
+  const key=look.skin+'|'+(look.milady||'');
+  if(FP.av&&FP.avKey===key) return;
+  if(FP.av) scene.remove(FP.av);
+  if(!window.MGSKIN){ FP.av=null; return; }
+  FP.av=window.MGSKIN.avatar(look); FP.avKey=key; scene.add(FP.av);
+}
+function fpSetMode(m,pullBack){
+  if(TRAILER) return;
+  const prev=FP.mode; if(m===prev) return;
+  if(prev==='orbit'){ FP.saved={ maxPolar:controls.maxPolarAngle }; controls.maxPolarAngle=Math.PI*0.97; controls.enabled=false;
+    const d=fpDir(); d.y=Math.max(-0.35,Math.min(0.2,d.y)); d.normalize(); controls.target.copy(cam.position).addScaledVector(d,4); }
+  if(prev==='first'&&m==='third'){ const f=fpFlat(); FP.dist=TP_DIST; cam.position.addScaledVector(f,-TP_DIST); }      // keep your body where it stood
+  if(prev==='third'&&m==='first'){ const f=fpFlat(); cam.position.addScaledVector(f,FP.dist); }
+  if(m==='orbit'){
+    controls.enabled=!LOOK.on; if(FP.saved) controls.maxPolarAngle=FP.saved.maxPolar;
+    if(pullBack){ const f=fpFlat(); if(prev==='first') cam.position.addScaledVector(f,-4); cam.position.y+=1.6; controls.target.y=Math.max(1.1,controls.target.y-0.6); }
+  }
+  FP.mode=m; fpAvatar(m==='third');
+  if(m!=='orbit'){ const d=fpDir(); controls.target.copy(cam.position).addScaledVector(d,4); }
+  fpButton();
+}
+function fpEnter(){ fpSetMode('first'); }
+function fpExit(pullBack){ fpSetMode('orbit',pullBack); }
+function fpToggle(){ const nxt={ orbit:'first', first:'third', third:'orbit' }[FP.mode]; FP.auto=nxt!=='orbit'; fpSetMode(nxt,true); }
+function fpButton(){ const b=$('b-view'); if(b){ b.textContent={ orbit:'👁 VIEW', first:'👁 1ST', third:'👁 3RD' }[FP.mode]; b.classList.toggle('accent',FP.mode!=='orbit'); } }
+function fpTick(dt,moving){
+  const blocked=walkBlocked();
+  if(FP.av) FP.av.visible=!blocked&&FP.mode==='third';
+  if(blocked) return;
+  if(moving&&FP.mode==='orbit'&&FP.auto) fpEnter();
+  if(FP.mode==='orbit') return;
+  controls.enabled=false;                                   // drag = turn your head, not orbit
+  const sp=walkVel.length(), d=fpDir();
+  if(FP.mode==='first'){
+    FP.bob+=dt*sp*1.15;
+    const want=FP.eye+(sp>0.5?Math.sin(FP.bob)*0.035*2.25:0);
+    cam.position.y+=(want-cam.position.y)*Math.min(1,dt*8);
+  } else {
+    cam.position.y+=((FP.eye+TP_UP)-cam.position.y)*Math.min(1,dt*6);
+    fpAvatar(true);
+    { // keep your body inside the room; pull the camera in near walls instead of clipping out
+      const f=fpFlat(), b=fpBody(), WB=WALKBOX;
+      b.x=Math.max(-WB.x,Math.min(WB.x,b.x)); b.z=Math.max(WB.zMin,Math.min(WB.zMax,b.z));
+      let dd=TP_DIST; while(dd>1.4){ const cx=b.x-f.x*dd, cz=b.z-f.z*dd; if(cx>=-WB.x&&cx<=WB.x&&cz>=WB.zMin&&cz<=WB.zMax) break; dd-=0.2; }
+      FP.dist=dd; cam.position.x=b.x-f.x*dd; cam.position.z=b.z-f.z*dd; }
+    if(FP.av){ const f=fpFlat(), b=fpBody(); FP.av.position.set(b.x,0,b.z); FP.av.rotation.y=Math.atan2(f.x,f.z);
+      let lk={}; try{ lk=(window.MGSKIN&&window.MGSKIN.myLook())||{}; }catch(_){}
+      FP.av.userData.update&&FP.av.userData.update({ look:{ ...lk, emote:null }, sit:false }); }
+  }
+  controls.target.copy(cam.position).addScaledVector(d,4);
+}
+function fpLook(dx,dy,sens){
+  const dir=new THREE.Vector3().subVectors(controls.target,cam.position);
+  const sph=new THREE.Spherical().setFromVector3(dir);
+  sph.theta-=dx*sens; sph.phi=Math.min(Math.PI-0.25,Math.max(0.25,sph.phi+dy*sens)); sph.makeSafe();
+  controls.target.copy(cam.position).add(dir.setFromSpherical(sph));
+}
+renderer.domElement.addEventListener('pointerdown',e=>{ if(FP.mode==='orbit'||LOOK.on) return; FP.drag={id:e.pointerId,x:e.clientX,y:e.clientY}; });
+addEventListener('pointermove',e=>{ if(FP.mode==='orbit'||!FP.drag||e.pointerId!==FP.drag.id||walkBlocked()) return; const dx=e.clientX-FP.drag.x, dy=e.clientY-FP.drag.y; FP.drag.x=e.clientX; FP.drag.y=e.clientY; fpLook(dx,dy,e.pointerType==='touch'?0.0055:0.0042); });
+addEventListener('pointerup',e=>{ if(FP.drag&&e.pointerId===FP.drag.id) FP.drag=null; });
+addEventListener('pointercancel',()=>{ FP.drag=null; });
+renderer.domElement.addEventListener('wheel',e=>{ if(FP.mode!=='orbit'&&e.deltaY>0){ FP.auto=false; fpExit(true); } },{passive:true});
+addEventListener('keydown',e=>{ if(e.target.matches&&e.target.matches('input,textarea,select')) return; if((e.key==='v'||e.key==='V')&&!walkBlocked()) fpToggle(); });
+window.MGFP={ enter:fpEnter, exit:fpExit, toggle:fpToggle, mode:(m)=>fpSetMode(m,true), bodyPos:fpBody, get on(){ return FP.mode!=='orbit'; }, get view(){ return FP.mode; }, set auto(v){ FP.auto=!!v; } };
 /* ---------- menu hotkeys (number row — the letters belong to movement now) ---------- */
 addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea,select')) return;
@@ -8778,7 +8859,7 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 <script type="module" src="casino.js?v=2"></script>
 <script type="module" src="skins.js?v=4"></script>
 <script type="module" src="loungefx.js?v=2"></script>
-<script type="module" src="dj.js?v=2"></script>
+<script type="module" src="dj.js?v=3"></script>
 <script type="module" src="stage.js?v=1"></script>
 </body>
 </html>
@@ -9015,7 +9096,7 @@ const NET = (() => {
     const seat = sitOverride && sitOverride.sit ? sitOverride.seat : (S.on ? 'slot' + S.slot : null);
     const msg = {
       t: 'move',
-      x: +cam.position.x.toFixed(3), z: +cam.position.z.toFixed(3),
+      x: +((window.MGFP && window.MGFP.on ? window.MGFP.bodyPos() : cam.position).x).toFixed(3), z: +((window.MGFP && window.MGFP.on ? window.MGFP.bodyPos() : cam.position).z).toFixed(3),
       ry: +yawFromCamera().toFixed(3),
       sit: seated, seat,
     };

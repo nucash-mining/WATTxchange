@@ -1,11 +1,14 @@
 // All DEX markets (pools-api aggregator), candles, quotes, and in-app swaps.
 //
-// Swaps are sent straight to the venue's own router from the user's wallet. Before any
-// approval the router is checked on-chain against the pool: router.factory() must be the
-// factory that deployed the pool. If it is not, nothing is approved and the user is sent
-// to the venue's own app instead.
+// Every market trades here, in-app:
+//  - v2 / Uniswap v3 pools: straight to the venue's own router. Before any approval the
+//    router is checked on-chain against the pool (router.factory() == pool.factory()).
+//  - other EVM pools (Uniswap v4, PancakeSwap v3/Infinity, QuickSwap v3/v4, …): KyberSwap
+//    aggregator, best route across that chain's DEXs (see aggregators.ts).
+//  - Hyperliquid spot/perps: hyperliquid.ts.   - THORChain: aggregators.ts.
 import { ethers } from 'ethers';
 import { EVM_CHAINS, V2_ROUTERS, UNISWAP_V3, addChainParams, type EvmChain } from '../config/evmChains';
+import { kyberSupports, kyberQuote, kyberSwap, NATIVE } from './aggregators';
 
 export const MARKETS_API = 'https://pools-api.wattxchange.app';
 
@@ -52,38 +55,36 @@ export async function fetchCandles(id: string, tf: string): Promise<Candle[]> {
 export type TradeRoute =
   | { kind: 'v2'; chain: EvmChain; router: string }
   | { kind: 'v3'; chain: EvmChain; router: string; quoter: string; fee: number }
-  | { kind: 'link'; url: string; reason: string };
+  | { kind: 'agg'; chain: EvmChain }
+  | { kind: 'hl'; spot: boolean }
+  | { kind: 'thor' }
+  | { kind: 'none'; reason: string };
 
 const isEvmAddress = (a?: string) => !!a && /^0x[0-9a-fA-F]{40}$/.test(a);
 
-export function venueUrl(m: Market): string {
+/** Block-explorer page for an EVM pool (informational only; trading stays in-app). */
+export function poolUrl(m: Market): string | null {
   const chain = m.chainId ? EVM_CHAINS[m.chainId] : undefined;
-  const inT = m.quote.address ?? '', outT = m.base.address ?? '';
-  switch (m.family) {
-    case 'Uniswap': return `https://app.uniswap.org/swap?chain=${chain?.slug ?? 'ethereum'}&inputCurrency=${inT}&outputCurrency=${outT}`;
-    case 'PancakeSwap': return `https://pancakeswap.finance/swap?chain=${({ 56: 'bsc', 1: 'eth', 42161: 'arb', 8453: 'base' } as Record<number, string>)[m.chainId ?? 56] ?? 'bsc'}&inputCurrency=${inT}&outputCurrency=${outT}`;
-    case 'QuickSwap': return `https://dapp.quickswap.exchange/swap/best/${inT}/${outT}`;
-    case 'Hyperliquid': return `https://app.hyperliquid.xyz/trade/${encodeURIComponent(m.coin ?? m.base.symbol)}`;
-    case 'THORChain': return 'https://app.thorswap.finance/swap';
-    default: return chain ? `${chain.explorer}/address/${m.pool}` : 'https://wattxchange.app';
-  }
+  return chain && isEvmAddress(m.pool) ? `${chain.explorer}/address/${m.pool}` : null;
 }
 
 export function routeFor(m: Market): TradeRoute {
+  if (m.family === 'Hyperliquid') return { kind: 'hl', spot: m.version === 'Spot' };
+  if (m.family === 'THORChain') return { kind: 'thor' };
   const chain = m.chainId ? EVM_CHAINS[m.chainId] : undefined;
   if (!chain || !isEvmAddress(m.base.address) || !isEvmAddress(m.quote.address)) {
-    return { kind: 'link', url: venueUrl(m), reason: `${m.venueLabel} trades on its own platform.` };
+    return { kind: 'none', reason: `${m.venueLabel} has no tradable token contracts listed for this pair.` };
   }
-  if (m.version === 'v2' || m.version === 'v1') {
-    const fam = m.family === 'SwapinDEX' ? 'SwapinDEX' : m.family;
-    const router = V2_ROUTERS[fam]?.[chain.chainId];
-    if (router && m.version === 'v2') return { kind: 'v2', chain, router };
+  if (m.version === 'v2') {
+    const router = V2_ROUTERS[m.family]?.[chain.chainId];
+    if (router) return { kind: 'v2', chain, router };
   }
   if (m.family === 'Uniswap' && m.version === 'v3' && UNISWAP_V3[chain.chainId]) {
     const fee = Math.round(Number(m.fee ?? '0.3') * 10_000);
     return { kind: 'v3', chain, ...UNISWAP_V3[chain.chainId], fee };
   }
-  return { kind: 'link', url: venueUrl(m), reason: `${m.venueLabel} pools are traded on ${m.family}'s app.` };
+  if (kyberSupports(chain.chainId)) return { kind: 'agg', chain };
+  return { kind: 'none', reason: `No swap route on ${chain.name} for this pool yet.` };
 }
 
 const ERC20 = [
@@ -133,16 +134,25 @@ async function verifyRouter(route: TradeRoute & { kind: 'v2' | 'v3' }, pool: str
   return ok;
 }
 
-export interface Quote { amountOut: bigint; decimalsOut: number; decimalsIn: number }
+export interface Quote { amountOut: bigint; decimalsOut: number; decimalsIn: number; via?: string[] }
+/** Kyber uses 0xEeee… for the native coin. */
+const aggToken = (c: EvmChain, t: string, useNative: boolean) => (useNative && t.toLowerCase() === c.wrappedNative.toLowerCase() ? NATIVE : addr(t));
 
 /** sell=true: spend base, receive quote. sell=false: spend quote, receive base. */
-export async function quote(m: Market, route: TradeRoute, sell: boolean, amountIn: string): Promise<Quote> {
-  if (route.kind === 'link') throw new Error(route.reason);
+export type EvmRoute = TradeRoute & { kind: 'v2' | 'v3' | 'agg' };
+export const isEvmRoute = (r: TradeRoute): r is EvmRoute => r.kind === 'v2' || r.kind === 'v3' || r.kind === 'agg';
+
+export async function quote(m: Market, route: TradeRoute, sell: boolean, amountIn: string, useNative = false): Promise<Quote> {
+  if (!isEvmRoute(route)) throw new Error('Not an EVM route.');
   const tokenIn = sell ? m.base.address! : m.quote.address!;
   const tokenOut = sell ? m.quote.address! : m.base.address!;
   const [decimalsIn, decimalsOut] = await Promise.all([decimalsOf(route.chain, tokenIn), decimalsOf(route.chain, tokenOut)]);
   const raw = ethers.parseUnits(amountIn || '0', decimalsIn);
   if (raw === 0n) return { amountOut: 0n, decimalsIn, decimalsOut };
+  if (route.kind === 'agg') {
+    const k = await kyberQuote(route.chain.chainId, aggToken(route.chain, tokenIn, useNative), aggToken(route.chain, tokenOut, useNative), raw);
+    return { amountOut: k.amountOut, decimalsIn, decimalsOut, via: k.dexes };
+  }
   if (route.kind === 'v2') {
     const amounts = await new ethers.Contract(addr(route.router), V2_ROUTER, reader(route.chain)).getAmountsOut(raw, [addr(tokenIn), addr(tokenOut)]);
     return { amountOut: amounts[amounts.length - 1], decimalsIn, decimalsOut };
@@ -188,10 +198,22 @@ export async function swap(opts: {
   m: Market; route: TradeRoute; sell: boolean; amountIn: string; slippageBps: number; useNative: boolean; onStep: (s: string) => void;
 }): Promise<string> {
   const { m, route, sell, amountIn, slippageBps, useNative, onStep } = opts;
-  if (route.kind === 'link') throw new Error(route.reason);
+  if (!isEvmRoute(route)) throw new Error('Not an EVM route.');
+  if (route.kind === 'agg') {
+    onStep(`Connecting to ${route.chain.name}…`);
+    const signer = await walletOn(route.chain);
+    const tokenIn = sell ? m.base.address! : m.quote.address!;
+    const tokenOut = sell ? m.quote.address! : m.base.address!;
+    const decimalsIn = await decimalsOf(route.chain, tokenIn);
+    return kyberSwap({
+      chain: route.chain, signer, slippageBps, onStep,
+      tokenIn: aggToken(route.chain, tokenIn, useNative), tokenOut: aggToken(route.chain, tokenOut, useNative),
+      amountIn: ethers.parseUnits(amountIn, decimalsIn),
+    });
+  }
   onStep('Checking the router on-chain…');
   if (!(await verifyRouter(route, m.pool))) {
-    throw new Error(`Safety check failed: this router is not the one for this ${m.venueLabel} pool. Nothing was approved. Trade it on ${m.family}'s app instead.`);
+    throw new Error(`Safety check failed: this router is not the one for this ${m.venueLabel} pool. Nothing was approved.`);
   }
   onStep(`Connecting to ${route.chain.name}…`);
   const signer = await walletOn(route.chain);

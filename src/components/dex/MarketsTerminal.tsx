@@ -6,9 +6,10 @@ import {
 } from 'lightweight-charts';
 import { Search, RefreshCw, ExternalLink, Star, ShieldCheck, ArrowDownUp, Filter } from 'lucide-react';
 import {
-  fetchMarkets, fetchCandles, routeFor, quote, swap, walletOn, balanceOf, venueUrl, decimalsOf,
+  fetchMarkets, fetchCandles, routeFor, quote, swap, walletOn, balanceOf, poolUrl, decimalsOf,
   type Market, type Candle, type TradeRoute,
 } from '../../services/marketsService';
+import { HyperliquidPanel, ThorPanel } from './VenuePanels';
 
 const FAMILIES = ['SwapinDEX', 'Uniswap', 'PancakeSwap', 'QuickSwap', 'Hyperliquid', 'THORChain'];
 const TFS = ['5m', '15m', '1h', '4h', '1D'] as const;
@@ -221,7 +222,7 @@ function MarketChart({ market: m }: { market: Market }) {
         <div>
           <div className="text-xl font-bold">{m.base.symbol}<span className="text-slate-500">/{m.quote.symbol}</span></div>
           <div className="text-xs text-slate-400">{m.venueLabel}{m.fee ? ` · ${m.fee}%` : ''} · {m.chain}
-            {' · '}<a href={venueUrl(m)} target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:underline inline-flex items-center gap-0.5">venue <ExternalLink className="w-3 h-3" /></a>
+            {poolUrl(m) && <>{' · '}<a href={poolUrl(m)!} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-yellow-400 inline-flex items-center gap-0.5">pool <ExternalLink className="w-3 h-3" /></a></>}
           </div>
         </div>
         <div className="flex gap-4 text-xs">
@@ -261,6 +262,13 @@ function MarketChart({ market: m }: { market: Market }) {
 
 function TradePanel({ market: m }: { market: Market }) {
   const route: TradeRoute = useMemo(() => routeFor(m), [m]);
+  if (route.kind === 'hl') return <HyperliquidPanel market={m} spot={route.spot} />;
+  if (route.kind === 'thor') return <ThorPanel market={m} />;
+  if (route.kind === 'none') return <div className="space-y-2"><div className="font-semibold">Trade {m.base.symbol}/{m.quote.symbol}</div><p className="text-sm text-slate-400">{route.reason}</p></div>;
+  return <EvmTradePanel market={m} route={route} />;
+}
+
+function EvmTradePanel({ market: m, route }: { market: Market; route: TradeRoute & { kind: 'v2' | 'v3' | 'agg' } }) {
   const [sell, setSell] = useState(false);
   const [amount, setAmount] = useState('');
   const [out, setOut] = useState<string | null>(null);
@@ -275,21 +283,22 @@ function TradePanel({ market: m }: { market: Market }) {
 
   const inSym = sell ? m.base.symbol : m.quote.symbol;
   const outSym = sell ? m.quote.symbol : m.base.symbol;
-  const chain = route.kind === 'link' ? null : route.chain;
+  const chain = route.chain;
   const wrapped = chain?.wrappedNative.toLowerCase();
   const nativeSide = chain && (sell ? m.quote.address : m.quote.address)?.toLowerCase() === wrapped;
   const nativeApplies = Boolean(nativeSide) && !(route.kind === 'v3' && sell); // v3 router pays out wrapped
+  const [via, setVia] = useState<string[] | null>(null);
 
   useEffect(() => {
-    if (route.kind === 'link' || !amount || Number(amount) <= 0) { setOut(null); setQuoteErr(null); return undefined; }
+    if (!amount || Number(amount) <= 0) { setOut(null); setQuoteErr(null); return undefined; }
     let cancelled = false;
     const t = setTimeout(() => {
-      quote(m, route, sell, amount)
-        .then((q) => { if (!cancelled) { setOut(ethers.formatUnits(q.amountOut, q.decimalsOut)); setQuoteErr(null); } })
+      quote(m, route, sell, amount, useNative && nativeApplies)
+        .then((q) => { if (!cancelled) { setOut(ethers.formatUnits(q.amountOut, q.decimalsOut)); setVia(q.via ?? null); setQuoteErr(null); } })
         .catch((e) => { if (!cancelled) { setOut(null); setQuoteErr(e.shortMessage ?? e.message); } });
     }, 350);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [amount, sell, m.id]);
+  }, [amount, sell, m.id, useNative]);
 
   useEffect(() => {
     if (!account || !chain) { setBalance(null); return; }
@@ -301,19 +310,6 @@ function TradePanel({ market: m }: { market: Market }) {
         setBalance(ethers.formatUnits(b, dec));
       }).catch(() => setBalance(null));
   }, [account, sell, m.id, useNative, hash]);
-
-  if (route.kind === 'link') {
-    return (
-      <div className="space-y-3">
-        <div className="font-semibold">Trade {m.base.symbol}/{m.quote.symbol}</div>
-        <p className="text-sm text-slate-400">{route.reason} The chart and prices here are live; orders go through {m.family}.</p>
-        <a href={route.url} target="_blank" rel="noopener noreferrer"
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-semibold">
-          Open on {m.family} <ExternalLink className="w-4 h-4" />
-        </a>
-      </div>
-    );
-  }
 
   const connect = async () => { try { const s = await walletOn(route.chain); setAccount(await s.getAddress()); } catch (e) { setError((e as Error).message); } };
   const go = async () => {
@@ -350,6 +346,7 @@ function TradePanel({ market: m }: { market: Market }) {
           <span className="text-sm font-semibold">{label(outSym)}</span>
         </div>
         {quoteErr && <div className="text-xs text-red-400 mt-1">Quote failed: {quoteErr}</div>}
+        {route.kind === 'agg' && via && via.length > 0 && <div className="text-[11px] text-slate-500 mt-1">Best route via {via.slice(0, 3).join(', ')}{via.length > 3 ? ` +${via.length - 3}` : ''}</div>}
       </div>
       {nativeApplies && (
         <label className="flex items-center gap-2 text-xs text-slate-300">
@@ -371,7 +368,9 @@ function TradePanel({ market: m }: { market: Market }) {
       {hash && <a href={`${route.chain.explorer}/tx/${hash}`} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline inline-flex items-center gap-1">Swap confirmed · view transaction <ExternalLink className="w-3 h-3" /></a>}
       <div className="text-[11px] text-slate-500 flex gap-1.5 items-start">
         <ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-500" />
-        <span>Goes straight from your wallet to the {m.venueLabel} router on {route.chain.name}. The router is checked on-chain against this pool before anything is approved.</span>
+        <span>{route.kind === 'agg'
+          ? `Swaps from your wallet through the KyberSwap aggregator on ${route.chain.name}, which finds the best price across ${m.family} and the chain's other DEXs. Approvals only ever go to Kyber's verified router.`
+          : `Goes straight from your wallet to the ${m.venueLabel} router on ${route.chain.name}. The router is checked on-chain against this pool before anything is approved.`}</span>
       </div>
     </div>
   );

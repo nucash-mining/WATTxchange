@@ -8778,7 +8778,8 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 <script type="module" src="casino.js?v=2"></script>
 <script type="module" src="skins.js?v=3"></script>
 <script type="module" src="loungefx.js?v=2"></script>
-<script type="module" src="dj.js?v=1"></script>
+<script type="module" src="dj.js?v=2"></script>
+<script type="module" src="stage.js?v=1"></script>
 </body>
 </html>
 <script type="module">
@@ -9127,6 +9128,8 @@ const NET = (() => {
     if (state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify({ t: 'voice', to, kind, data }));
   }
   async function onVoiceMsg(from, kind, data) {
+    // live-stage audio (stage.js) shares this relay; it needs no mic of its own
+    if (typeof kind === 'string' && kind.startsWith('stage')) { try { window.MGSTAGE?.onSignal?.(from, kind, data); } catch {} return; }
     if (!voice.on) return;                       // our mic is off; nothing to negotiate
     let pc = voice.pcs.get(from);
     try {

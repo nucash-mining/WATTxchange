@@ -8776,7 +8776,7 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 </script>
 <script type="module" src="arcade.js?v=2"></script>
 <script type="module" src="casino.js?v=2"></script>
-<script type="module" src="skins.js?v=3"></script>
+<script type="module" src="skins.js?v=4"></script>
 <script type="module" src="loungefx.js?v=2"></script>
 <script type="module" src="dj.js?v=2"></script>
 <script type="module" src="stage.js?v=1"></script>
@@ -8945,10 +8945,10 @@ const NET = (() => {
       case 'look': {
         const peer = state.peers.get(m.id);
         if (!peer) return;
-        const prevSkin = (peer.look && peer.look.skin) || '';
+        const lk0 = peer.look || {}; const prevSkin = (lk0.skin || '') + '|' + (lk0.milady || '');
         peer.look = m.look;
         // looks also carry emotes/DJ state several times a second: rebuild only when the skin changes
-        if (peer.group && ((m.look && m.look.skin) || '') !== prevSkin) {
+        if (peer.group && (((m.look && m.look.skin) || '') + '|' + ((m.look && m.look.milady) || '')) !== prevSkin) {
           const old = peer.group, tag = peer.tag;
           const g = makeAvatar(m.look);
           g.position.copy(old.position); g.rotation.y = old.rotation.y;

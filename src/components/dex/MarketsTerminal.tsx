@@ -6,14 +6,14 @@ import {
 } from 'lightweight-charts';
 import { Search, RefreshCw, ExternalLink, Star, ShieldCheck, ArrowDownUp, Filter } from 'lucide-react';
 import {
-  fetchMarkets, fetchCandles, routeFor, quote, swap, walletOn, balanceOf, poolUrl, decimalsOf,
+  fetchMarkets, fetchCandles, routeFor, quote, swap, walletOn, balanceOf, poolUrl, decimalsOf, connectedAccount,
   type Market, type Candle, type TradeRoute,
 } from '../../services/marketsService';
-import { HyperliquidPanel, ThorPanel } from './VenuePanels';
+import { HyperliquidPanel, HyperliquidPairPanel, ThorPanel } from './VenuePanels';
 
 const FAMILIES = ['SwapinDEX', 'Uniswap', 'PancakeSwap', 'QuickSwap', 'Hyperliquid', 'THORChain'];
-const TFS = ['5m', '15m', '1h', '4h', '1D'] as const;
-const LS = { quotes: 'wxc.dex.quotes.v1', families: 'wxc.dex.families.v1', favs: 'wxc.dex.favs.v1', last: 'wxc.dex.last.v1' };
+const TFS = ['1m', '5m', '15m', '1h', '4h', '1D'] as const;
+const LS = { quote: 'wxc.dex.quote.v2', dust: 'wxc.dex.dust.v1', families: 'wxc.dex.families.v1', favs: 'wxc.dex.favs.v1', last: 'wxc.dex.last.v1' };
 
 const load = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) ?? 'null') ?? d; } catch { return d; } };
 const fmt = (v: number | null | undefined, usd = false) => {
@@ -24,7 +24,8 @@ const fmt = (v: number | null | undefined, usd = false) => {
   return usd ? `$${s}` : s;
 };
 // Normalise wrapped/bridged names so the quote filter groups sensibly.
-const quoteKey = (s: string) => s.replace(/^(USDC\.e|USDbC)$/i, 'USDC').replace(/^W(ETH|BNB|POL|MATIC|AVAX|ALT)$/i, '$1').toUpperCase();
+const quoteKey = (s: string) => s.replace(/^(USDC\.e|USDbC)$/i, 'USDC').replace(/^(USDT0|USDt|USD₮0?)$/i, 'USDT')
+  .replace(/^(WBTC|cbBTC|BTCB|tBTC)$/i, 'BTC').replace(/^W(ETH|BNB|POL|MATIC|AVAX|ALT)$/i, '$1').replace(/^MATIC$/i, 'POL').toUpperCase();
 
 export default function MarketsTerminal() {
   const [markets, setMarkets] = useState<Market[] | null>(null);
@@ -33,7 +34,8 @@ export default function MarketsTerminal() {
   const [search, setSearch] = useState('');
   const [chainFilter, setChainFilter] = useState<string>('all');
   const [families, setFamilies] = useState<string[]>(() => load(LS.families, FAMILIES));
-  const [quotes, setQuotes] = useState<string[] | null>(() => load(LS.quotes, null));
+  const [quoteTab, setQuoteTab] = useState<string>(() => load(LS.quote, 'ALL'));
+  const [showDust, setShowDust] = useState<boolean>(() => load(LS.dust, false));
   const [favs, setFavs] = useState<string[]>(() => load(LS.favs, []));
   const [sort, setSort] = useState<'volume' | 'liquidity' | 'change'>('volume');
   const [limit, setLimit] = useState(150);
@@ -48,31 +50,32 @@ export default function MarketsTerminal() {
   };
   useEffect(() => { refresh(); const t = setInterval(refresh, 120_000); return () => clearInterval(t); }, []);
   useEffect(() => { localStorage.setItem(LS.families, JSON.stringify(families)); }, [families]);
-  useEffect(() => { if (quotes) localStorage.setItem(LS.quotes, JSON.stringify(quotes)); }, [quotes]);
+  useEffect(() => { localStorage.setItem(LS.quote, JSON.stringify(quoteTab)); }, [quoteTab]);
+  useEffect(() => { localStorage.setItem(LS.dust, JSON.stringify(showDust)); }, [showDust]);
   useEffect(() => { localStorage.setItem(LS.favs, JSON.stringify(favs)); }, [favs]);
 
   const chains = useMemo(() => [...new Set((markets ?? []).map((m) => m.chain))].sort(), [markets]);
   const quoteOptions = useMemo(() => {
     const count = new Map<string, number>();
     for (const m of markets ?? []) count.set(quoteKey(m.quote.symbol), (count.get(quoteKey(m.quote.symbol)) ?? 0) + 1);
-    const PRIORITY = ['USDC', 'USDT', 'ETH', 'BNB', 'POL', 'BTC', 'WBTC', 'SOL', 'RUNE', 'AVAX', 'ALT', 'WATT', 'DAI'];
+    const PRIORITY = ['USDC', 'USDT', 'ETH', 'BTC', 'BNB', 'SOL', 'POL', 'HYPE', 'WATT', 'ALT', 'DAI', 'RUNE', 'AVAX'];
     const rank = (q: string) => { const i = PRIORITY.indexOf(q); return i === -1 ? 100 : i; };
     return [...count.entries()]
       .filter(([q, n]) => rank(q) < 100 || n >= 8)
       .sort((a, b) => (rank(a[0]) - rank(b[0])) || (b[1] - a[1]))
-      .slice(0, 16).map(([q]) => q);
+      .slice(0, 18).map(([q]) => q);
   }, [markets]);
-  const activeQuotes = quotes ?? quoteOptions;
 
   const rows = useMemo(() => {
     const s = search.trim().toLowerCase();
     const list = (markets ?? []).filter((m) =>
       families.includes(m.family)
       && (chainFilter === 'all' || m.chain === chainFilter)
-      && (s ? `${m.base.symbol}/${m.quote.symbol} ${m.name} ${m.pool} ${m.venueLabel}`.toLowerCase().includes(s) : activeQuotes.includes(quoteKey(m.quote.symbol))));
+      && (showDust || !m.suspect || (s && m.pool.toLowerCase() === s))
+      && (s ? `${m.base.symbol}/${m.quote.symbol} ${m.name} ${m.pool} ${m.venueLabel}`.toLowerCase().includes(s) : (quoteTab === 'ALL' ? m.version !== 'Pair' : quoteKey(m.quote.symbol) === quoteTab)));
     const key = (m: Market) => (sort === 'volume' ? m.volume24hUsd ?? -1 : sort === 'liquidity' ? m.liquidityUsd ?? -1 : m.change24h ?? -999);
     return list.sort((a, b) => (Number(favs.includes(b.id)) - Number(favs.includes(a.id))) || (key(b) - key(a)));
-  }, [markets, search, families, chainFilter, activeQuotes, sort, favs]);
+  }, [markets, search, families, chainFilter, quoteTab, showDust, sort, favs]);
 
   const selected = useMemo(() => (markets ?? []).find((m) => m.id === selectedId) ?? rows[0] ?? null, [markets, selectedId, rows]);
   useEffect(() => { if (selected) localStorage.setItem(LS.last, selected.id); }, [selected?.id]);
@@ -94,12 +97,10 @@ export default function MarketsTerminal() {
             <button onClick={() => setShowFilters((v) => !v)} title="Filters" className={`px-2 rounded-lg border ${showFilters ? 'border-yellow-600 text-yellow-300' : 'border-slate-800 text-slate-400'}`}><Filter className="w-4 h-4" /></button>
             <button onClick={refresh} title="Refresh" className="px-2 rounded-lg border border-slate-800 text-slate-400"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
           </div>
-          <div className="text-[11px] text-slate-500 uppercase tracking-wide">Quote currencies</div>
-          <div className="flex gap-1 flex-wrap">
-            {quoteOptions.map((q) => (
-              <button key={q} className={chip(activeQuotes.includes(q))} onClick={() => setQuotes(toggle(activeQuotes, q))}>{q}</button>
+          <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
+            {['ALL', ...quoteOptions].map((q) => (
+              <button key={q} className={chip(quoteTab === q)} onClick={() => setQuoteTab(q)}>{q === 'ALL' ? 'All' : q}</button>
             ))}
-            <button className="text-[11px] text-slate-500 hover:text-slate-300 px-1" onClick={() => setQuotes(activeQuotes.length ? [] : quoteOptions)}>{activeQuotes.length ? 'none' : 'all'}</button>
           </div>
           {showFilters && (
             <>
@@ -118,6 +119,10 @@ export default function MarketsTerminal() {
                   <option value="change">Sort: 24h change</option>
                 </select>
               </div>
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                <input type="checkbox" checked={showDust} onChange={(e) => setShowDust(e.target.checked)} />
+                Show low-liquidity and suspicious pools ({(markets ?? []).filter((m) => m.suspect).length})
+              </label>
             </>
           )}
         </div>
@@ -199,19 +204,64 @@ function MarketChart({ market: m }: { market: Market }) {
     return () => { ro.disconnect(); c.remove(); chart.current = null; };
   }, []);
 
+  // Full history: the newest page loads first; scrolling near the left edge pages back
+  // (before = oldest candle) until the source has nothing older.
+  const page = useRef({ key: '', loading: false, done: false, shift: 0, fit: true });
   useEffect(() => {
     let cancelled = false;
+    const key = `${m.id}|${tf}`;
+    page.current = { key, loading: false, done: false, shift: 0, fit: true };
     setCandles(null); setError(null);
     fetchCandles(m.id, tf).then((c) => { if (!cancelled) setCandles(c); }).catch((e) => { if (!cancelled) setError(e.message); });
-    const t = setInterval(() => fetchCandles(m.id, tf).then((c) => !cancelled && setCandles(c)).catch(() => {}), 60_000);
+    // live refresh: merge the newest page into whatever history is loaded
+    const t = setInterval(() => fetchCandles(m.id, tf).then((fresh) => {
+      if (cancelled || !fresh.length) return;
+      setCandles((cur) => {
+        if (!cur?.length) return fresh;
+        const first = fresh[0].time;
+        return [...cur.filter((c) => c.time < first), ...fresh];
+      });
+    }).catch(() => {}), tf === '1m' ? 15_000 : 60_000);
     return () => { cancelled = true; clearInterval(t); };
   }, [m.id, tf]);
 
+  const loadOlder = useRef<() => void>(() => {});
+  loadOlder.current = () => {
+    const p = page.current;
+    if (p.loading || p.done || !candles?.length) return;
+    p.loading = true;
+    const key = p.key, oldest = candles[0].time;
+    fetchCandles(m.id, tf, oldest).then((older) => {
+      if (page.current.key !== key) return;
+      const add = older.filter((c) => c.time < oldest);
+      if (!add.length) { page.current.done = true; return; }
+      page.current.shift = add.length;
+      setCandles((cur) => [...add, ...(cur ?? [])]);
+    }).catch(() => { page.current.done = true; }).finally(() => { page.current.loading = false; });
+  };
+  useEffect(() => {
+    const c = chart.current; if (!c) return undefined;
+    const onRange = (r: { from: number; to: number } | null) => { if (r && r.from < 30) loadOlder.current(); };
+    c.timeScale().subscribeVisibleLogicalRangeChange(onRange);
+    return () => c.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
+  }, []);
+
   useEffect(() => {
     const data = (candles ?? []).filter((c, i, a) => i === 0 || c.time > a[i - 1].time);
+    const ts = chart.current?.timeScale();
+    const before = ts?.getVisibleLogicalRange();
     candleS.current?.setData(data.map((c) => ({ ...c, time: c.time as UTCTimestamp })));
     volS.current?.setData(data.map((c) => ({ time: c.time as UTCTimestamp, value: c.volume, color: c.close >= c.open ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)' })));
-    chart.current?.timeScale().fitContent();
+    const p = page.current;
+    if (!data.length) return;
+    if (p.fit) {
+      // open on the most recent ~150 candles; older ones are a scroll away
+      p.fit = false;
+      ts?.setVisibleLogicalRange({ from: Math.max(0, data.length - 150), to: data.length + 2 });
+    } else if (p.shift && before) {
+      ts?.setVisibleLogicalRange({ from: before.from + p.shift, to: before.to + p.shift });
+      p.shift = 0;
+    }
   }, [candles]);
 
   const last = candles?.[candles.length - 1];
@@ -263,12 +313,13 @@ function MarketChart({ market: m }: { market: Market }) {
 function TradePanel({ market: m }: { market: Market }) {
   const route: TradeRoute = useMemo(() => routeFor(m), [m]);
   if (route.kind === 'hl') return <HyperliquidPanel market={m} spot={route.spot} />;
+  if (route.kind === 'hlpair') return <HyperliquidPairPanel market={m} />;
   if (route.kind === 'thor') return <ThorPanel market={m} />;
   if (route.kind === 'none') return <div className="space-y-2"><div className="font-semibold">Trade {m.base.symbol}/{m.quote.symbol}</div><p className="text-sm text-slate-400">{route.reason}</p></div>;
   return <EvmTradePanel market={m} route={route} />;
 }
 
-function EvmTradePanel({ market: m, route }: { market: Market; route: TradeRoute & { kind: 'v2' | 'v3' | 'agg' } }) {
+function EvmTradePanel({ market: m, route }: { market: Market; route: Extract<TradeRoute, { kind: 'v2' | 'v3' | 'agg' }> }) {
   const [sell, setSell] = useState(false);
   const [amount, setAmount] = useState('');
   const [out, setOut] = useState<string | null>(null);
@@ -311,6 +362,7 @@ function EvmTradePanel({ market: m, route }: { market: Market; route: TradeRoute
       }).catch(() => setBalance(null));
   }, [account, sell, m.id, useNative, hash]);
 
+  useEffect(() => { connectedAccount().then((a) => a && setAccount((x) => x ?? a)); }, []);
   const connect = async () => { try { const s = await walletOn(route.chain); setAccount(await s.getAddress()); } catch (e) { setError((e as Error).message); } };
   const go = async () => {
     setError(null); setHash(null);

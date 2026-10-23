@@ -34,17 +34,61 @@ export interface Market {
   change24h: number | null;
   fee?: string | null;
   coin?: string;
+  quoteCoin?: string;          // Hyperliquid cross pairs: the perp on the short leg
+  suspect?: boolean;           // fake-looking volume / dust liquidity: hidden unless asked for
 }
 export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number }
 
 export async function fetchMarkets(): Promise<{ markets: Market[]; updatedAt: number }> {
   const res = await fetch(`${MARKETS_API}/markets`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`markets: HTTP ${res.status}`);
-  return res.json();
+  const body = await res.json() as { markets: Market[]; updatedAt: number };
+  const markets = body.markets.map((m) => (suspicious(m) ? { ...m, suspect: true } : m));
+  return { ...body, markets: [...markets, ...hlPairs(markets)] };
 }
 
-export async function fetchCandles(id: string, tf: string): Promise<Candle[]> {
-  const res = await fetch(`${MARKETS_API}/candles?id=${encodeURIComponent(id)}&tf=${tf}`, { signal: AbortSignal.timeout(30_000) });
+/**
+ * Drop pools whose numbers can't be real: a -100% day, near-zero liquidity, or 24h volume
+ * hundreds of times the pool's liquidity (wash trading). Our own venues and perps
+ * (where "liquidity" is open interest) are never dropped.
+ */
+export function suspicious(m: Market): boolean {
+  if (m.source === 'own' || m.family === 'Hyperliquid' || m.family === 'THORChain') return false;
+  if (m.change24h != null && m.change24h <= -99) return true;
+  const liq = m.liquidityUsd, vol = m.volume24hUsd ?? 0;
+  if (liq == null) return false;
+  if (liq < 1_000) return true;
+  return vol > 25_000 && vol / liq > 60;
+}
+
+/** Cross pairs built from two Hyperliquid perps (e.g. XMR/BTC = long XMR, short BTC). */
+export const PAIR_QUOTES = ['BTC', 'ETH', 'SOL', 'HYPE'];
+function hlPairs(markets: Market[]): Market[] {
+  const perps = markets.filter((m) => m.family === 'Hyperliquid' && m.version === 'Perps' && m.price);
+  const by = new Map(perps.map((m) => [m.coin ?? m.base.symbol, m]));
+  const bases = [...perps].sort((a, b) => (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0)).slice(0, 80);
+  const out: Market[] = [];
+  for (const q of PAIR_QUOTES) {
+    const qm = by.get(q); if (!qm?.price) continue;
+    for (const b of bases) {
+      const coin = b.coin ?? b.base.symbol;
+      if (coin === q || !b.price) continue;
+      const ch = b.change24h != null && qm.change24h != null ? ((1 + b.change24h / 100) / (1 + qm.change24h / 100) - 1) * 100 : null;
+      out.push({
+        id: `hlpair:${coin}:${q}`, source: 'hyperliquid', chain: 'Hyperliquid', chainId: null, venue: 'hyperliquid', family: 'Hyperliquid',
+        version: 'Pair', venueLabel: 'Hyperliquid Pair (perps)', pool: `${coin}/${q}`, name: `${coin} / ${q}`,
+        base: { symbol: coin }, quote: { symbol: q }, price: b.price / qm.price, priceUsd: b.priceUsd ?? b.price,
+        liquidityUsd: Math.min(b.liquidityUsd ?? 0, qm.liquidityUsd ?? 0) || null,
+        volume24hUsd: Math.min(b.volume24hUsd ?? 0, qm.volume24hUsd ?? 0) || null, change24h: ch, coin, quoteCoin: q,
+      });
+    }
+  }
+  return out;
+}
+
+/** Candles ending before `before` (unix s); page back with before = oldest candle's time. */
+export async function fetchCandles(id: string, tf: string, before = 0): Promise<Candle[]> {
+  const res = await fetch(`${MARKETS_API}/candles?id=${encodeURIComponent(id)}&tf=${tf}${before ? `&before=${before}` : ''}`, { signal: AbortSignal.timeout(30_000) });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error ?? `candles: HTTP ${res.status}`);
   return body.candles;
@@ -57,6 +101,7 @@ export type TradeRoute =
   | { kind: 'v3'; chain: EvmChain; router: string; quoter: string; fee: number }
   | { kind: 'agg'; chain: EvmChain }
   | { kind: 'hl'; spot: boolean }
+  | { kind: 'hlpair' }
   | { kind: 'thor' }
   | { kind: 'none'; reason: string };
 
@@ -69,6 +114,7 @@ export function poolUrl(m: Market): string | null {
 }
 
 export function routeFor(m: Market): TradeRoute {
+  if (m.family === 'Hyperliquid' && m.version === 'Pair') return { kind: 'hlpair' };
   if (m.family === 'Hyperliquid') return { kind: 'hl', spot: m.version === 'Spot' };
   if (m.family === 'THORChain') return { kind: 'thor' };
   const chain = m.chainId ? EVM_CHAINS[m.chainId] : undefined;
@@ -166,6 +212,12 @@ type Eip1193 = { request: (a: { method: string; params?: unknown[] }) => Promise
 const injected = (): Eip1193 | null => (window as unknown as { ethereum?: Eip1193 }).ethereum ?? null;
 
 /** Connect a wallet and put it on `chain` (adding the network if the wallet lacks it). */
+/** The wallet account this site is already connected to, without prompting (null if none). */
+export async function connectedAccount(): Promise<string | null> {
+  const eth = injected(); if (!eth) return null;
+  try { const a = await eth.request({ method: 'eth_accounts' }) as string[]; return a?.[0] ? ethers.getAddress(a[0]) : null; } catch { return null; }
+}
+
 export async function walletOn(chain: EvmChain): Promise<ethers.JsonRpcSigner> {
   const eth = injected();
   if (!eth) throw new Error('No wallet found. Install MetaMask, Rabby or Brave Wallet, or open this page in your wallet app.');

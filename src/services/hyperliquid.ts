@@ -143,7 +143,7 @@ export async function moveUsdc(signer: ethers.Signer, amount: string, toPerp: bo
 
 // ------------------------------------------------------------------ markets ----
 
-export interface HlAsset { asset: number; szDecimals: number; spot: boolean; midKey: string }
+export interface HlAsset { asset: number; szDecimals: number; spot: boolean; midKey: string; maxLeverage: number; isolatedOnly: boolean; coin: string }
 let metaCache: { perps: any; spot: any; at: number } | null = null; // eslint-disable-line @typescript-eslint/no-explicit-any
 async function metas() {
   if (!metaCache || Date.now() - metaCache.at > 600_000) {
@@ -159,12 +159,15 @@ export async function assetFor(coin: string, spot: boolean): Promise<HlAsset> {
   if (!spot) {
     const i = perps.universe.findIndex((u: { name: string }) => u.name === coin);
     if (i < 0) throw new Error(`${coin} is not a Hyperliquid perp.`);
-    return { asset: i, szDecimals: perps.universe[i].szDecimals, spot: false, midKey: coin };
+    const u = perps.universe[i];
+    if (u.isDelisted) throw new Error(`${coin} perps are delisted on Hyperliquid.`);
+    const isolatedOnly = Boolean(u.onlyIsolated) || u.marginMode === 'strictIsolated' || u.marginMode === 'noCross';
+    return { asset: i, szDecimals: u.szDecimals, spot: false, midKey: coin, maxLeverage: Number(u.maxLeverage) || 1, isolatedOnly, coin };
   }
   const pair = sm.universe.find((u: { name: string; index: number }) => u.name === coin || `@${u.index}` === coin);
   if (!pair) throw new Error(`${coin} is not a Hyperliquid spot pair.`);
   const base = sm.tokens.find((t: { index: number }) => t.index === pair.tokens[0]);
-  return { asset: 10_000 + pair.index, szDecimals: base.szDecimals, spot: true, midKey: pair.name === 'PURR/USDC' ? 'PURR/USDC' : `@${pair.index}` };
+  return { asset: 10_000 + pair.index, szDecimals: base.szDecimals, spot: true, midKey: pair.name === 'PURR/USDC' ? 'PURR/USDC' : `@${pair.index}`, maxLeverage: 1, isolatedOnly: false, coin };
 }
 
 export async function midPrice(a: HlAsset): Promise<number> {
@@ -205,14 +208,43 @@ export async function marketOrder(agent: ethers.Wallet, a: HlAsset, isBuy: boole
   throw new Error('Order was not filled (no liquidity inside your slippage). Try a larger slippage.');
 }
 
-export interface HlBalances { perpUsdc: number; spot: Record<string, number>; positions: Record<string, number> }
+/** Set a perp's leverage and margin mode (signed by the browser trading key). */
+export async function setLeverage(agent: ethers.Wallet, a: HlAsset, leverage: number, isCross: boolean) {
+  const lev = Math.max(1, Math.min(a.maxLeverage, Math.round(leverage)));
+  const action = { type: 'updateLeverage', asset: a.asset, isCross, leverage: lev };
+  const nonce = Date.now();
+  return exchange(action, nonce, await signL1(agent, action, nonce));
+}
+
+/** The account's current leverage on one coin, plus what it can still open. */
+export async function activeLeverage(user: string, coin: string): Promise<{ type: 'cross' | 'isolated'; value: number; available: [number, number] } | null> {
+  try {
+    const r = await info({ type: 'activeAssetData', user, coin });
+    if (!r?.leverage) return null;
+    return { type: r.leverage.type, value: Number(r.leverage.value), available: (r.availableToTrade ?? [0, 0]).map(Number) as [number, number] };
+  } catch { return null; }
+}
+
+/** Hyperliquid rejects orders under $10 of notional. */
+export const MIN_NOTIONAL = 10;
+
+export interface HlPosition { coin: string; size: number; entry: number; value: number; pnl: number; roe: number; liq: number | null; margin: number; leverage: number; cross: boolean }
+export interface HlBalances { perpUsdc: number; accountValue: number; spot: Record<string, number>; positions: Record<string, number>; details: Record<string, HlPosition> }
 export async function balances(user: string): Promise<HlBalances> {
   const [perp, spot] = await Promise.all([info({ type: 'clearinghouseState', user }), info({ type: 'spotClearinghouseState', user })]);
   const positions: Record<string, number> = {};
-  for (const p of perp.assetPositions ?? []) positions[p.position.coin] = Number(p.position.szi);
+  const details: Record<string, HlPosition> = {};
+  for (const { position: p } of perp.assetPositions ?? []) {
+    positions[p.coin] = Number(p.szi);
+    details[p.coin] = {
+      coin: p.coin, size: Number(p.szi), entry: Number(p.entryPx), value: Number(p.positionValue), pnl: Number(p.unrealizedPnl),
+      roe: Number(p.returnOnEquity) * 100, liq: p.liquidationPx ? Number(p.liquidationPx) : null, margin: Number(p.marginUsed),
+      leverage: Number(p.leverage?.value ?? 1), cross: p.leverage?.type !== 'isolated',
+    };
+  }
   const spotBal: Record<string, number> = {};
   for (const b of spot.balances ?? []) spotBal[b.coin] = Number(b.total) - Number(b.hold ?? 0);
-  return { perpUsdc: Number(perp.withdrawable ?? 0), spot: spotBal, positions };
+  return { perpUsdc: Number(perp.withdrawable ?? 0), accountValue: Number(perp.marginSummary?.accountValue ?? 0), spot: spotBal, positions, details };
 }
 
 /** Deposit USDC from Arbitrum into the user's Hyperliquid account (min 5 USDC). */

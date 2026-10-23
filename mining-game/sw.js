@@ -4,8 +4,8 @@
 // redeploy and must never go stale), cache-first for everything else the page
 // pulls from this scope or the CDNs (three.js, ethers, GLB models from the
 // ordinal gateways — all immutable by content or by version pin).
-const CACHE = "mining-game-v2";
-const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const CACHE = "mining-game-v5";
+const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./mg-logo.png", "./mg-logo-stack.png", "./watt.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -21,8 +21,12 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const isShell = url.origin === location.origin &&
-    (url.pathname.endsWith("/index.html") || url.pathname.endsWith("/mining-game/") || url.pathname.endsWith("/manifest.webmanifest"));
+  // Any navigation (the game shell at "/", "/index.html", or an embed path)
+  // is network-first — the shell changes on every redeploy and must never go
+  // stale. The old endsWith() match missed the subdomain root "/" and cached
+  // the game forever.
+  const isShell = req.mode === "navigate" || (url.origin === location.origin &&
+    (url.pathname === "/" || url.pathname.endsWith("/index.html") || url.pathname.endsWith("/mining-game/") || url.pathname.endsWith("/manifest.webmanifest")));
   if (isShell) {
     // network-first: fresh game if online, cached shell if not
     e.respondWith(

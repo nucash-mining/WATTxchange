@@ -8336,7 +8336,7 @@ async function init(){
   };
   if(TRAILER){ $('splash').style.display='none'; trailerSetup(); }
   window.MG={ get S(){return S;}, tick:s=>{for(let i=0;i<s*10;i++)simTick(SIMDT);renderHud();},
-    give:w=>{S.watt+=w;renderHud();}, save, mintPC, buyItem, installPart, forceBlock, cam, controls, scene, THREE,
+    give:w=>{S.watt+=w;renderHud();}, save, mintPC, buyItem, installPart, forceBlock, cam, controls, scene, THREE, renderer,
     openOS, closeOS, setOC, setRigNet, rebootRig, openBench, closeBench, openTowerBench, syncTowerBuild, spinFans, collectFans, W3, WEB3CFG, w3Connect, w3Refresh,
     joinPool, hostPool, closePool, buyValidator, exitValidators, repairRig, togglePower, openPoolHub, switchNet, POOLS,
     stakeShop, unstakeShop, buildFarm, sitDown, standUp, eligibleSlots, farmStatus,
@@ -8777,6 +8777,7 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 <script type="module" src="arcade.js?v=1"></script>
 <script type="module" src="casino.js?v=1"></script>
 <script type="module" src="skins.js?v=1"></script>
+<script type="module" src="loungefx.js?v=1"></script>
 </body>
 </html>
 <script type="module">
@@ -9661,8 +9662,7 @@ import * as THREE from 'three';
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; screen.material.map = tex; screen.material.emissiveMap = tex; screen.material.needsUpdate = true;
 
     // BAR counter along the left wall
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 8), mat(0x1a1330, 0.6, NEON2, 0.5)); bar.position.set(-LW / 2 + 1.2, 0.6, -2); room.add(bar);
-    const barTop = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 8.2), mat(0x2a2050, 0.4, GOLD, 0.5)); barTop.position.set(-LW / 2 + 1.2, 1.26, -2); room.add(barTop);
+    // (the real bar — wood, marble, bottles, stools — is built by loungefx.js)
 
     // DOORWAYS for future rooms (labeled placeholders) on the right wall
     ['POKER', 'ARCADE', 'STAGE'].forEach((label, i) => {

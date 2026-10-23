@@ -350,6 +350,10 @@ const ui = {
     ov.querySelector('#dj-status').innerHTML = role === 'dj' ? '<span style="color:#22c55e">● LIVE to the lounge</span>'
       : taken ? `<span style="color:#f59e0b">${esc(rdj.name)} is on the decks — you can practise (only you hear it)</span>` : '<span class="note">Not live</span>';
     ov.querySelector('#dj-live').textContent = role === 'dj' ? 'End set' : 'Go live';
+    const lb = ov.querySelector('#dj-lights'), sh = sharedLights(), m = sh ? sh.m : 'auto';
+    lb.innerHTML = `<button data-lt="house" class="${m === 'house' ? 'on' : ''}">💡 House</button><button data-lt="club" class="${m === 'club' ? 'on' : ''}">🌈 Club</button><button data-sb class="${(sh ? sh.sb : L.strobe) ? 'on' : ''}">⚡ Strobe</button>`;
+    lb.querySelectorAll('[data-lt]').forEach((b) => b.onclick = () => setLights(b.dataset.lt));
+    lb.querySelector('[data-sb]').onclick = () => setLights(sh ? sh.m : 'club', !(sh ? sh.sb : L.strobe));
     ov.querySelector('#dj-live').disabled = !!taken;
     body.innerHTML = `<div class="grid">${deckHTML(0)}${mixerHTML()}${deckHTML(1)}${deckHTML(2)}${deckHTML(3)}</div>${libHTML()}`;
     wire(body);
@@ -511,7 +515,7 @@ function openDJ() {
   ov?.remove();
   ov = document.createElement('div'); ov.id = 'mg-dj';
   ov.innerHTML = `<div class="bar"><b style="font-size:15px;letter-spacing:.08em">🎛 DJ BOOTH</b><span id="dj-status"></span><span style="flex:1"></span>
-    <button id="dj-ext" title="Play Serato / Traktor / rekordbox (or any audio input) to the room">🎚 Serato / line-in</button><button id="dj-live" class="on">Go live</button><button id="dj-x">✕ Close</button></div><div id="dj-body"></div>`;
+    <span id="dj-lights"></span><button id="dj-ext" title="Play Serato / Traktor / rekordbox (or any audio input) to the room">🎚 Serato / line-in</button><button id="dj-live" class="on">Go live</button><button id="dj-x">✕ Close</button></div><div id="dj-body"></div>`;
   document.body.appendChild(ov);
   ov.querySelector('#dj-x').onclick = closeDJ;
   ov.querySelector('#dj-ext').onclick = () => { if (window.MGSTAGE) window.MGSTAGE.open('booth'); else toast('Stage module still loading — try again'); };
@@ -579,6 +583,8 @@ function build() {
   const ring = new THREE.Mesh(new THREE.BoxGeometry(FLOOR.x1 - FLOOR.x0 + 0.2, 0.04, FLOOR.z1 - FLOOR.z0 + 0.2), new THREE.MeshBasicMaterial({ color: 0x0a0a12 }));
   ring.position.set((FLOOR.x0 + FLOOR.x1) / 2, 0.04, (FLOOR.z0 + FLOOR.z1) / 2); root.add(ring);
   scene.add(root);
+  buildClub();
+  root.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshBasicMaterial) o.material.toneMapped = false; });
 }
 function drawMarquee(text, beat) {
   const c = screenCv.getContext('2d');
@@ -586,6 +592,63 @@ function drawMarquee(text, beat) {
   c.strokeStyle = `rgba(255,79,216,${0.4 + beat * 0.6})`; c.lineWidth = 4; c.stroke();
   c.fillStyle = '#e6ebf5'; c.font = 'bold 46px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 512, 66);
   screenTex.needsUpdate = true;
+}
+
+
+// ───────────────────────────────────────────────────────────── club lighting ──
+// 💡 HOUSE or 🌈 CLUB (+ ⚡ strobe). Club dims every lounge light and the reflection
+// lighting, then sweeps coloured floor lights, beams and lasers on the beat. It comes
+// on by itself when someone is live; whoever sets it shares it with the room (look.lights).
+const L = { mode: null, strobe: true, level: 1, club: 0, list: null, flash: 0, exp: null };
+let clubLights = [], strobeLight = null, lasers = [];
+function buildClub() {
+  const cx = (FLOOR.x0 + FLOOR.x1) / 2, cz = (FLOOR.z0 + FLOOR.z1) / 2;
+  for (let k = 0; k < 2; k++) { const l = new THREE.PointLight(0xff00aa, 0, 18, 1.4); l.position.set(cx + (k ? 3 : -3), 4.6, cz); root.add(l); clubLights.push(l); }
+  strobeLight = new THREE.PointLight(0xffffff, 0, 26, 1.2); strobeLight.position.set(cx, 5.4, cz - 1); root.add(strobeLight);
+  for (let k = 0; k < 8; k++) {
+    const geo = new THREE.CylinderGeometry(0.012, 0.012, 22, 4, 1, true); geo.translate(0, -11, 0);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.position.set(LX - 2.8 + k * 0.8, 5.2, BOOTH_Z + 0.5); root.add(m); lasers.push(m);
+  }
+}
+function lightsOf() {
+  // every light in the lounge region except our own club rig; remember base intensities
+  if (L.list && L.list.length) return L.list;
+  const own = new Set([...clubLights, strobeLight]);
+  const v = new THREE.Vector3(); L.list = [];
+  MG().scene.traverse((o) => { if (o.isLight && !own.has(o)) { o.getWorldPosition(v); if (v.z < LZ + 40) { o.userData.baseI = o.userData.baseI ?? o.intensity; L.list.push(o); } } });
+  return L.list;
+}
+function sharedLights() {
+  let best = null;
+  for (const p of peers()) { const lt = p.look?.lights; if (lt && (!best || lt.at > best.at)) best = lt; }
+  const mine = window.MGSKIN?.myLook?.().lights; if (mine && (!best || mine.at > best.at)) best = mine;
+  return best;
+}
+function setLights(mode, strobe) {
+  L.mode = mode; if (strobe != null) L.strobe = strobe;
+  try { window.MGSKIN?.setMyLook?.({ lights: { m: mode, sb: L.strobe ? 1 : 0, at: Date.now() } }); } catch (e) { /* offline */ }
+  ui.render();
+}
+function lightsTick(dt, t, beat) {
+  const sh = sharedLights();
+  const live = anyPlaying();
+  const mode = sh ? sh.m : (live ? 'club' : 'house');
+  const strobe = sh ? !!sh.sb : L.strobe;
+  L.club += ((mode === 'club' ? 1 : 0) - L.club) * Math.min(1, dt * 1.8);
+  const level = 1 - L.club * 0.85;
+  if (Math.abs(level - L.level) > 0.002 || L.club > 0.01) {
+    L.level = level;
+    for (const l of lightsOf()) l.intensity = l.userData.baseI * level;
+    const sc = MG().scene; if ('environmentIntensity' in sc) sc.environmentIntensity = 0.12 + 0.88 * level;
+    const r = MG().renderer; if (r) { if (L.exp == null) L.exp = r.toneMappingExposure; r.toneMappingExposure = L.exp * (1 - L.club * 0.55); }
+  }
+  const c = L.club;
+  clubLights.forEach((l, k) => { l.color.setHSL((t * 0.07 + k * 0.5) % 1, 1, 0.5); l.intensity = c * (live ? 2.2 + beat * 5 : 1.4); l.position.x = LX + Math.sin(t * 0.7 + k * Math.PI) * 3.2; });
+  if (strobe && live && c > 0.5 && beat > 0.92 && L.flash <= 0) L.flash = 0.05;
+  L.flash -= dt; strobeLight.intensity = L.flash > 0 ? 9 * c : 0;
+  lasers.forEach((m, k) => { m.material.opacity = c * (live ? 0.35 + beat * 0.4 : 0.12); m.material.color.setHSL((t * 0.1 + k / 8) % 1, 1, 0.55); m.rotation.z = Math.sin(t * 1.3 + k * 0.6) * 1.1; m.rotation.x = 1.05 + Math.cos(t * 0.9 + k) * 0.25; });
+  return c;
 }
 
 // ── beat clock: from the loudest playing deck's grid, else from the analyser ──
@@ -674,6 +737,7 @@ function tick(now) {
   const wantDuck = vis && anyPlaying();
   if (AU?.musG && wantDuck !== ducked) { ducked = wantDuck; AU.musG.gain.setTargetAtTime(ducked ? 0 : 0.17, AU.ctx.currentTime, 0.6); }
   if (mc.iframe) mc.iframe.style.display = vis || ov ? 'block' : 'none';
+  if (!vis && L.level < 0.999) { L.level = 1; L.club = 0; for (const l of lightsOf()) l.intensity = l.userData.baseI; if ('environmentIntensity' in MG().scene) MG().scene.environmentIntensity = 1; if (L.exp != null && MG().renderer) MG().renderer.toneMappingExposure = L.exp; }
   if (!vis) { if (prompt) prompt.style.display = 'none'; if (danceBar) danceBar.style.display = 'none'; if (dancing) stopDance(); return; }
   updateBeat(now);
   if (ov) updateLive();
@@ -694,9 +758,10 @@ function tick(now) {
     }
     tiles.instanceColor.needsUpdate = true;
   }
+  const clubAmt = lightsTick(dt, t, beat);
   beams.forEach((b, k) => {
     b.rotation.z = Math.sin(t * 0.6 + k) * 0.55; b.rotation.x = 0.25 + Math.cos(t * 0.45 + k * 1.3) * 0.35;
-    b.material.color.setHSL((t * 0.05 + k / 6) % 1, 1, 0.55); b.material.opacity = anyPlaying() ? 0.06 + beat * 0.16 : 0.03;
+    b.material.color.setHSL((t * 0.05 + k / 6) % 1, 1, 0.55); b.material.opacity = (anyPlaying() ? 0.06 + beat * 0.16 : 0.03) * (1 + clubAmt * 2.2);
   });
   const front = root.userData.front; if (front) front.material.color.setHSL((t * 0.04) % 1, 0.9, anyPlaying() ? 0.18 + beat * 0.3 : 0.08);
   if (screenCv && now - lastMarquee > 120) {
@@ -726,7 +791,7 @@ function tick(now) {
     danceBar.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:31;display:none;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:96vw;background:rgba(8,10,18,.85);border:1px solid #2a3350;border-radius:14px;padding:8px;color:#e6ebf5;font:13px system-ui';
     document.body.appendChild(danceBar); renderDanceBar();
     drawMarquee('🎛 DJ BOOTH · tap to spin', 0);
-    window.MGDJ = { _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
+    window.MGDJ = { lights: setLights, _L: L, _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);
 })();

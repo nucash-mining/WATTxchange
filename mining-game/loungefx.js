@@ -248,12 +248,15 @@ function onDown(ev) {
   ray.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), MG().cam);
   if (ray.intersectObject(barHit, false).length) { ev.stopImmediatePropagation(); ev.preventDefault(); openBar(); }
 }
+const COARSE = matchMedia('(pointer:coarse)').matches; let lowRes = false;
 let last = performance.now();
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const vis = !!inLoungeNow();
   root.visible = vis; if (MG()?.scene) setEnv(vis);
+  // phones: render the (heavy) lounge at 1x so frames — and audio — keep up
+  if (COARSE && vis !== lowRes && MG()?.renderer) { lowRes = vis; MG().renderer.setPixelRatio(vis ? 1 : Math.min(devicePixelRatio, 1.6)); }
   drunkFx(now / 1000, dt);
   if (prompt) {
     let near = false;

@@ -3187,7 +3187,9 @@ function netWorth(){ return S.watt + S.stakedWatt + S.usdt + S.dai + (S.pol+S.pe
 const AU = { ctx:null, master:null, humG:null, dest:null, started:false };
 function auInit(){
   if(AU.started) return;
-  AU.ctx = new (window.AudioContext||window.webkitAudioContext)();
+  // phones: a bigger audio buffer ("playback") trades a few ms of latency for no crackle
+  AU.lite = matchMedia('(pointer:coarse)').matches;
+  AU.ctx = new (window.AudioContext||window.webkitAudioContext)(AU.lite?{latencyHint:'playback'}:{});
   AU.master = AU.ctx.createGain(); AU.master.gain.value = (S&&S.muted)?0:0.85;
   AU.master.connect(AU.ctx.destination);
   AU.dest = AU.ctx.createMediaStreamDestination(); AU.master.connect(AU.dest);
@@ -3258,18 +3260,18 @@ function musicLoop(){
     if(section && (s===4||s===12)) musNoise(t,0.14,0.16,'bandpass',1600);
     // offbeat hats, a ghost 16th now and then
     if(s%4===2) musNoise(t,0.04,0.09,'highpass',7500);
-    else if(section && Math.random()<0.12) musNoise(t,0.03,0.035,'highpass',9000);
+    else if(!AU.lite && section && Math.random()<0.12) musNoise(t,0.03,0.035,'highpass',9000);
     // rolling bass: root 16ths, octave pops on the "and"s
     const bn = root + (s===6||s===14 ? 12 : 0) + (s===11 ? 7 : 0);
     musVoice('sawtooth', mtof(bn), t, st*0.9, s%4===0?0.26:0.18, sweep, null, s%2?7:-7);
     // arp: chord tones over two octaves, 16ths, into the echo (enters after the intro)
     if(section){
       const arp=[0,third,7,12,third+12,12,7,third][s%8] + 24;
-      musVoice('square', mtof(root+arp), t, st*0.8, 0.07, 2600, AU.echo, s%2?-9:9);
+      if(!AU.lite) musVoice('square', mtof(root+arp), t, st*0.8, 0.07, 2600, AU.echo, s%2?-9:9);
       musVoice('square', mtof(root+arp), t, st*0.8, 0.05, 2600, null, s%2?9:-9);
     }
     // glitch: a data packet chirp
-    if(Math.random() < (section?0.02:0.01)){
+    if(!AU.lite && Math.random() < (section?0.02:0.01)){
       const o=AU.ctx.createOscillator(), g=AU.ctx.createGain(); o.type='square';
       o.frequency.setValueAtTime(1800+Math.random()*2600,t); o.frequency.exponentialRampToValueAtTime(300+Math.random()*400,t+0.07);
       g.gain.setValueAtTime(0.05,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
@@ -3277,7 +3279,7 @@ function musicLoop(){
     }
   }
   // pad: a low, wide chord swell every bar in the full sections
-  if(section>=2) [0,third,7].forEach((iv,i)=>musVoice('sawtooth', mtof(root+24+iv), t0, st*16, 0.035, 900, null, (i-1)*12));
+  if(section>=2 && !AU.lite) [0,third,7].forEach((iv,i)=>musVoice('sawtooth', mtof(root+24+iv), t0, st*16, 0.035, 900, null, (i-1)*12));
   MUS.next = t0 + st*16;
   MUS.t = setTimeout(musicLoop, Math.max(50, (MUS.next - AU.ctx.currentTime - 0.35)*1000));
 }
@@ -8858,9 +8860,10 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 <script type="module" src="arcade.js?v=2"></script>
 <script type="module" src="casino.js?v=2"></script>
 <script type="module" src="skins.js?v=4"></script>
-<script type="module" src="loungefx.js?v=2"></script>
-<script type="module" src="dj.js?v=3"></script>
-<script type="module" src="stage.js?v=1"></script>
+<script type="module" src="miladys.js?v=1"></script>
+<script type="module" src="loungefx.js?v=3"></script>
+<script type="module" src="dj.js?v=5"></script>
+<script type="module" src="stage.js?v=2"></script>
 </body>
 </html>
 <script type="module">

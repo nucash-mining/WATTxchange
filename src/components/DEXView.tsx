@@ -10,13 +10,12 @@ import CrossChainBridge from './dex/AxelarBridgeInterface';
 import MarketsTerminal from './dex/MarketsTerminal';
 import ExchangeApiManager from './dex/ExchangeApiManager';
 import EnhancedAtomicSwapInterface from './swap/EnhancedAtomicSwapInterface';
-import NavigatorPerpInterface from './dex/NavigatorPerpInterface';
 import SonicBridgeInterface from './dex/SonicBridgeInterface';
 import MoneroSwap from './bridge/MoneroSwap';
 import CrossChainSwap from './dex/CrossChainSwap';
 
 type DexTab =
-  'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'navigator' | 'sonic' | 'monero' | 'xchain';
+  'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'sonic' | 'monero' | 'xchain';
 
 // Desktop pill order.
 const DEX_TABS: { id: DexTab; label: string }[] = [
@@ -28,7 +27,6 @@ const DEX_TABS: { id: DexTab; label: string }[] = [
   { id: 'pools', label: 'Pools' },
   { id: 'bridge', label: 'Bridge' },
   { id: 'atomic', label: 'Atomic Swaps' },
-  { id: 'navigator', label: 'Navigator PERP' },
   { id: 'sonic', label: 'Sonic Bridge' },
   { id: 'monero', label: 'Monero Bridge' },
 ];
@@ -41,7 +39,6 @@ const DEX_TAB_GROUPS: DexTabGroup[] = [
     { id: 'spot', label: 'Spot' },
     { id: 'perps', label: 'All markets' },
     { id: 'xchain', label: 'Cross-chain (THORChain)' },
-    { id: 'navigator', label: 'Navigator PERP' },
   ] },
   { label: 'Swap', items: [
     { id: 'multichain', label: 'Multi-Chain' },
@@ -266,7 +263,6 @@ const DEXView: React.FC = () => {
         {activeTab === 'bridge' && <CrossChainBridge />}
         {activeTab === 'perps' && <MarketsTerminal />}
         {activeTab === 'atomic' && <EnhancedAtomicSwapInterface />}
-        {activeTab === 'navigator' && <NavigatorPerpInterface />}
         {activeTab === 'sonic' && <SonicBridgeInterface />}
         {activeTab === 'monero' && <MoneroSwap />}
         {activeTab === 'xchain' && <CrossChainSwap />}

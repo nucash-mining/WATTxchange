@@ -116,6 +116,8 @@ async function walletAddr() {
 
 // ── a skinned avatar group for the netcode ─────────────────────────────────────
 function avatar(look) {
+  // Miladys are full 3D chibis (chibi.js); the realistic-body + portrait card is only a fallback
+  if (look && look.milady && window.MGCHIBI) return window.MGCHIBI.avatar(look);
   const group = new THREE.Group();
   group.userData.skinned = true;
   const id = look.skin, sex = sexOf(id);
@@ -199,7 +201,7 @@ async function openPicker() {
       ${tile('', 'Classic', null)}${LIST.map((s) => tile(s.id, s.name, `${BASE}skins/${s.id}.jpg${V}`)).join('')}</div>
     <div style="margin-top:16px;border-top:1px solid #2c3352;padding-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b style="font-size:15px">✨ Milady</b>
-        <span style="color:#8b94ab;font-size:12px">${myLook().milady ? `wearing Milady #${myLook().milady}${myLook().miladyOwned ? ' ✓' : ''}` : 'wear a Milady head on your chosen body'}</span></div>
+        <span style="color:#8b94ab;font-size:12px">${myLook().milady ? `wearing Milady #${myLook().milady}${myLook().miladyOwned ? ' ✓' : ''}` : 'become a 3D Milady chibi (built from its traits)'}</span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
         <button id="ml-mine" style="background:#2a2050;border:1px solid #5b4aa0;color:#e8ecf6;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:700">🦊 Load my Miladys</button>
         <input id="ml-id" inputmode="numeric" placeholder="Milady # (1–9999)" style="background:#0b0e18;border:1px solid #2c3352;color:#e8ecf6;border-radius:8px;padding:7px;width:150px">

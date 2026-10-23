@@ -8859,10 +8859,11 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 </script>
 <script type="module" src="arcade.js?v=2"></script>
 <script type="module" src="casino.js?v=2"></script>
-<script type="module" src="skins.js?v=4"></script>
+<script type="module" src="chibi.js?v=1"></script>
+<script type="module" src="skins.js?v=5"></script>
 <script type="module" src="miladys.js?v=1"></script>
 <script type="module" src="loungefx.js?v=3"></script>
-<script type="module" src="dj.js?v=5"></script>
+<script type="module" src="dj.js?v=6"></script>
 <script type="module" src="stage.js?v=2"></script>
 </body>
 </html>
@@ -9101,6 +9102,7 @@ const NET = (() => {
       t: 'move',
       x: +((window.MGFP && window.MGFP.on ? window.MGFP.bodyPos() : cam.position).x).toFixed(3), z: +((window.MGFP && window.MGFP.on ? window.MGFP.bodyPos() : cam.position).z).toFixed(3),
       ry: +yawFromCamera().toFixed(3),
+      ...(() => { try { const b = window.MGDJ?.standAt?.(); return b ? { x: +b.x.toFixed(3), z: +b.z.toFixed(3), ry: b.ry } : {}; } catch { return {}; } })(),
       sit: seated, seat,
     };
     const s = JSON.stringify(msg);
@@ -9214,6 +9216,7 @@ const NET = (() => {
   async function onVoiceMsg(from, kind, data) {
     // live-stage audio (stage.js) shares this relay; it needs no mic of its own
     if (typeof kind === 'string' && kind.startsWith('stage')) { try { window.MGSTAGE?.onSignal?.(from, kind, data); } catch {} return; }
+    if (typeof kind === 'string' && kind.startsWith('dj-')) { try { window.MGDJ?.onSignal?.(from, kind, data); } catch {} return; }
     if (!voice.on) return;                       // our mic is off; nothing to negotiate
     let pc = voice.pcs.get(from);
     try {

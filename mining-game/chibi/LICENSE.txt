@@ -1,0 +1,3 @@
+chibi.glb was modelled for the Mining Game in Blender (make_chibi.py). traits.json lists the
+Milady Maker traits (Remilia Corporation) used to dress each chibi; Milady Maker is published
+under the Viral Public License.

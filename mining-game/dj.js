@@ -249,7 +249,7 @@ let lastSent = 0, sendTimer = null;
 function snapshot() {
   const now = Date.now();
   return {
-    at: now, xf: +mix.xf.toFixed(3), m: +mix.master.toFixed(2),
+    at: now, co: allowCo ? 1 : 0, xf: +mix.xf.toFixed(3), m: +mix.master.toFixed(2),
     mc: mc.key ? { k: mc.key, t: mc.title.slice(0, 32), p: +(mc.pos || 0).toFixed(1), pl: mc.playing ? 1 : 0 } : 0,
     d: decks.map((d) => (d.track && d.track.kind === 'audius' ? {
       i: d.track.id, t: d.track.title.slice(0, 32), p: +d.pos.toFixed(2), r: +d.rate.toFixed(4), pl: d.playing ? 1 : 0,
@@ -274,7 +274,7 @@ const peers = () => { try { return window.MGNET?.peerLooks?.() || []; } catch (e
 function remoteDJ() {
   // MGNET.peerLooks() gives {id,name,look}; pick the freshest DJ snapshot
   let best = null;
-  for (const p of peers()) { const dj = p.look?.dj; if (dj && Date.now() - dj.at < 12000 && (!best || dj.at > best.dj.at)) best = { name: p.name, dj }; }
+  for (const p of peers()) { const dj = p.look?.dj; if (dj && Date.now() - dj.at < 12000 && (!best || dj.at > best.dj.at)) best = { id: p.id, name: p.name, dj }; }
   return best;
 }
 function follow(rdj) {
@@ -294,7 +294,7 @@ function follow(rdj) {
     const d = decks[k];
     if (!r) { if (d.track) d.eject(); return; }
     if (!d.track || d.track.id !== r.i) { d.load({ kind: 'audius', id: r.i, title: r.t, artist: '', bpm: r.b, duration: 0, art: '', url: `${AUDIUS}/tracks/${r.i}/stream?${APP}` }, { analyseIt: false }); }
-    Object.assign(d.state, { vol: r.v, trim: r.tr, eq: r.eq, filter: r.f, assign: r.a, tempo: (r.r - 1) * 100, cue: false });
+    Object.assign(d.state, { vol: r.v, trim: r.tr, eq: r.eq, filter: r.f, assign: r.a, tempo: (r.r - 1) * 100, cue: role === 'codj' ? d.state.cue : false });
     d.bpm = r.b || d.bpm; d.grid = r.g || 0;
     d.apply();
     const target = r.p + (r.pl ? age * r.r : 0);
@@ -302,6 +302,57 @@ function follow(rdj) {
     if (r.pl && d.el.paused) d.el.play().catch(() => {});
     if (!r.pl && !d.el.paused) d.el.pause();
   });
+}
+
+
+// ───────────────────────────────────────── co-DJ (B2B): one shared mix, many hands ──
+// The host (whoever went live) owns the engine. Co-DJs follow the host's state like
+// listeners, and every control they touch is sent to the host as a 'dj-cmd' over the
+// lounge relay; the host applies it and the next snapshot shows everyone the result.
+let hostId = null, allowCo = true;
+const sendSig = (to, kind, data) => { try { window.MGNET?.sendObj?.({ t: 'voice', to, kind, data }); } catch (e) { /* offline */ } };
+function act(op, a = {}) {
+  if (role === 'codj' && hostId) { sendSig(hostId, 'dj-cmd', { op, ...a }); return; }
+  applyCmd({ op, ...a });
+}
+function applyCmd(c) {
+  const d = c.d != null ? decks[c.d] : null;
+  if (c.d != null && !d) return;
+  switch (c.op) {
+    case 'play': d.toggle(); break;
+    case 'cue': d.cueBtn(); break;
+    case 'sync': d.sync(); break;
+    case 'key': d.state.keyLock = !d.state.keyLock; d.apply(); break;
+    case 'range': d.state.range = d.state.range === 8 ? 16 : 8; d.state.tempo = clamp(d.state.tempo, -d.state.range, d.state.range); d.apply(); break;
+    case 'zero': d.state.tempo = 0; d.apply(); break;
+    case 'eject': d.eject(); break;
+    case 'nudge': d.el.playbackRate = c.v ? d.rate * c.v : d.rate; break;
+    case 'hot': d.hotCue(c.k, c.clear); break;
+    case 'loop': d.setLoop(c.b); break;
+    case 'tempo': d.state.tempo = clamp(+c.v, -16, 16); d.apply(); break;
+    case 'seek': d.seek(+c.t); break;
+    case 'ch': if (String(c.k).startsWith('eq')) d.state.eq[+c.k[2]] = +c.v; else if (['trim', 'filter', 'vol'].includes(c.k)) d.state[c.k] = +c.v; d.apply(); break;
+    case 'assign': d.state.assign = c.v; d.apply(); break;
+    case 'xf': setXf(+c.v); break;
+    case 'master': mix.master = +c.v; master.gain.setTargetAtTime(mix.master, ctx.currentTime, 0.02); break;
+    case 'load': if (c.track && c.track.kind === 'audius') d.load({ ...c.track, url: `${AUDIUS}/tracks/${c.track.id}/stream?${APP}` }); break;
+    case 'mc': if (c.track) mcPlay(c.track); else mcStop(); break;
+    default: return;
+  }
+  broadcastSoon(); ui.render();
+}
+function onSignal(from, kind, data) {
+  if (kind === 'dj-cmd' && role === 'dj' && allowCo && data && typeof data.op === 'string') applyCmd(data);
+}
+function joinDecks(r) { audio(); role = 'codj'; hostId = r.id; try { window.MGSKIN?.setMyLook?.({ djco: { h: r.id, at: Date.now() }, emote: 'groove' }); } catch (e) { /* */ } ui.render(); }
+function leaveDecks() { if (role !== 'codj') return; role = 'idle'; hostId = null; try { window.MGSKIN?.setMyLook?.({ djco: null, emote: null }); } catch (e) { /* */ } ui.render(); }
+const myIdNum = () => { try { return +(window.MGNET?.debug?.().id || 0); } catch (e) { return 0; } };
+/** Where your avatar stands for everyone while you're on the decks (behind the booth). */
+function standAt() {
+  const slot = role === 'dj' ? 0 : role === 'codj' ? (myIdNum() % 2 ? 1.25 : -1.25) : null;
+  let serato = false; try { const st = window.MGSTAGE?._state?.(); serato = !!(st && st.live && st.live.on && st.live.where === 'booth'); } catch (e) { /* */ }
+  if (slot == null && !serato) return null;
+  return { x: LX + (slot || 0), z: BOOTH_Z - 2.05, ry: 0 };
 }
 
 // ───────────────────────────────────────────────────────────── UI ──
@@ -346,15 +397,18 @@ const ui = {
     if (!ov) return;
     const body = ov.querySelector('#dj-body');
     const rdj = remoteDJ();
-    const taken = rdj && role !== 'dj';
-    ov.querySelector('#dj-status').innerHTML = role === 'dj' ? '<span style="color:#22c55e">● LIVE to the lounge</span>'
-      : taken ? `<span style="color:#f59e0b">${esc(rdj.name)} is on the decks — you can practise (only you hear it)</span>` : '<span class="note">Not live</span>';
-    ov.querySelector('#dj-live').textContent = role === 'dj' ? 'End set' : 'Go live';
+    const taken = rdj && role !== 'dj' && role !== 'codj';
+    const coNames = peers().filter((p) => p.look?.djco && p.look.djco.h === (role === 'dj' ? myIdNum() : hostId) && Date.now() - p.look.djco.at < 8000).map((p) => p.name);
+    ov.querySelector('#dj-status').innerHTML = role === 'dj' ? `<span style="color:#22c55e">● LIVE to the lounge${coNames.length ? ` · B2B with ${esc(coNames.join(', '))}` : ''}</span> <label class="note"><input type="checkbox" id="dj-allowco" ${allowCo ? 'checked' : ''}> let others join the decks</label>`
+      : role === 'codj' ? `<span style="color:#22c55e">● On the decks with ${esc(rdj ? rdj.name : 'the host')} — your moves go to the shared mix</span>`
+      : taken ? `<span style="color:#f59e0b">${esc(rdj.name)} is on the decks${rdj.dj.co ? ' — join them back-to-back' : ''}</span>` : '<span class="note">Not live</span>';
+    ov.querySelector('#dj-live').textContent = role === 'dj' ? 'End set' : role === 'codj' ? 'Leave decks' : (taken && rdj.dj.co) ? '🤝 Join the decks' : 'Go live';
+    ov.querySelector('#dj-allowco')?.addEventListener('change', (e) => { allowCo = e.target.checked; broadcastSoon(); });
     const lb = ov.querySelector('#dj-lights'), sh = sharedLights(), m = sh ? sh.m : 'auto';
     lb.innerHTML = `<button data-lt="house" class="${m === 'house' ? 'on' : ''}">💡 House</button><button data-lt="club" class="${m === 'club' ? 'on' : ''}">🌈 Club</button><button data-sb class="${(sh ? sh.sb : L.strobe) ? 'on' : ''}">⚡ Strobe</button>`;
     lb.querySelectorAll('[data-lt]').forEach((b) => b.onclick = () => setLights(b.dataset.lt));
     lb.querySelector('[data-sb]').onclick = () => setLights(sh ? sh.m : 'club', !(sh ? sh.sb : L.strobe));
-    ov.querySelector('#dj-live').disabled = !!taken;
+    ov.querySelector('#dj-live').disabled = !!taken && !rdj.dj.co;
     body.innerHTML = `<div class="grid">${deckHTML(0)}${mixerHTML()}${deckHTML(1)}${deckHTML(2)}${deckHTML(3)}</div>${libHTML()}`;
     wire(body);
   },
@@ -424,36 +478,30 @@ function wire(body) {
     const d = decks[+el.dataset.deck];
     el.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('pointerdown', (e) => {
       const a = b.dataset.a; e.preventDefault();
-      if (a === 'play') d.toggle();
-      else if (a === 'cue') d.cueBtn();
-      else if (a === 'sync') d.sync();
-      else if (a === 'key') { d.state.keyLock = !d.state.keyLock; d.apply(); ui.render(); }
-      else if (a === 'range') { d.state.range = d.state.range === 8 ? 16 : 8; d.state.tempo = clamp(d.state.tempo, -d.state.range, d.state.range); d.apply(); ui.render(); }
-      else if (a === 'zero') { d.state.tempo = 0; d.apply(); ui.render(); broadcastSoon(); }
-      else if (a === 'eject') d.eject();
-      else if (a === 'next') { const t = lib.queue.shift(); if (t) d.load(t); }
+      const di = +el.dataset.deck;
+      if (['play', 'cue', 'sync', 'key', 'range', 'zero', 'eject'].includes(a)) act(a, { d: di });
+      else if (a === 'next') { const t = lib.queue.shift(); if (t) loadTo(di, t); }
       else if (a === 'nudge-' || a === 'nudge+') {
-        const r = d.rate * (a === 'nudge+' ? 1.04 : 0.96); d.el.playbackRate = r;
-        const up = () => { d.el.playbackRate = d.rate; b.removeEventListener('pointerup', up); b.removeEventListener('pointerleave', up); broadcastSoon(); };
+        act('nudge', { d: di, v: a === 'nudge+' ? 1.04 : 0.96 });
+        const up = () => { act('nudge', { d: di, v: 0 }); b.removeEventListener('pointerup', up); b.removeEventListener('pointerleave', up); };
         b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up);
       }
     }));
-    el.querySelectorAll('[data-hot]').forEach((b) => b.addEventListener('click', (e) => d.hotCue(+b.dataset.hot, e.shiftKey || e.ctrlKey)));
-    el.querySelectorAll('[data-hot]').forEach((b) => b.addEventListener('contextmenu', (e) => { e.preventDefault(); d.hotCue(+b.dataset.hot, true); }));
-    el.querySelectorAll('[data-loop]').forEach((b) => b.addEventListener('click', () => d.setLoop(+b.dataset.loop)));
-    el.querySelector('[data-k=tempo]').addEventListener('input', (e) => { d.state.tempo = +e.target.value; d.apply(); updateLive(); broadcastSoon(); });
+    const di = +el.dataset.deck;
+    el.querySelectorAll('[data-hot]').forEach((b) => b.addEventListener('click', (e) => act('hot', { d: di, k: +b.dataset.hot, clear: e.shiftKey || e.ctrlKey })));
+    el.querySelectorAll('[data-hot]').forEach((b) => b.addEventListener('contextmenu', (e) => { e.preventDefault(); act('hot', { d: di, k: +b.dataset.hot, clear: true }); }));
+    el.querySelectorAll('[data-loop]').forEach((b) => b.addEventListener('click', () => act('loop', { d: di, b: +b.dataset.loop })));
+    el.querySelector('[data-k=tempo]').addEventListener('input', (e) => { act('tempo', { d: di, v: +e.target.value }); updateLive(); });
     const wf = el.querySelector('[data-wf]');
-    wf.addEventListener('click', (e) => { const r = wf.getBoundingClientRect(); d.seek((e.clientX - r.left) / r.width * d.dur); });
+    wf.addEventListener('click', (e) => { const r = wf.getBoundingClientRect(); act('seek', { d: di, t: (e.clientX - r.left) / r.width * d.dur }); });
   });
   body.querySelectorAll('[data-ch][data-k]').forEach((inp) => inp.addEventListener('input', () => {
-    const d = decks[+inp.dataset.ch], k = inp.dataset.k, v = +inp.value;
-    if (k.startsWith('eq')) d.state.eq[+k[2]] = v; else d.state[k] = v;
-    d.apply(); broadcastSoon();
+    act('ch', { d: +inp.dataset.ch, k: inp.dataset.k, v: +inp.value });
   }));
   body.querySelectorAll('[data-ch][data-a=cue]').forEach((b) => b.addEventListener('click', () => { const d = decks[+b.dataset.ch]; d.state.cue = !d.state.cue; d.apply(); ui.render(); }));
-  body.querySelectorAll('[data-assign]').forEach((b) => b.addEventListener('click', () => { const d = decks[+b.dataset.ch]; d.state.assign = b.dataset.assign; d.apply(); ui.render(); broadcastSoon(); }));
-  body.querySelector('[data-g=xf]')?.addEventListener('input', (e) => setXf(+e.target.value));
-  body.querySelector('[data-g=master]')?.addEventListener('input', (e) => { mix.master = +e.target.value; master.gain.setTargetAtTime(mix.master, ctx.currentTime, 0.02); broadcastSoon(); });
+  body.querySelectorAll('[data-assign]').forEach((b) => b.addEventListener('click', () => act('assign', { d: +b.dataset.ch, v: b.dataset.assign })));
+  body.querySelector('[data-g=xf]')?.addEventListener('input', (e) => act('xf', { v: +e.target.value }));
+  body.querySelector('[data-g=master]')?.addEventListener('input', (e) => act('master', { v: +e.target.value }));
   body.querySelector('[data-g=cuemix]')?.addEventListener('input', (e) => { mix.cueMix = +e.target.value; cueMix.gain.setTargetAtTime(mix.cueMix, ctx.currentTime, 0.02); });
   const outSel = body.querySelector('[data-g=out]');
   if (outSel) {
@@ -471,16 +519,22 @@ function wire(body) {
   body.querySelectorAll('[data-pl]').forEach((b) => b.addEventListener('click', () => { lib.openList = lib.playlists[+b.dataset.pl]; fetchLib(); }));
   body.querySelector('[data-a=back]')?.addEventListener('click', () => { lib.openList = null; ui.render(); });
   body.querySelector('[data-a=more]')?.addEventListener('click', () => fetchLib(true));
-  body.querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => { const t = lib.mcResults[+b.dataset.mc]; if (!t) return; if (mc.key === t.id && mc.playing) mcStop(); else mcPlay(t); }));
+  body.querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => { const t = lib.mcResults[+b.dataset.mc]; if (!t) return; if (mc.key === t.id && mc.playing) act('mc', {}); else act('mc', { track: { kind: 'mixcloud', id: t.id, title: t.title } }); }));
   body.querySelector('[data-genre]')?.addEventListener('change', (e) => { lib.genre = e.target.value; fetchLib(); });
   const q = body.querySelector('[data-q]');
   if (q) { q.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { lib.q = q.value; fetchLib(); } }); }
   body.querySelector('[data-a=search]')?.addEventListener('click', () => { lib.q = q.value; fetchLib(); });
   body.querySelector('[data-files]')?.addEventListener('change', (e) => addFiles(e.target.files));
-  body.querySelectorAll('[data-load]').forEach((b) => b.addEventListener('click', () => { const t = listNow()[+b.dataset.n]; if (t) decks[+b.dataset.load].load(t); broadcastSoon(); }));
+  body.querySelectorAll('[data-load]').forEach((b) => b.addEventListener('click', () => { const t = listNow()[+b.dataset.n]; if (t) loadTo(+b.dataset.load, t); }));
   body.querySelectorAll('[data-qadd]').forEach((b) => b.addEventListener('click', () => { const t = listNow()[+b.dataset.qadd]; if (t) lib.queue.push(t); ui.render(); }));
   body.querySelectorAll('[data-qrm]').forEach((b) => b.addEventListener('click', () => { lib.queue.splice(+b.dataset.qrm, 1); ui.render(); }));
   body.querySelectorAll('[data-qup]').forEach((b) => b.addEventListener('click', () => { const n = +b.dataset.qup; if (n > 0) { const [t] = lib.queue.splice(n, 1); lib.queue.splice(n - 1, 0, t); } ui.render(); }));
+}
+function loadTo(di, t) {
+  if (role === 'codj') {
+    if (t.kind !== 'audius') { toast('Only Audius tracks can be shared on the decks — your own files stay on your device'); return; }
+    act('load', { d: di, track: { kind: 'audius', id: t.id, title: t.title, artist: t.artist, bpm: t.bpm, duration: t.duration, art: t.art } });
+  } else { decks[di].load(t); broadcastSoon(); }
 }
 // light per-frame refresh: waveforms, times, VU (no full re-render)
 function updateLive() {
@@ -519,7 +573,14 @@ function openDJ() {
   document.body.appendChild(ov);
   ov.querySelector('#dj-x').onclick = closeDJ;
   ov.querySelector('#dj-ext').onclick = () => { if (window.MGSTAGE) window.MGSTAGE.open('booth'); else toast('Stage module still loading — try again'); };
-  ov.querySelector('#dj-live').onclick = () => { if (role === 'dj') stopDJ(); else { role = 'dj'; broadcast(); } ui.render(); };
+  ov.querySelector('#dj-live').onclick = () => {
+    if (role === 'codj') { leaveDecks(); return; }
+    const rr = remoteDJ();
+    if (role !== 'dj' && rr && rr.dj.co) { joinDecks(rr); return; }
+    if (role === 'dj') { stopDJ(); try { window.MGSKIN?.setMyLook?.({ emote: null }); } catch (e) { /* */ } }
+    else { role = 'dj'; broadcast(); try { window.MGSKIN?.setMyLook?.({ emote: 'groove' }); } catch (e) { /* */ } }
+    ui.render();
+  };
   if (!lib.results.length) fetchLib(); else ui.render();
   try { document.exitPointerLock?.(); } catch (e) { /* */ }
 }
@@ -710,7 +771,10 @@ setInterval(() => {
   if (!MG()?.cam) return;
   const vis = !!inLoungeNow();
   const r = role === 'dj' ? null : remoteDJ();
-  if (r && vis) { role = 'listen'; follow(r); }
+  if (role === 'codj') {
+    if (r && r.id === hostId && r.dj.co) { if (vis) follow(r); try { window.MGSKIN?.setMyLook?.({ djco: { h: hostId, at: Date.now() } }); } catch (e) { /* */ } }
+    else { leaveDecks(); decks.forEach((d) => d.el.pause()); if (mc.key) mcRemove(); }
+  } else if (r && vis) { role = 'listen'; follow(r); }
   else if (role === 'listen') { role = 'idle'; decks.forEach((d) => d.el.pause()); if (mc.key) mcRemove(); }
   if (role === 'dj' && Date.now() - lastSent > 450) broadcast();
 }, 500);
@@ -791,7 +855,7 @@ function tick(now) {
     danceBar.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:31;display:none;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:96vw;background:rgba(8,10,18,.85);border:1px solid #2a3350;border-radius:14px;padding:8px;color:#e6ebf5;font:13px system-ui';
     document.body.appendChild(danceBar); renderDanceBar();
     drawMarquee('🎛 DJ BOOTH · tap to spin', 0);
-    window.MGDJ = { lights: setLights, _L: L, _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
+    window.MGDJ = { onSignal, standAt, join: joinDecks, leave: leaveDecks, lights: setLights, _L: L, _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);
 })();

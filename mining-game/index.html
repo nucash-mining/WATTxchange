@@ -8773,6 +8773,7 @@ window.__recAudioStop=async function(){ clearInterval(window.__audEvT); window._
 addEventListener('resize',fit);addEventListener('load',fit);document.addEventListener('DOMContentLoaded',function(){fit();
 if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeObserver(fit).observe(h);}});})();
 </script>
+<script type="module" src="arcade.js?v=1"></script>
 </body>
 </html>
 <script type="module">
@@ -9661,7 +9662,7 @@ import * as THREE from 'three';
       const z = -6 + i * 6;
       const frame = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.4, 2.4), mat(0x14182a, 0.6, GOLD, 0.35)); frame.position.set(LW / 2 - 0.2, 1.7, z); room.add(frame);
       const dc = document.createElement('canvas'); dc.width = 256; dc.height = 64; const dx = dc.getContext('2d');
-      dx.fillStyle = 'rgba(6,8,14,0.9)'; dx.fillRect(0, 0, 256, 64); dx.fillStyle = '#ffd23f'; dx.font = 'bold 34px system-ui'; dx.textAlign = 'center'; dx.textBaseline = 'middle'; dx.fillText(label + ' · soon', 128, 34);
+      dx.fillStyle = 'rgba(6,8,14,0.9)'; dx.fillRect(0, 0, 256, 64); dx.fillStyle = '#ffd23f'; dx.font = 'bold 34px system-ui'; dx.textAlign = 'center'; dx.textBaseline = 'middle'; dx.fillText(label === 'ARCADE' ? '🕹 ARCADE' : label + ' · soon', 128, 34);
       const dt = new THREE.CanvasTexture(dc); dt.colorSpace = THREE.SRGBColorSpace;
       const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: dt, transparent: true })); sign.scale.set(2.4, 0.6, 1); sign.position.set(LW / 2 - 0.6, 3.3, z); room.add(sign);
     });

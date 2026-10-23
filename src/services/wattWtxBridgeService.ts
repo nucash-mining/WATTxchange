@@ -89,6 +89,16 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 class WattWtxBridgeService {
+  /** The desk's live quote: exactly what it would pay right now (same pricing as the payout). */
+  async quote(q: { direction: 'WATT_TO_WTX' | 'WTX_TO_WATT' | 'EVM_TO_EVM'; amount: string; sourceChain?: string; destChain?: string }):
+    Promise<{ amountOut: string; mode: string; relayFee?: { amount: string; coin: string } | null }> {
+    const qs = new URLSearchParams({ direction: q.direction, amount: q.amount, ...(q.sourceChain ? { sourceChain: q.sourceChain } : {}), ...(q.destChain ? { destChain: q.destChain } : {}) });
+    const res = await fetch(`${API_BASE}/api/quote?${qs}`);
+    const body = await res.json() as { amountOut?: string; mode?: string; relayFee?: { amount: string; coin: string } | null; error?: string; detail?: string };
+    if (!res.ok || !body.amountOut) throw new Error((body.detail ?? body.error ?? `quote ${res.status}`).replace(/^limit:\s*/, ''));
+    return { amountOut: body.amountOut, mode: body.mode ?? '', relayFee: body.relayFee ?? null };
+  }
+
   async info(): Promise<BridgeInfo> {
     return await api<BridgeInfo>('/api/info');
   }

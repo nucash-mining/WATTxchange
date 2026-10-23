@@ -169,14 +169,36 @@ export default function WattWtxBridge() {
     return keys;
   }, [evmChains, info]);
 
-  const rate = info?.rate.wtxPerWatt ?? 1;
-  const feePct = (info?.rate.feeBps ?? 0) / 100;
-  const estimate = useMemo(() => {
+  // What the desk will actually pay: its live quote (the payout uses the same pricing),
+  // never the static config rate, which can differ from market pricing.
+  const quoteArgs = useCallback((amt: string) => ({
+    direction, amount: amt,
+    ...(direction === 'WTX_TO_WATT' ? { destChain: chainKey } : { sourceChain: chainKey }),
+    ...(direction === 'EVM_TO_EVM' ? { destChain: destChainKey } : {}),
+  }), [direction, chainKey, destChainKey]);
+  const [live, setLive] = useState<{ out: number; fee?: string } | null>(null);
+  const [liveErr, setLiveErr] = useState<string | null>(null);
+  useEffect(() => {
+    setLive(null); setLiveErr(null);
     const a = Number(amount);
-    if (!Number.isFinite(a) || a <= 0) return null;
-    const gross = direction === 'WATT_TO_WTX' ? a * rate : direction === 'WTX_TO_WATT' ? a / rate : a;
-    return gross * (1 - feePct / 100);
-  }, [amount, direction, rate, feePct]);
+    if (!Number.isFinite(a) || a <= 0) return undefined;
+    let off = false;
+    const t = setTimeout(() => {
+      wattWtxBridgeService.quote(quoteArgs(amount))
+        .then((q) => { if (!off) setLive({ out: Number(q.amountOut), fee: q.relayFee ? `${Number(q.relayFee.amount).toPrecision(2)} ${q.relayFee.coin}` : undefined }); })
+        .catch((e) => { if (!off) setLiveErr(e instanceof Error ? e.message : String(e)); });
+    }, 400);
+    return () => { off = true; clearTimeout(t); };
+  }, [amount, quoteArgs]);
+  const estimate = live?.out ?? null;
+  // headline rate for the chosen direction, from a 1,000-unit quote
+  const [unitRate, setUnitRate] = useState<number | null>(null);
+  useEffect(() => {
+    let off = false; setUnitRate(null);
+    wattWtxBridgeService.quote(quoteArgs('1000')).then((q) => !off && setUnitRate(Number(q.amountOut) / 1000)).catch(() => {});
+    return () => { off = true; };
+  }, [quoteArgs, info]);
+  const feePct = (info?.rate.feeBps ?? 0) / 100;
 
   const startSwap = async () => {
     setBusy(true);
@@ -317,7 +339,10 @@ export default function WattWtxBridge() {
         <div className="flex items-center space-x-3">
           {info && (
             <span className="text-xs text-gray-400">
-              1 WATT = {rate} WTX{feePct > 0 ? ` · fee ${feePct}%` : ' · no fee'}
+              {unitRate == null ? 'live rate…' : direction === 'WTX_TO_WATT'
+                ? `1 WTX ≈ ${unitRate.toPrecision(4)} WATT`
+                : direction === 'WATT_TO_WTX' ? `1 WATT ≈ ${unitRate.toPrecision(4)} WTX` : `1 WATT → ${unitRate.toPrecision(4)} WATT`}
+              {' · fee incl.'}{feePct > 0 ? ` ${feePct}%` : ''}
             </span>
           )}
           <button
@@ -441,6 +466,8 @@ export default function WattWtxBridge() {
 
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-400">
+          {liveErr && <span className="text-orange-300">Can’t do this amount right now: {liveErr}</span>}
+          {!liveErr && Number(amount) > 0 && estimate === null && <span className="text-gray-500">Getting the desk’s quote…</span>}
           {estimate !== null && (
             <>
               You receive ≈{' '}
@@ -450,16 +477,14 @@ export default function WattWtxBridge() {
                 {direction === 'EVM_TO_EVM' ? ` on ${CHAIN_LABELS[destChainKey]}` : ''}
               </span>
               {(direction !== 'WATT_TO_WTX' || chainKey !== 'bsv') && !(direction === 'WTX_TO_WATT' && chainKey === 'bsv') && (
-                <span className="text-gray-500"> · plus a small relay fee in {
-                  chainKey === 'polygon' ? 'POL' : 'ALT'
-                } (gas at cost)</span>
+                <span className="text-gray-500"> · plus a {live?.fee ?? `small ${chainKey === 'polygon' ? 'POL' : 'ALT'}`} relay fee (gas at cost)</span>
               )}
             </>
           )}
         </span>
         <button
           onClick={() => void startSwap()}
-          disabled={busy || !info}
+          disabled={busy || !info || !!liveErr}
           className={`${btnCls} bg-yellow-500 hover:bg-yellow-400 text-gray-900`}
         >
           <span>{(direction === 'WATT_TO_WTX' && chainKey !== 'bsv') || direction === 'EVM_TO_EVM' ? `Create & lock on ${CHAIN_LABELS[chainKey]}` : 'Create swap'}</span>

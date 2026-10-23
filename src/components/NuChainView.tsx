@@ -7,9 +7,10 @@ import ValidatorNodes from './nuchain/ValidatorNodes';
 import MiningPools from './nuchain/MiningPools';
 import NFTMiningRigs from './nuchain/NFTMiningRigs';
 import NodeRewardDashboard from './nuchain/NodeRewardDashboard';
+import NuChainBridges from './nuchain/NuChainBridges';
 
 const NuChainView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bridges' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
 
   const stats = [
     {
@@ -72,6 +73,16 @@ const NuChainView: React.FC = () => {
             }`}
           >
             Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('bridges')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'bridges'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Bridges
           </button>
           <button
             onClick={() => setActiveTab('staking')}
@@ -194,8 +205,8 @@ const NuChainView: React.FC = () => {
               </div>
             </div>
             <div className="text-xs text-slate-400 space-y-1">
-              <p>• Cosmos chain-id: nuchain_28277-1 · EVM chain-id: 28277 · prefix: nu</p>
-              <p>• Native: NU · Bridged: wWTX (WATTx WTX, 1:1) · settles to WATTx (22356)</p>
+              <p>• Cosmos chain-id: 9001 · EVM chain-id: 28277 · prefix: cosmos (nu1 prefix planned with the nuchain_28277-1 relaunch)</p>
+              <p>• Bridged: WTX, WATT, ALT (LayerZero hub + Solana gateway) · settles to WATTx (22356)</p>
               <p>• EVM RPC: <a className="text-cyan-400" href="https://evm-nu.wattxchange.app">https://evm-nu.wattxchange.app</a></p>
               <p>• Explorer: <a className="text-cyan-400" href="https://nu-exp.wattxchange.app">https://nu-exp.wattxchange.app</a></p>
             </div>
@@ -211,6 +222,7 @@ const NuChainView: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         {activeTab === 'dashboard' && <NuChainDashboard />}
+        {activeTab === 'bridges' && <NuChainBridges />}
         {activeTab === 'staking' && <StakingView />}
         {activeTab === 'validators' && <ValidatorNodes />}
         {activeTab === 'pools' && <MiningPools />}

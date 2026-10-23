@@ -44,7 +44,7 @@ const MiningGameView: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <motion.div 
-        className="flex items-center justify-between"
+        className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 min-w-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -53,10 +53,10 @@ const MiningGameView: React.FC = () => {
           <p className="text-slate-400 mt-1">Stake NFTs and earn rewards through virtual mining</p>
         </div>
         
-        <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
+        <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1 max-w-full overflow-x-auto [scrollbar-width:none]">
           <button
             onClick={() => setActiveTab('dapp')}
-            className={`px-4 py-2 rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'dapp'
                 ? 'bg-yellow-600 text-white'
                 : 'text-slate-400 hover:text-white'
@@ -66,7 +66,7 @@ const MiningGameView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('stakeclaim')}
-            className={`px-4 py-2 rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'stakeclaim'
                 ? 'bg-yellow-600 text-white'
                 : 'text-slate-400 hover:text-white'
@@ -76,7 +76,7 @@ const MiningGameView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('configure')}
-            className={`px-4 py-2 rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'configure'
                 ? 'bg-yellow-600 text-white'
                 : 'text-slate-400 hover:text-white'
@@ -86,7 +86,7 @@ const MiningGameView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('stake')}
-            className={`px-4 py-2 rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'stake'
                 ? 'bg-yellow-600 text-white'
                 : 'text-slate-400 hover:text-white'
@@ -96,7 +96,7 @@ const MiningGameView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('mine')}
-            className={`px-4 py-2 rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'mine'
                 ? 'bg-yellow-600 text-white'
                 : 'text-slate-400 hover:text-white'
@@ -106,7 +106,7 @@ const MiningGameView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('rewards')}
-            className={`px-4 py-2 rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'rewards'
                 ? 'bg-yellow-600 text-white'
                 : 'text-slate-400 hover:text-white'
@@ -158,34 +158,34 @@ const MiningGameView: React.FC = () => {
           <div>
             <h4 className="font-medium text-yellow-400 mb-2">Polygon Network</h4>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3 min-w-0">
                 <span className="text-slate-400">NFTs:</span>
-                <span className="font-mono">0x970a8b10147e3459d3cbf56329b76ac18d329728</span>
+                <span className="font-mono break-all text-right min-w-0">0x970a8b10147e3459d3cbf56329b76ac18d329728</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3 min-w-0">
                 <span className="text-slate-400">WATT:</span>
-                <span className="font-mono">0xE960d5076cd3169C343Ee287A2c3380A222e5839</span>
+                <span className="font-mono break-all text-right min-w-0">0xE960d5076cd3169C343Ee287A2c3380A222e5839</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3 min-w-0">
                 <span className="text-slate-400">Staking:</span>
-                <span className="font-mono">0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275</span>
+                <span className="font-mono break-all text-right min-w-0">0xcbfcA68D10B2ec60a0FB2Bc58F7F0Bfd32CD5275</span>
               </div>
             </div>
           </div>
           <div>
             <h4 className="font-medium text-yellow-400 mb-2">Altcoinchain Network</h4>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3 min-w-0">
                 <span className="text-slate-400">NFTs:</span>
-                <span className="font-mono">0xf9670e5D46834561813CA79854B3d7147BBbFfb2</span>
+                <span className="font-mono break-all text-right min-w-0">0xf9670e5D46834561813CA79854B3d7147BBbFfb2</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3 min-w-0">
                 <span className="text-slate-400">WATT:</span>
-                <span className="font-mono">0x6645143e49B3a15d8F205658903a55E520444698</span>
+                <span className="font-mono break-all text-right min-w-0">0x6645143e49B3a15d8F205658903a55E520444698</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3 min-w-0">
                 <span className="text-slate-400">Staking:</span>
-                <span className="font-mono">0xe463045318393095F11ed39f1a98332aBCc1A7b1</span>
+                <span className="font-mono break-all text-right min-w-0">0xe463045318393095F11ed39f1a98332aBCc1A7b1</span>
               </div>
             </div>
           </div>
@@ -204,7 +204,7 @@ const MiningGameView: React.FC = () => {
             isFullscreen ? 'fixed inset-4 z-50' : 'relative'
           }`}>
             {/* dApp Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-slate-700/50">
               <div className="flex items-center space-x-3">
                 <Gamepad2 className="w-6 h-6 text-yellow-400" />
                 <div>
@@ -215,7 +215,7 @@ const MiningGameView: React.FC = () => {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <motion.button
                   onClick={installApp}
                   className="flex items-center space-x-2 px-3 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg transition-colors text-sm"
@@ -317,8 +317,8 @@ const MiningGameView: React.FC = () => {
 
             {/* Quick Actions */}
             <div className="p-4 border-t border-slate-700/50 bg-slate-900/30 rounded-b-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 text-sm text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400">
                   <span>🎮 Interactive mining simulation</span>
                   <span>💎 NFT staking rewards</span>
                   <span>⚡ Real-time WATT earnings</span>
@@ -333,7 +333,7 @@ const MiningGameView: React.FC = () => {
         )}
         {activeTab === 'stakeclaim' && (
           <div className="bg-slate-800/30 backdrop-blur-xl rounded-xl border border-slate-700/50">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-slate-700/50">
               <div className="flex items-center space-x-3">
                 <Trophy className="w-6 h-6 text-yellow-400" />
                 <div>
@@ -343,7 +343,7 @@ const MiningGameView: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <motion.button
                   onClick={() => openWindow(STAKE_URL)}
                   className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"

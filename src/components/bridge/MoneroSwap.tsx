@@ -10,13 +10,13 @@ import {
 import { EVM_CHAINS } from '../../config/evmChains';
 import { walletOn, connectedAccount } from '../../services/marketsService';
 
-const LS_ORDERS = 'wxc.xmrswap.orders.v1';
+export const LS_ORDERS = 'wxc.xmrswap.orders.v1';
 const POPULAR = ['XMR', 'BTC', 'ETH', 'USDT', 'USDC', 'LTC', 'SOL', 'BNB', 'POL', 'DOGE', 'TRX', 'BCH', 'ZEC', 'DASH', 'XRP', 'ADA', 'TON', 'ARB'];
 const fmt = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '—' : Number(v.toPrecision(8)).toLocaleString(undefined, { maximumFractionDigits: 8 }));
 const copy = (t: string, what: string) => { void navigator.clipboard.writeText(t); toast.success(`${what} copied`); };
 const loadOrders = (): string[] => { try { return JSON.parse(localStorage.getItem(LS_ORDERS) ?? '[]'); } catch { return []; } };
 
-function AssetPicker({ coins, value, onChange, label }: { coins: SwapCoin[]; value: SwapAsset | null; onChange: (a: SwapAsset) => void; label: string }) {
+export function AssetPicker({ coins, value, onChange, label }: { coins: SwapCoin[]; value: SwapAsset | null; onChange: (a: SwapAsset) => void; label: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const list = useMemo(() => {
@@ -60,7 +60,7 @@ function AssetPicker({ coins, value, onChange, label }: { coins: SwapCoin[]; val
   );
 }
 
-function OrderCard({ id, onRemove }: { id: string; onRemove: () => void }) {
+export function OrderCard({ id, onRemove }: { id: string; onRemove: () => void }) {
   const [o, setO] = useState<SwapOrder | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);

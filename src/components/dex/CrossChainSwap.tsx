@@ -12,7 +12,7 @@ import { thorDepositEvm, type ThorQuote } from '../../services/aggregators';
 import { wattWtxBridgeService, type BridgeSwap } from '../../services/wattWtxBridgeService';
 
 const ROUTER = 'https://bridge.wattxchange.app/router';
-const LS = 'wxc.xchain.swaps.v1';
+export const LS = 'wxc.xchain.swaps.v1';
 const COINS = ['WTX', 'WATT', 'BTC', 'ETH', 'XMR', 'USDC', 'USDT', 'LTC', 'DOGE', 'BCH', 'AVAX', 'ATOM', 'RUNE', 'SOL', 'TRX', 'XRP', 'ADA', 'DOT', 'TON', 'ZEC', 'DASH', 'POL', 'ARB', 'XLM', 'ETC'];
 // coins we can send straight from an EVM wallet, and how
 const THOR_EVM: Record<string, { chainId: number; asset: string }> = {
@@ -29,7 +29,7 @@ const PLAIN_EVM: Record<string, { chainId: number; token: string | null; decimal
   ARB: { chainId: 42161, token: '0x912CE59144191C1204E64559FE8253a0e49E6548', decimals: 18 },
 };
 const EVM_RECEIVE = new Set(['ETH', 'USDC', 'USDT', 'AVAX', 'WATT', 'POL', 'ARB']);
-const PROVIDER_NAME: Record<string, string> = { thorchain: 'THORChain', 'wattx-desk': 'WATTxchange desk', exolix: 'Exolix', swapin: 'SwapinDEX', uniswap: 'Uniswap', gleecdex: 'GleecDEX', sideshift: 'SideShift', changenow: 'ChangeNOW' };
+export const PROVIDER_NAME: Record<string, string> = { thorchain: 'THORChain', 'wattx-desk': 'WATTxchange desk', exolix: 'Exolix', swapin: 'SwapinDEX', uniswap: 'Uniswap', gleecdex: 'GleecDEX', sideshift: 'SideShift', changenow: 'ChangeNOW' };
 const fmt = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '—' : Number(v.toPrecision(8)).toLocaleString(undefined, { maximumFractionDigits: 8 }));
 const copy = (t: string, w: string) => { void navigator.clipboard.writeText(t); toast.success(`${w} copied`); };
 const errText = (e: unknown) => { const x = e as { code?: string; shortMessage?: string; message?: string }; return x.code === 'ACTION_REJECTED' ? 'Cancelled in the wallet.' : x.shortMessage ?? x.message ?? String(e); };
@@ -41,14 +41,14 @@ interface RSwap {
   deskSwapId?: string; txid?: string; instructions?: string; live?: { state?: string; hashIn?: string; hashOut?: string; payoutTx?: string };
 }
 
-async function api<T>(path: string, body?: unknown): Promise<T> {
+export async function api<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${ROUTER}${path}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : undefined);
   const j = await res.json().catch(() => ({}));
   if (!res.ok || j.error) throw new Error(j.error ?? `HTTP ${res.status}`);
   return j as T;
 }
 
-function SwapCard({ id, onRemove }: { id: string; onRemove: () => void }) {
+export function SwapCard({ id, onRemove }: { id: string; onRemove: () => void }) {
   const [s, setS] = useState<RSwap | null>(null);
   const [txid, setTxid] = useState('');
   const [step, setStep] = useState<string | null>(null);

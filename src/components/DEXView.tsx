@@ -6,29 +6,23 @@ import { useWallet } from '../hooks/useWallet';
 import LiquidityView from './LiquidityView';
 import SwapInterface from './dex/SwapInterface';
 import SwapinV2Interface from './dex/SwapinV2Interface';
-import CrossChainBridge from './dex/AxelarBridgeInterface';
 import MarketsTerminal from './dex/MarketsTerminal';
 import ExchangeApiManager from './dex/ExchangeApiManager';
 import EnhancedAtomicSwapInterface from './swap/EnhancedAtomicSwapInterface';
-import SonicBridgeInterface from './dex/SonicBridgeInterface';
-import MoneroSwap from './bridge/MoneroSwap';
-import CrossChainSwap from './dex/CrossChainSwap';
+import AnyBridge from './dex/AnyBridge';
 
 type DexTab =
-  'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'sonic' | 'monero' | 'xchain';
+  'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic';
 
 // Desktop pill order.
 const DEX_TABS: { id: DexTab; label: string }[] = [
   { id: 'perps', label: 'Trade · all markets' },
-  { id: 'xchain', label: 'Cross-chain (THORChain)' },
   { id: 'uniswap', label: 'Swapin V2' },
   { id: 'multichain', label: 'Multi-Chain' },
   { id: 'spot', label: 'Spot' },
   { id: 'pools', label: 'Pools' },
-  { id: 'bridge', label: 'Bridge' },
+  { id: 'bridge', label: 'Bridge · any coin' },
   { id: 'atomic', label: 'Atomic Swaps' },
-  { id: 'sonic', label: 'Sonic Bridge' },
-  { id: 'monero', label: 'Monero Bridge' },
 ];
 
 type DexTabGroup = { label: string; items: { id: DexTab; label: string }[] };
@@ -38,18 +32,15 @@ const DEX_TAB_GROUPS: DexTabGroup[] = [
   { label: 'Trade', items: [
     { id: 'spot', label: 'Spot' },
     { id: 'perps', label: 'All markets' },
-    { id: 'xchain', label: 'Cross-chain (THORChain)' },
-  ] },
+    ] },
   { label: 'Swap', items: [
     { id: 'multichain', label: 'Multi-Chain' },
     { id: 'uniswap', label: 'Swapin V2' },
     { id: 'atomic', label: 'Atomic Swaps' },
   ] },
   { label: 'Bridge', items: [
-    { id: 'bridge', label: 'Bridge' },
-    { id: 'sonic', label: 'Sonic Bridge' },
-    { id: 'monero', label: 'Monero Bridge' },
-  ] },
+    { id: 'bridge', label: 'Bridge · any coin' },
+      ] },
   { label: 'Liquidity', items: [
     { id: 'pools', label: 'Pools' },
   ] },
@@ -260,12 +251,9 @@ const DEXView: React.FC = () => {
         {activeTab === 'multichain' && <SwapInterface />}
         {activeTab === 'spot' && <MarketsTerminal />}
         {activeTab === 'pools' && <LiquidityView />}
-        {activeTab === 'bridge' && <CrossChainBridge />}
+        {activeTab === 'bridge' && <AnyBridge />}
         {activeTab === 'perps' && <MarketsTerminal />}
         {activeTab === 'atomic' && <EnhancedAtomicSwapInterface />}
-        {activeTab === 'sonic' && <SonicBridgeInterface />}
-        {activeTab === 'monero' && <MoneroSwap />}
-        {activeTab === 'xchain' && <CrossChainSwap />}
       </motion.div>
 
       {/* Swapin.co Info */}

@@ -5022,7 +5022,9 @@ function simTick(dt){ // dt seconds (fixed 0.1)
   }
   poolTick(dt);
   // hum follows draw
-  if(AU.humG) AU.humG.gain.value=(S.muted?0:Math.min(0.5,0.05+draw*0.004))*(noWatt?0.3:1);
+  // lab hum: grows gently with power draw (log scale) and stays under the music. The old
+  // linear curve hit full volume at ~110W, so LIVE farms were drowned in static.
+  if(AU.humG) AU.humG.gain.value=(S.muted?0:Math.min(0.14,0.035+Math.log10(1+draw)*0.03))*(noWatt?0.3:1);
 }
 /* Tower's own crash/wear tick — same rules as a desk rig (see the S.rigs.forEach
    above), just addressed differently: no SLOTS[r.slot]/rigVis[ri] (the tower

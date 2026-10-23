@@ -226,6 +226,7 @@ function render() {
     <section><h3>${isDesk ? '🔴 Live to the lounge' : '🎚 Serato / Traktor / rekordbox → the lounge'}</h3>
       <div class="st-row"><label>Audio input</label><select id="st-in">${devOpts}</select><button id="st-scan">↻ Find inputs</button></div>
       ${isDesk ? `<div class="st-row"><label><input type="checkbox" id="st-syn" ${srcSynth ? 'checked' : ''}> Built-in synth</label><label><input type="checkbox" id="st-mon" ${monitorOn ? 'checked' : ''}> Hear myself here</label></div>` : `<div class="st-row"><label><input type="checkbox" id="st-mon" ${monitorOn ? 'checked' : ''}> Monitor here (off if your DJ software already plays to your speakers)</label></div>`}
+      ${isDesk ? '' : '<div class="st-row"><label>Lights</label><button data-lt="house">💡 House</button><button data-lt="club">🌈 Club</button><button data-lt="strobe">⚡ Strobe</button></div>'}
       <div class="st-row"><div class="st-vu"><i id="st-vu"></i></div>
         ${live.on ? '<button id="st-end" class="red">■ End live</button><span style="color:#22c55e">● LIVE — the lounge hears you</span>' : '<button id="st-live" class="gold">🔴 Go live</button>'}</div>
       <div class="st-note">${isDesk
@@ -257,6 +258,7 @@ function wire(body) {
     goLive(mode, mode === 'booth' ? 'Serato set' : (inputId ? 'Live studio' : 'Synth jam'));
   });
   body.querySelector('#st-end')?.addEventListener('click', endLive);
+  body.querySelectorAll('[data-lt]').forEach((x) => x.addEventListener('click', () => { const d = window.MGDJ; if (!d) return; if (x.dataset.lt === 'strobe') d.lights('club', !(d._L.strobe)); else d.lights(x.dataset.lt); }));
   body.querySelector('#st-midi')?.addEventListener('click', midiConnect);
   body.querySelectorAll('[data-min]').forEach((c) => c.addEventListener('change', () => { if (c.checked) midi.enabledIn.add(c.dataset.min); else midi.enabledIn.delete(c.dataset.min); }));
   body.querySelector('#st-out')?.addEventListener('change', (e) => { midi.outId = e.target.value; });

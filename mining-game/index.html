@@ -441,6 +441,7 @@ body.touch.walkoff #net-ui{bottom:12px!important}
     <button class="hbtn accent" id="b-upg">🔧 GARAGE</button>
     <button class="hbtn" id="b-pool">🏊 POOLS</button>
     <button class="hbtn" id="b-lounge" title="Enter the shared multiplayer lounge (6)">🛋 LOUNGE</button>
+    <button class="hbtn" id="b-skin" title="Choose how you look in the lounge">👕 SKIN</button>
     <button class="hbtn" id="b-stats">📊</button>
     <button class="hbtn" id="b-mute">🔊</button>
   </div>
@@ -8775,6 +8776,7 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 </script>
 <script type="module" src="arcade.js?v=1"></script>
 <script type="module" src="casino.js?v=1"></script>
+<script type="module" src="skins.js?v=1"></script>
 </body>
 </html>
 <script type="module">
@@ -8831,6 +8833,8 @@ const NET = (() => {
     return new THREE.Color().setHSL(Math.random(), 0.55, 0.55);
   }
   function makeAvatar(look) {
+    // realistic skins (skins.js) take over when a look names one
+    if (look && look.skin && window.MGSKIN) return window.MGSKIN.avatar(look);
     const g = new THREE.Group();
     const skin = new THREE.Color(0xd8a97a);
     const body = colorFromLook(look);
@@ -8974,7 +8978,8 @@ const NET = (() => {
     ws.onopen = () => {
       state.connected = true; state.retry = 0;
       setDot('#3ddc84');
-      ws.send(JSON.stringify({ t: 'hello', name: state.name, wallet: state.wallet, room: NET._room }));
+      let look = null; try { look = JSON.parse(localStorage.getItem('mgLook') || 'null'); } catch {}
+      ws.send(JSON.stringify({ t: 'hello', name: state.name, wallet: state.wallet, room: NET._room, look }));
     };
     ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } if (m && m.t) onMsg(m); };
     ws.onclose = () => {
@@ -9037,8 +9042,9 @@ const NET = (() => {
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
       g.rotation.y += dy * 0.18;
-      // sit = drop the whole avatar a bit so it reads as seated
-      const wantY = peer.sit ? UPS * -0.35 : 0;
+      if (g.userData.update) g.userData.update(peer);   // skinned avatars animate (walk/sit/emotes)
+      // sit = drop the whole avatar a bit so it reads as seated (skins sit via animation)
+      const wantY = peer.sit && !g.userData.skinned ? UPS * -0.35 : 0;
       g.position.y += (wantY - g.position.y) * 0.15;
     }
     voiceTick();

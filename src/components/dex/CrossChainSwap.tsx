@@ -85,6 +85,12 @@ function SwapCard({ id, onRemove }: { id: string; onRemove: () => void }) {
         const signer = await walletOn(EVM_CHAINS[s.lockParams!.chainId]);
         setStep('Approve and lock WATT in your wallet…');
         hash = await wattWtxBridgeService.lockWatt(signer, { id: s.deskSwapId, lockParams: s.lockParams } as BridgeSwap, String(s.amount));
+        // pay the desk's relay fee right away from the same wallet
+        const d = desk ?? (s.deskSwapId ? await wattWtxBridgeService.getSwap(s.deskSwapId) : null);
+        if (d?.relayFee && !d.relayFeePaid) {
+          setStep(`Confirm the ${d.relayFee.amount} ${d.relayFee.coin} relay fee…`);
+          try { setDesk(await wattWtxBridgeService.payRelayFee(signer, d, hash)); } catch (e) { toast.error(`Fee not recorded: ${errText(e)}. Use “Pay fee” below.`); }
+        }
       } else return;
       toast.success(`Sent (${hash.slice(0, 10)}…). The swap continues on its own.`);
       load();

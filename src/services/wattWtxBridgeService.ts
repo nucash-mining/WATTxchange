@@ -114,19 +114,31 @@ class WattWtxBridgeService {
 
   /** Pay the relay fee: send the quoted POL/ALT to the desk, wait for it to
    *  mine, then hand the tx hash to the desk for verification. */
-  async payRelayFee(signer: ethers.Signer, swap: BridgeSwap): Promise<BridgeSwap> {
+  /** Send the relay fee from `signer` and record it. `lockTx` (the WATT lock just sent)
+   *  proves who locked, so the fee can be paid before the desk has seen the lock. */
+  async payRelayFee(signer: ethers.Signer, swap: BridgeSwap, lockTx?: string): Promise<BridgeSwap> {
     const f = swap.relayFee;
     if (!f) throw new Error('this swap has no relay fee');
     const tx = await signer.sendTransaction({ to: f.payTo, value: BigInt(f.wei) });
     const rcpt = await tx.wait();
-    return await this.submitRelayFee(swap.id, (rcpt?.hash ?? tx.hash) as string);
+    const hash = (rcpt?.hash ?? tx.hash) as string;
+    // the RPC behind the desk can lag a block or two behind the wallet's: retry briefly
+    let last: unknown;
+    for (let i = 0; i < 6; i++) {
+      try { return await this.submitRelayFee(swap.id, hash, lockTx); } catch (e) {
+        last = e;
+        if (!/not found|not mined|try again/i.test(String((e as Error).message))) throw e;
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+    }
+    throw last;
   }
 
   /** Report a relay-fee payment made from any wallet tool. */
-  async submitRelayFee(id: string, txHash: string): Promise<BridgeSwap> {
+  async submitRelayFee(id: string, txHash: string, lockTx?: string): Promise<BridgeSwap> {
     const r = await api<{ swap: BridgeSwap }>(`/api/swap/${id}/relayfee`, {
       method: 'POST',
-      body: JSON.stringify({ txHash }),
+      body: JSON.stringify({ txHash, ...(lockTx ? { lockTx } : {}) }),
     });
     return r.swap;
   }

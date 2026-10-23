@@ -62,6 +62,21 @@ async function signerOn(chainId: number): Promise<ethers.JsonRpcSigner> {
   return walletOn(chain);
 }
 
+/** Pay the swap's relay fee straight after locking (same wallet, same chain). */
+async function autoPayFee(signer: ethers.JsonRpcSigner, swap: BridgeSwap, lockTx?: string): Promise<BridgeSwap | null> {
+  if (!swap.relayFee) return null;
+  toast(`Now confirm the ${swap.relayFee.amount} ${swap.relayFee.coin} relay fee in your wallet`, { icon: '⛽' });
+  try {
+    const s = await wattWtxBridgeService.payRelayFee(signer, swap, lockTx);
+    toast.success('Relay fee paid — the payout goes out once the lock confirms');
+    return s;
+  } catch (e) {
+    const x = e as { code?: string; message?: string };
+    toast.error(x.code === 'ACTION_REJECTED' ? 'Fee not paid (cancelled). Use “Pay fee” on the swap below.' : `Fee not recorded: ${x.message}. Use “Pay fee” on the swap below.`);
+    return null;
+  }
+}
+
 function copy(text: string, label: string) {
   void navigator.clipboard.writeText(text);
   toast.success(`${label} copied`);
@@ -184,6 +199,8 @@ export default function WattWtxBridge() {
           const signer = await signerOn(chain.chainId);
           const txHash = await wattWtxBridgeService.lockWatt(signer, swap, amount);
           toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WTX after confirmations`);
+          const paid = await autoPayFee(signer, swap, txHash);
+          if (paid) setSwaps((prev) => ({ ...prev, [paid.id]: paid }));
         }
       } else if (direction === 'WTX_TO_WATT') {
         if (!destAddr.trim()) throw new Error(`Enter your ${CHAIN_LABELS[chainKey]} WATT address`);
@@ -194,6 +211,17 @@ export default function WattWtxBridge() {
         });
         track(swap.id);
         toast.success('Deposit address created — send WTX to it');
+        // the WATT lands in this EVM wallet; take its relay fee now, from that wallet
+        const destId = info.chains[chainKey]?.chainId;
+        if (swap.relayFee && destId) {
+          try {
+            const signer = await signerOn(destId);
+            if ((await signer.getAddress()).toLowerCase() === destAddr.trim().toLowerCase()) {
+              const paid = await autoPayFee(signer, swap);
+              if (paid) setSwaps((prev) => ({ ...prev, [paid.id]: paid }));
+            }
+          } catch { /* the swap's own Pay fee button still works */ }
+        }
       } else {
         // EVM_TO_EVM: cross-EVM WATT. Lock WATT on the source chain; the desk
         // pays WATT on the destination chain from its float, then claims.
@@ -211,6 +239,8 @@ export default function WattWtxBridge() {
         const signer = await signerOn(chain.chainId);
         const txHash = await wattWtxBridgeService.lockWatt(signer, swap, amount);
         toast.success(`WATT locked (${txHash.slice(0, 10)}…) — desk pays WATT on ${CHAIN_LABELS[destChainKey]} after confirmations`);
+        const paid = await autoPayFee(signer, swap, txHash);
+        if (paid) setSwaps((prev) => ({ ...prev, [paid.id]: paid }));
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -227,6 +257,10 @@ export default function WattWtxBridge() {
       const signer = await signerOn(swap.lockParams.chainId);
       const txHash = await wattWtxBridgeService.lockWatt(signer, swap, amount);
       toast.success(`WATT locked (${txHash.slice(0, 10)}…)`);
+      if (!swap.relayFeePaid) {
+        const paid = await autoPayFee(signer, swap, txHash);
+        if (paid) setSwaps((prev) => ({ ...prev, [paid.id]: paid }));
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {

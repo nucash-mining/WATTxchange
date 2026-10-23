@@ -1,0 +1,2 @@
+Lounge models and textures in this folder are from Poly Haven (https://polyhaven.com),
+released under CC0 1.0 (public domain). Converted to GLB with WebP textures + meshopt.

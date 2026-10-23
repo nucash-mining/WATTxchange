@@ -234,6 +234,23 @@ async function activeWallet(): Promise<Eip1193 | null> {
 const chainOf = async (eth: Eip1193) => parseInt(String(await eth.request({ method: 'eth_chainId' })), 16);
 
 /** Connect a wallet and put it on `chain` (adding the network if the wallet lacks it). */
+/** The connected wallet's current chain (null if no wallet), and a listener for switches. */
+export async function walletChainId(): Promise<number | null> {
+  const eth = await activeWallet(); if (!eth) return null;
+  try { return await chainOf(eth); } catch { return null; }
+}
+export function onWalletChain(cb: (chainId: number) => void): () => void {
+  let off = false; let detach: (() => void) | null = null;
+  activeWallet().then((eth) => {
+    const e = eth as unknown as { on?: (ev: string, f: (c: string) => void) => void; removeListener?: (ev: string, f: (c: string) => void) => void } | null;
+    if (off || !e?.on) return;
+    const h = (c: string) => cb(parseInt(c, 16));
+    e.on('chainChanged', h);
+    detach = () => e.removeListener?.('chainChanged', h);
+  });
+  return () => { off = true; detach?.(); };
+}
+
 /** The wallet account this site is already connected to, without prompting (null if none). */
 export async function connectedAccount(): Promise<string | null> {
   const eth = await activeWallet(); if (!eth) return null;

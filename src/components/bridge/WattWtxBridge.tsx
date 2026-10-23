@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { ArrowDownUp, Zap, Copy, RefreshCw } from 'lucide-react';
 import { ethers } from 'ethers';
 import { EVM_CHAINS } from '../../config/evmChains';
-import { walletOn } from '../../services/marketsService';
+import { walletOn, walletChainId, onWalletChain } from '../../services/marketsService';
 import {
   wattWtxBridgeService,
   type BridgeInfo,
@@ -73,6 +73,18 @@ export default function WattWtxBridge() {
   const [direction, setDirection] = useState<'WATT_TO_WTX' | 'WTX_TO_WATT' | 'EVM_TO_EVM'>('WATT_TO_WTX');
   const [chainKey, setChainKey] = useState<BridgeChainKey>('alt');
   const [destChainKey, setDestChainKey] = useState<BridgeChainKey>('polygon');
+  // Follow the wallet: if it's on Polygon or Altcoinchain, start the chain picker there
+  // (otherwise "Create & lock" would build a swap for the other chain).
+  useEffect(() => {
+    const follow = (id: number | null) => {
+      const key = id === 137 ? 'polygon' : id === 2330 ? 'alt' : null;
+      if (!key) return;
+      setChainKey((cur) => (cur === 'bsv' ? cur : key));
+      setDestChainKey((cur) => (cur === key ? (key === 'polygon' ? 'alt' : 'polygon') : cur));
+    };
+    walletChainId().then(follow);
+    return onWalletChain(follow);
+  }, []);
   const [amount, setAmount] = useState('');
   const [destAddr, setDestAddr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -416,7 +428,7 @@ export default function WattWtxBridge() {
           disabled={busy || !info}
           className={`${btnCls} bg-yellow-500 hover:bg-yellow-400 text-gray-900`}
         >
-          <span>{(direction === 'WATT_TO_WTX' && chainKey !== 'bsv') || direction === 'EVM_TO_EVM' ? 'Create & lock' : 'Create swap'}</span>
+          <span>{(direction === 'WATT_TO_WTX' && chainKey !== 'bsv') || direction === 'EVM_TO_EVM' ? `Create & lock on ${CHAIN_LABELS[chainKey]}` : 'Create swap'}</span>
         </button>
       </div>
 

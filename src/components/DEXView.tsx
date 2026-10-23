@@ -13,13 +13,15 @@ import EnhancedAtomicSwapInterface from './swap/EnhancedAtomicSwapInterface';
 import NavigatorPerpInterface from './dex/NavigatorPerpInterface';
 import SonicBridgeInterface from './dex/SonicBridgeInterface';
 import MoneroSwap from './bridge/MoneroSwap';
+import CrossChainSwap from './dex/CrossChainSwap';
 
 type DexTab =
-  'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'navigator' | 'sonic' | 'monero';
+  'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'navigator' | 'sonic' | 'monero' | 'xchain';
 
 // Desktop pill order.
 const DEX_TABS: { id: DexTab; label: string }[] = [
   { id: 'perps', label: 'Trade · all markets' },
+  { id: 'xchain', label: 'Cross-chain (THORChain)' },
   { id: 'uniswap', label: 'Swapin V2' },
   { id: 'multichain', label: 'Multi-Chain' },
   { id: 'spot', label: 'Spot' },
@@ -38,6 +40,7 @@ const DEX_TAB_GROUPS: DexTabGroup[] = [
   { label: 'Trade', items: [
     { id: 'spot', label: 'Spot' },
     { id: 'perps', label: 'All markets' },
+    { id: 'xchain', label: 'Cross-chain (THORChain)' },
     { id: 'navigator', label: 'Navigator PERP' },
   ] },
   { label: 'Swap', items: [
@@ -266,6 +269,7 @@ const DEXView: React.FC = () => {
         {activeTab === 'navigator' && <NavigatorPerpInterface />}
         {activeTab === 'sonic' && <SonicBridgeInterface />}
         {activeTab === 'monero' && <MoneroSwap />}
+        {activeTab === 'xchain' && <CrossChainSwap />}
       </motion.div>
 
       {/* Swapin.co Info */}

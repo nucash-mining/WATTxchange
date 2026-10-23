@@ -58,15 +58,17 @@ function avatar(look) {
   const id = look.skin, sex = sexOf(id);
   let mixer = null, current = null, model = null, lastT = performance.now(), wantLook = look;
   const actions = new Map();
+  let wanted = null;                                 // newest pose asked for (play runs every frame)
   async function play(name, fade = 0.25) {
-    if (!mixer || current?.name === name) return;
+    if (!mixer || current?.name === name || wanted === name) return;
+    wanted = name;
     const clip = await loadClip(sex, name);
-    if (!clip || !mixer) return;
+    if (!clip || !mixer || wanted !== name) return;  // a newer pose won while this clip loaded
     let a = actions.get(name);
     if (!a) { a = mixer.clipAction(clip); actions.set(name, a); }
     a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play();
     if (current && current.action !== a) current.action.crossFadeTo(a, fade, false);
-    current = { name, action: a };
+    current = { name, action: a }; wanted = null;
   }
   loadSkin(id).then(({ scene, scale, lift }) => {
     model = SkeletonUtils.clone(scene);

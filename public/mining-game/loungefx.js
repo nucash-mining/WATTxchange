@@ -204,16 +204,35 @@ function toast(t) {
   el.textContent = t; el.style.cssText = 'position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:2147483001;background:rgba(20,14,10,.92);border:1px solid #6b4a2e;color:#f3eadf;padding:8px 14px;border-radius:12px;font:14px system-ui';
   document.body.appendChild(el); setTimeout(() => el.remove(), 2600);
 }
-// GTA-style: the world sways, smears and doubles; walking drifts. Scales with level.
+// GTA-style: the world sways and smears; walking drifts. Scales with level.
+// Only CSS transforms touch the 3D canvas (cheap, composited). The blur/tint lives on a
+// separate overlay that is updated a few times a second: a CSS filter re-applied to a
+// live WebGL canvas every frame can take down the browser's GPU process.
+let haze = null, hazeAt = 0;
 function drunkFx(t, dt) {
   level = Math.max(0, level - dt / 90);
   const canvas = MG()?.controls?.domElement; if (!canvas) return;
   const k = Math.min(1, Math.max(0, (level - 0.6) / 4));       // 0 sober … 1 hammered
-  if (k <= 0.001) { if (canvas.style.filter) { canvas.style.filter = ''; canvas.style.transform = ''; } return; }
+  if (canvas.style.filter) canvas.style.filter = '';            // clear any old-style filter
+  if (k <= 0.001) {
+    if (canvas.style.transform) canvas.style.transform = '';
+    if (haze) { haze.remove(); haze = null; }
+    return;
+  }
   const roll = Math.sin(t * 0.7) * 2.2 * k + Math.sin(t * 1.9) * 0.8 * k;
   const sx = Math.sin(t * 0.5) * 8 * k, sy = Math.cos(t * 0.63) * 5 * k;
-  canvas.style.transform = `translate(${sx}px,${sy}px) rotate(${roll}deg) scale(${1 + 0.04 * k})`;
-  canvas.style.filter = `blur(${(k * 2.2).toFixed(2)}px) saturate(${1 + k * 0.5}) hue-rotate(${(Math.sin(t * 0.3) * 18 * k).toFixed(1)}deg) drop-shadow(${(14 * k).toFixed(0)}px 0 0 rgba(255,120,180,${0.35 * k}))`;
+  canvas.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${roll.toFixed(2)}deg) scale(${(1 + 0.04 * k).toFixed(3)})`;
+  if (!haze) {
+    haze = document.createElement('div');
+    haze.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;transition:opacity .4s,background .4s';
+    document.body.appendChild(haze);
+  }
+  if (t - hazeAt > 0.25) {                                    // ~4 updates a second is plenty
+    hazeAt = t;
+    const hue = Math.round(320 + Math.sin(t * 0.3) * 30);
+    haze.style.background = `radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, hsla(${hue},70%,20%,${(0.55 * k).toFixed(2)}) 100%)`;
+    haze.style.opacity = '1';
+  }
   // wobble: drift where you're looking/walking a little
   const c = MG().controls; if (c && c.target) { c.target.x += Math.sin(t * 1.3) * 0.004 * k * UPS; c.target.y += Math.cos(t * 1.1) * 0.003 * k * UPS; }
   if (Math.random() < dt) { try { localStorage.setItem('mgDrunk', String(level)); } catch (e) { /* */ } syncLook(); }

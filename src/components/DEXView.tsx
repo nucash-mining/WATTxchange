@@ -12,7 +12,7 @@ import ExchangeApiManager from './dex/ExchangeApiManager';
 import EnhancedAtomicSwapInterface from './swap/EnhancedAtomicSwapInterface';
 import NavigatorPerpInterface from './dex/NavigatorPerpInterface';
 import SonicBridgeInterface from './dex/SonicBridgeInterface';
-import { MoneroBridgeInterface } from './bridge/MoneroBridgeInterface';
+import MoneroSwap from './bridge/MoneroSwap';
 
 type DexTab =
   'uniswap' | 'spot' | 'pools' | 'multichain' | 'bridge' | 'perps' | 'atomic' | 'navigator' | 'sonic' | 'monero';
@@ -265,7 +265,7 @@ const DEXView: React.FC = () => {
         {activeTab === 'atomic' && <EnhancedAtomicSwapInterface />}
         {activeTab === 'navigator' && <NavigatorPerpInterface />}
         {activeTab === 'sonic' && <SonicBridgeInterface />}
-        {activeTab === 'monero' && <MoneroBridgeInterface onBack={() => setActiveTab('uniswap')} />}
+        {activeTab === 'monero' && <MoneroSwap />}
       </motion.div>
 
       {/* Swapin.co Info */}

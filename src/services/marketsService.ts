@@ -209,32 +209,59 @@ export async function quote(m: Market, route: TradeRoute, sell: boolean, amountI
 }
 
 type Eip1193 = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
-const injected = (): Eip1193 | null => (window as unknown as { ethereum?: Eip1193 }).ethereum ?? null;
+// Every wallet extension announces itself via EIP-6963; with several installed,
+// window.ethereum is just whichever one won the race to claim it.
+const announced: { info: { name: string; rdns: string }; provider: Eip1193 }[] = [];
+if (typeof window !== 'undefined') {
+  window.addEventListener('eip6963:announceProvider', ((e: CustomEvent) => {
+    const d = e.detail as { info: { name: string; rdns: string }; provider: Eip1193 };
+    if (d?.provider && !announced.some((a) => a.provider === d.provider)) announced.push(d);
+  }) as EventListener);
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
+}
+let chosen: Eip1193 | null = null;
+const injected = (): Eip1193 | null => chosen ?? (window as unknown as { ethereum?: Eip1193 }).ethereum ?? announced[0]?.provider ?? null;
+/** Pick the wallet that is actually connected to this site (falls back to window.ethereum). */
+async function activeWallet(): Promise<Eip1193 | null> {
+  if (chosen) return chosen;
+  const def = (window as unknown as { ethereum?: Eip1193 }).ethereum ?? null;
+  const all = [...(def ? [def] : []), ...announced.map((a) => a.provider).filter((p) => p !== def)];
+  for (const p of all) {
+    try { const a = await p.request({ method: 'eth_accounts' }) as string[]; if (a?.length) { chosen = p; return p; } } catch { /* next */ }
+  }
+  return def ?? all[0] ?? null;
+}
+const chainOf = async (eth: Eip1193) => parseInt(String(await eth.request({ method: 'eth_chainId' })), 16);
 
 /** Connect a wallet and put it on `chain` (adding the network if the wallet lacks it). */
 /** The wallet account this site is already connected to, without prompting (null if none). */
 export async function connectedAccount(): Promise<string | null> {
-  const eth = injected(); if (!eth) return null;
+  const eth = await activeWallet(); if (!eth) return null;
   try { const a = await eth.request({ method: 'eth_accounts' }) as string[]; return a?.[0] ? ethers.getAddress(a[0]) : null; } catch { return null; }
 }
 
 export async function walletOn(chain: EvmChain): Promise<ethers.JsonRpcSigner> {
-  const eth = injected();
+  const eth = await activeWallet();
   if (!eth) throw new Error('No wallet found. Install MetaMask, Rabby or Brave Wallet, or open this page in your wallet app.');
-  await eth.request({ method: 'eth_requestAccounts' });
-  const current = parseInt(String(await eth.request({ method: 'eth_chainId' })), 16);
-  if (current !== chain.chainId) {
+  const accounts = await eth.request({ method: 'eth_requestAccounts' }) as string[];
+  if (accounts?.length) chosen = eth;
+  if (await chainOf(eth) !== chain.chainId) {
     const hex = `0x${chain.chainId.toString(16)}`;
     try {
       await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hex }] });
     } catch (err) {
-      if ((err as { code?: number })?.code !== 4902) throw err;
+      const code = (err as { code?: number; data?: { originalError?: { code?: number } } })?.code ?? (err as { data?: { originalError?: { code?: number } } })?.data?.originalError?.code;
+      if (code === 4001) throw new Error(`Switch to ${chain.name} was cancelled in the wallet.`);
+      if (code !== 4902 && !/unrecognized|not added|unknown chain/i.test(String((err as Error)?.message))) throw err;
       await eth.request({ method: 'wallet_addEthereumChain', params: [addChainParams(chain)] });
     }
+    // some wallets resolve the switch request a moment before the network actually changes
+    for (let i = 0; i < 25 && await chainOf(eth) !== chain.chainId; i++) await new Promise((r) => setTimeout(r, 200));
   }
-  const provider = new ethers.BrowserProvider(eth as ethers.Eip1193Provider);
-  if (Number((await provider.getNetwork()).chainId) !== chain.chainId) throw new Error(`Switch your wallet to ${chain.name} and try again.`);
-  return provider.getSigner();
+  const now = await chainOf(eth);
+  if (now !== chain.chainId) throw new Error(`Your wallet is still on chain ${now}. Switch it to ${chain.name} (${chain.chainId}) and try again.`);
+  // 'any' lets ethers follow the wallet across network switches instead of erroring
+  return new ethers.BrowserProvider(eth as ethers.Eip1193Provider, 'any').getSigner();
 }
 
 export async function balanceOf(chain: EvmChain, token: string | 'native', owner: string): Promise<bigint> {

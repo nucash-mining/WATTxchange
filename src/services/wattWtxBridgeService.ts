@@ -155,7 +155,11 @@ class WattWtxBridgeService {
       signer
     );
     const bal: bigint = await erc20.balanceOf(owner);
-    if (bal < amountWei) throw new Error('insufficient WATT balance');
+    if (bal < amountWei) {
+      const chainId = Number((await signer.provider!.getNetwork()).chainId);
+      throw new Error(`Wallet ${owner.slice(0, 6)}…${owner.slice(-4)} has ${Number(ethers.formatEther(bal)).toLocaleString()} WATT on chain ${chainId}, `
+        + `less than the ${amountWatt} you entered. If your WATT is in another account, select that account in your wallet and try again.`);
+    }
     const allowance: bigint = await erc20.allowance(owner, lp.vault);
     if (allowance < amountWei) {
       const atx = await erc20.approve(lp.vault, amountWei);

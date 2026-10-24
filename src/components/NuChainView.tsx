@@ -9,6 +9,7 @@ import NFTMiningRigs from './nuchain/NFTMiningRigs';
 import NodeRewardDashboard from './nuchain/NodeRewardDashboard';
 import NuChainBridges from './nuchain/NuChainBridges';
 import TabErrorBoundary from './nuchain/TabErrorBoundary';
+import AddWalletButtons from './nuchain/AddWalletButtons';
 const PrivateSwaps = React.lazy(() => import('./nuchain/PrivateSwaps'));
 const OsmosisSwap = React.lazy(() => import('./nuchain/OsmosisSwap'));
 
@@ -50,6 +51,7 @@ const NuChainView: React.FC = () => {
             <span className="text-blue-400">Merged-mined with BitcoinZ and WATTx</span>
             <span className="text-emerald-400">zk private swaps</span>
           </div>
+          <div className="mt-3"><AddWalletButtons /></div>
         </div>
         
         <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">

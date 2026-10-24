@@ -257,12 +257,12 @@ async function buildKeplrChain() {
     rest: REST,
     bip44: { coinType: 60 },
     bech32Config: {
-      bech32PrefixAccAddr: 'cosmos', bech32PrefixAccPub: 'cosmospub',
-      bech32PrefixValAddr: 'cosmosvaloper', bech32PrefixValPub: 'cosmosvaloperpub',
-      bech32PrefixConsAddr: 'cosmosvalcons', bech32PrefixConsPub: 'cosmosvalconspub',
+      bech32PrefixAccAddr: 'nu', bech32PrefixAccPub: 'nupub',
+      bech32PrefixValAddr: 'nuvaloper', bech32PrefixValPub: 'nuvaloperpub',
+      bech32PrefixConsAddr: 'nuvalcons', bech32PrefixConsPub: 'nuvalconspub',
     },
     currencies: [{ coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18 }],
-    feeCurrencies: [{ coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18, gasPriceStep: { low: 0.01, average: 0.025, high: 0.04 } }],
+    feeCurrencies: [{ coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18, gasPriceStep: { low: 0, average: 0, high: 0 } }],
     stakeCurrency: { coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18 },
     features: ['eth-address-gen', 'eth-key-sign'],
   };

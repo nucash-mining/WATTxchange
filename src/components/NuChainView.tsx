@@ -211,6 +211,28 @@ const NuChainView: React.FC = () => {
               <p>• EVM RPC: <a className="text-cyan-400" href="https://evm-nu.wattxchange.app">https://evm-nu.wattxchange.app</a></p>
               <p>• Explorer: <a className="text-cyan-400" href="https://nu-exp.wattxchange.app">https://nu-exp.wattxchange.app</a></p>
             </div>
+            <div className="mt-4 bg-slate-800/50 rounded-lg p-4">
+              <h4 className="font-semibold text-cyan-400 mb-2">Cosmos SDK</h4>
+              <p className="text-xs text-slate-400 mb-3">
+                nuChain is a Cosmos SDK v0.54 chain (CometBFT consensus, cosmos/evm execution) with native PoS staking and zhash mining.
+              </p>
+              <div className="flex flex-wrap gap-2 text-sm">
+                {[
+                  ['Cosmos explorer', 'https://nu-exp.wattxchange.app'],
+                  ['Cosmos REST (LCD)', 'https://api-nu.wattxchange.app/cosmos/base/tendermint/v1beta1/node_info'],
+                  ['CometBFT RPC', 'https://rpc-nu.wattxchange.app/status'],
+                  ['Chain registry entry', 'https://github.com/nucash-mining/nuchain/blob/main/registry/chain.json'],
+                  ['nuChain source', 'https://github.com/nucash-mining/nuchain'],
+                  ['Cosmos SDK docs', 'https://docs.cosmos.network'],
+                  ['cosmos/evm', 'https://github.com/cosmos/evm'],
+                ].map(([label, href]) => (
+                  <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+                     className="px-3 py-1.5 rounded-md bg-slate-900/70 border border-slate-700 text-cyan-300 hover:border-cyan-500 hover:text-cyan-200 transition-colors">
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </motion.div>

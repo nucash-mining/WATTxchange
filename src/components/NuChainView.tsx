@@ -8,9 +8,10 @@ import MiningPools from './nuchain/MiningPools';
 import NFTMiningRigs from './nuchain/NFTMiningRigs';
 import NodeRewardDashboard from './nuchain/NodeRewardDashboard';
 import NuChainBridges from './nuchain/NuChainBridges';
+const PrivateSwaps = React.lazy(() => import('./nuchain/PrivateSwaps'));
 
 const NuChainView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bridges' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bridges' | 'private' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
 
   const stats = [
     {
@@ -83,6 +84,16 @@ const NuChainView: React.FC = () => {
             }`}
           >
             Bridges
+          </button>
+          <button
+            onClick={() => setActiveTab('private')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'private'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Private
           </button>
           <button
             onClick={() => setActiveTab('staking')}
@@ -246,6 +257,11 @@ const NuChainView: React.FC = () => {
       >
         {activeTab === 'dashboard' && <NuChainDashboard />}
         {activeTab === 'bridges' && <NuChainBridges />}
+        {activeTab === 'private' && (
+          <React.Suspense fallback={<div className="text-slate-400 p-6">Loading private swaps...</div>}>
+            <PrivateSwaps />
+          </React.Suspense>
+        )}
         {activeTab === 'staking' && <StakingView />}
         {activeTab === 'validators' && <ValidatorNodes />}
         {activeTab === 'pools' && <MiningPools />}

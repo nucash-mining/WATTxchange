@@ -19,6 +19,8 @@ const RESIDENTS = [
   { id: 1337, skin: 'Male_Adult_08', emote: 'clap', x: -4.2, z: 4.8, ry: -0.9 },
   { id: 9001, skin: 'Sports_Female_01', emote: 'wave', x: 11.4, z: 0.2, ry: -Math.PI / 2 },
 ];
+// Lizz: a resident on the dance floor (skin "Female_Lizz"), dancing whenever a set is playing
+const LIZZ = { x: -0.9, z: -3.1, ry: 0.25, dances: ['groove', 'shake', 'cheer2', 'strut', 'cheer'] };
 const STROLLER = { id: 333, skin: 'Female_Adult_12', path: [[-9.6, 1.8], [-3.5, 0.5], [0, -1.2], [3.6, 0.8], [-1, 2.6], [-6.5, 2.6]] };
 
 const root = new THREE.Group(); root.visible = false;
@@ -86,12 +88,18 @@ function swapTile() {
 
 // ── per frame ─────────────────────────────────────────────────────────────────
 const inLoungeNow = () => { const c = MG()?.cam; return c && c.position.z < LZ + 40; };
+let lizz = null;
+const musicOn = () => { try { const d = window.MGDJ; return !!(d && (d.decks().some((x) => x.playing) || d._mc?.state?.().playing)) || !!window.MGSTAGE?.live?.(); } catch (e) { return false; } };
 let stroll = null, seg = 0, segT = 0, lastT = performance.now(), lastDraw = 0;
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   const vis = !!inLoungeNow(); root.visible = vis;
   if (!vis) return;
+  if (lizz) {                                   // switch dances every ~8 s while music plays
+    if (musicOn()) { if (now > lizz.next) { lizz.look.emote = LIZZ.dances[lizz.k++ % LIZZ.dances.length]; lizz.next = now + 7000 + Math.random() * 3000; } }
+    else { lizz.look.emote = null; lizz.next = 0; }
+  }
   for (const n of npcs) n.g.userData.update?.({ look: n.look, sit: false });
   if (stroll) {                                  // walk the loop, pausing at each stop
     const P = STROLLER.path, a = P[seg % P.length], b = P[(seg + 1) % P.length];
@@ -120,6 +128,9 @@ function tick(now) {
     // phones get a lighter crowd
     RESIDENTS.slice(0, matchMedia('(pointer:coarse)').matches ? 3 : RESIDENTS.length).forEach(spawn);
     stroll = spawn({ ...STROLLER, emote: null, x: STROLLER.path[0][0], z: STROLLER.path[0][1], ry: 0 });
+    { const look = { skin: 'Female_Lizz', emote: null }, g = window.MGSKIN.avatar(look);
+      g.position.set(LX + LIZZ.x, 0, LZ + LIZZ.z); g.rotation.y = LIZZ.ry; const tg = tag('Lizz ✨'); tg.position.y = 1.75 * UPS + 0.55; g.add(tg); root.add(g);
+      lizz = { g, look, k: 0, next: 0 }; npcs.push({ g, look, r: LIZZ }); }
     window.MGMILADYS = { npcs, root };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);

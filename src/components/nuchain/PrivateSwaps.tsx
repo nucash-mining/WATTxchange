@@ -254,10 +254,14 @@ const PrivateSwaps: React.FC = () => {
             </div>
           </div>
           {!pending ? (
-            <button onClick={createNote} className="px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium">
-              Create note for {size} {asset}
-            </button>
+            <div className="space-y-2">
+              <button onClick={createNote} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium">
+                <Wallet size={16} /> Deposit {size} {asset}
+              </button>
+              <div className="text-xs text-slate-400">Step 1 of 2: this creates your secret note. You save it, then confirm the deposit in your wallet.</div>
+            </div>
           ) : (<>
+            <div className="text-xs text-slate-400">Step 2 of 2: save the note, then confirm the deposit.</div>
             <NoteBox note={pending} title="Save this note before depositing" />
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} /> I saved my note somewhere safe

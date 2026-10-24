@@ -1,242 +1,148 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Activity, TrendingUp, Shield, Zap, Clock, Users, Coins, Server, Cpu } from 'lucide-react';
-import LiveMiningDashboard from './LiveMiningDashboard';
-import ContractDeployment from './ContractDeployment';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ethers } from 'ethers';
+import { Activity, Clock, Users, Coins, Pickaxe, Shield, Fuel, Vote, ArrowLeftRight, ExternalLink, Layers } from 'lucide-react';
+import { NUCHAIN, MINING } from '../../config/nuchainBridges';
+import { SHIELDED } from '../../config/nuchainShielded';
+
+// Live nuChain overview: everything here is read from the chain (CometBFT RPC,
+// Cosmos REST, EVM JSON-RPC) and the bridge API, refreshed every 10 seconds.
+const RPC = NUCHAIN.rpc, REST = NUCHAIN.rest, EVM = SHIELDED.rpc;
+const BRIDGE = (import.meta.env.VITE_WTX_BRIDGE as string | undefined) || 'https://bridge-nu.wattxchange.app';
+const POT = '0x0000000000000000000000000000000000004E55';
+const HALVING = 210_000;
+
+type Block = { height: number; time: string; txs: number; proposer: string; hash: string };
+type Data = {
+  height: number; blockTime: number; validators: number; bondedNU: number; supplyNU: number;
+  potNU: number; totalPaidNU: number; claims: number; lastClaimed: number; gasGwei: number;
+  proposal?: { id: string; title: string; status: string; end: string; yes: string };
+  notes: number; bridge?: { backingWTX: number; wWTXSupply: number; fullyBacked: boolean };
+  blocks: Block[];
+};
+
+const j = async (u: string) => { const r = await fetch(u); if (!r.ok) throw new Error(`${r.status} ${u}`); return r.json(); };
+const fmt = (n: number, d = 0) => n.toLocaleString(undefined, { maximumFractionDigits: d });
+const ago = (t: string) => { const s = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 1000)); return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`; };
+
+async function load(): Promise<Data> {
+  const evm = new ethers.JsonRpcProvider(EVM, SHIELDED.chainId, { staticNetwork: true });
+  const pot = new ethers.Contract(POT, ['function lastClaimedHeight() view returns (uint256)', 'function totalPaid() view returns (uint256)',
+    'function claims() view returns (uint256)'], evm);
+  const pool = new ethers.Contract(SHIELDED.pool, ['function nextIndex() view returns (uint32)'], evm);
+  const status = await j(`${RPC}/status`);
+  const height = Number(status.result.sync_info.latest_block_height);
+  const [chain, vals, stake, supply, potBal, lastC, paid, claims, gas, props, notes, bridge] = await Promise.all([
+    j(`${RPC}/blockchain?minHeight=${Math.max(1, height - 19)}&maxHeight=${height}`),
+    j(`${REST}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=200`),
+    j(`${REST}/cosmos/staking/v1beta1/pool`),
+    j(`${REST}/cosmos/bank/v1beta1/supply/by_denom?denom=${NUCHAIN.nativeDenom}`),
+    evm.getBalance(POT), pot.lastClaimedHeight(), pot.totalPaid(), pot.claims(),
+    evm.getFeeData(),
+    j(`${REST}/cosmos/gov/v1/proposals?pagination.reverse=true&pagination.limit=1`).catch(() => null),
+    pool.nextIndex().catch(() => 0),
+    j(`${BRIDGE}/status`).catch(() => null),
+  ]);
+  const metas = chain.result.block_metas as { header: { height: string; time: string; proposer_address: string }; num_txs: string; block_id: { hash: string } }[];
+  const times = metas.map((m) => new Date(m.header.time).getTime()).sort((a, b) => a - b);
+  const blockTime = times.length > 1 ? (times[times.length - 1] - times[0]) / 1000 / (times.length - 1) : 0;
+  const p = props?.proposals?.[0];
+  return {
+    height, blockTime,
+    validators: vals.validators.length,
+    bondedNU: Number(ethers.formatEther(stake.pool.bonded_tokens)),
+    supplyNU: Number(ethers.formatEther(supply.amount.amount)),
+    potNU: Number(ethers.formatEther(potBal)), totalPaidNU: Number(ethers.formatEther(paid)),
+    claims: Number(claims), lastClaimed: Number(lastC),
+    gasGwei: Number(ethers.formatUnits(gas.gasPrice ?? 0n, 'gwei')),
+    proposal: p ? { id: p.id, title: p.title, status: String(p.status).replace('PROPOSAL_STATUS_', '').replace('_', ' ').toLowerCase(),
+      end: p.voting_end_time, yes: p.final_tally_result?.yes_count ?? '0' } : undefined,
+    notes: Number(notes),
+    bridge: bridge ? { backingWTX: bridge.backingWTX, wWTXSupply: bridge.wWTXSupply, fullyBacked: bridge.fullyBacked } : undefined,
+    blocks: metas.slice(0, 8).map((m) => ({ height: Number(m.header.height), time: m.header.time, txs: Number(m.num_txs),
+      proposer: m.header.proposer_address, hash: m.block_id.hash })),
+  };
+}
+
+const Card: React.FC<{ icon: React.ElementType; label: string; value: string; sub?: string; color: string }> = ({ icon: Icon, label, value, sub, color }) => (
+  <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+    <div className="flex items-center justify-between">
+      <span className="text-slate-400 text-sm">{label}</span>
+      <Icon className={`w-5 h-5 ${color}`} />
+    </div>
+    <div className="text-2xl font-bold mt-1 text-white">{value}</div>
+    {sub && <div className={`text-xs mt-1 ${color}`}>{sub}</div>}
+  </div>
+);
 
 const NuChainDashboard: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'live' | 'contracts'>('overview');
+  const [d, setD] = useState<Data | null>(null);
+  const [err, setErr] = useState('');
+  const refresh = useCallback(() => { load().then((x) => { setD(x); setErr(''); }).catch((e) => setErr((e as Error).message)); }, []);
+  useEffect(() => { refresh(); const t = setInterval(refresh, 10000); return () => clearInterval(t); }, [refresh]);
 
-  const networkMetrics = [
-    { label: 'Current Block', value: '2,847,392', icon: Activity, color: 'text-blue-400' },
-    { label: 'Transactions/sec', value: '12,847', icon: TrendingUp, color: 'text-emerald-400' },
-    { label: 'Gas Price', value: '0.001 NU', icon: Zap, color: 'text-yellow-400' },
-    { label: 'Network Uptime', value: '99.98%', icon: Shield, color: 'text-purple-400' }
-  ];
-      
-  const validatorMetrics = [
-    { label: 'Active Validators', value: '247', icon: Users, color: 'text-emerald-400' },
-    { label: 'Total Staked', value: '24.7M NU', icon: Coins, color: 'text-blue-400' },
-    { label: 'Avg. Block Time', value: '1.02s', icon: Clock, color: 'text-purple-400' },
-    { label: 'Validator Rewards', value: '8.5% APY', icon: TrendingUp, color: 'text-yellow-400' }
-  ];
+  if (!d) return <div className="text-slate-400 p-6">{err ? `Could not reach nuChain: ${err}` : 'Loading live nuChain data...'}</div>;
 
-  const miningPoolMetrics = [
-    { label: 'Active Pools', value: '18', icon: Server, color: 'text-blue-400' },
-    { label: 'Total WATT Locked', value: '1.8M', icon: Coins, color: 'text-yellow-400' },
-    { label: 'Mining NFTs', value: '3,247', icon: Activity, color: 'text-purple-400' },
-    { label: 'Pool Uptime', value: '98.7%', icon: Shield, color: 'text-emerald-400' }
-  ];
-
-  const recentBlocks = [
-    { height: 2847392, hash: '0x1a2b3c...', txs: 247, validator: 'Pool-Alpha', time: '1.1s ago' },
-    { height: 2847391, hash: '0x4d5e6f...', txs: 189, validator: 'Pool-Beta', time: '2.1s ago' },
-    { height: 2847390, hash: '0x7g8h9i...', txs: 312, validator: 'Pool-Gamma', time: '3.0s ago' },
-    { height: 2847389, hash: '0xjklmno...', txs: 156, validator: 'Pool-Delta', time: '4.2s ago' },
-    { height: 2847388, hash: '0xpqrstu...', txs: 278, validator: 'Pool-Epsilon', time: '5.1s ago' }
-  ];
+  const halvings = Math.floor((d.height - 1) / HALVING);
+  const reward = MINING.initialReward / 2 ** halvings;
+  const nextHalving = (halvings + 1) * HALVING + 1;
 
   return (
     <div className="space-y-6">
-      {/* Sub-navigation */}
-      <div className="flex items-center space-x-2 bg-slate-800/50 rounded-lg p-1">
-        <button
-          onClick={() => setActiveSubTab('overview')}
-          className={`px-4 py-2 rounded-md transition-colors ${
-            activeSubTab === 'overview'
-              ? 'bg-purple-600 text-white'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => setActiveSubTab('live')}
-          className={`px-4 py-2 rounded-md transition-colors ${
-            activeSubTab === 'live'
-              ? 'bg-purple-600 text-white'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Live Mining
-        </button>
-        <button
-          onClick={() => setActiveSubTab('contracts')}
-          className={`px-4 py-2 rounded-md transition-colors ${
-            activeSubTab === 'contracts'
-              ? 'bg-purple-600 text-white'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Contracts
-        </button>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card icon={Activity} label="Block height" value={fmt(d.height)} sub="live" color="text-blue-400" />
+        <Card icon={Clock} label="Block time" value={`${d.blockTime.toFixed(2)}s`} sub="average of the last 20 blocks" color="text-purple-400" />
+        <Card icon={Users} label="Validators" value={fmt(d.validators)} sub={`${fmt(d.bondedNU, 2)} NU staked`} color="text-emerald-400" />
+        <Card icon={Coins} label="NU supply" value={fmt(d.supplyNU)} sub={`of ${fmt(MINING.maxSupply)} max, no pre-mine`} color="text-yellow-400" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card icon={Pickaxe} label="Block reward" value={`${reward} NU`} sub={`halves at block ${fmt(nextHalving)} (${fmt(nextHalving - d.height)} to go)`} color="text-orange-400" />
+        <Card icon={Layers} label="Mining pot" value={`${fmt(d.potNU, 2)} NU`} sub={`${fmt(d.claims)} claims, ${fmt(d.totalPaidNU)} NU paid to miners`} color="text-cyan-400" />
+        <Card icon={Fuel} label="Gas price" value={d.gasGwei > 0 ? `${fmt(d.gasGwei, 2)} gwei` : 'free'} sub={d.gasGwei > 0 ? 'EIP-1559 base fee' : 'fees switch on with proposal 1'} color="text-pink-400" />
+        <Card icon={Shield} label="Private pool" value={`${fmt(d.notes)} notes`} sub="Groth16 shielded notes" color="text-violet-400" />
       </div>
 
-      {/* Tab Content */}
-      <motion.div
-        key={activeSubTab}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-            >
-        {activeSubTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Network Metrics */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Network Performance</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {networkMetrics.map((metric, index) => {
-                  const Icon = metric.icon;
-                  return (
-                    <motion.div
-                      key={metric.label}
-                      className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                >
-                      <div className="flex items-center justify-between mb-2">
-                        <Icon className={`w-6 h-6 ${metric.color}`} />
-                        <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">Live</span>
-                      </div>
-                      <p className="text-slate-400 text-sm">{metric.label}</p>
-                      <p className="text-2xl font-bold">{metric.value}</p>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Validator Metrics */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Validator Network</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {validatorMetrics.map((metric, index) => {
-                  const Icon = metric.icon;
-                  return (
-                    <motion.div
-                      key={metric.label}
-                      className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 + index * 0.1 }}
-                >
-                      <div className="flex items-center justify-between mb-2">
-                        <Icon className={`w-6 h-6 ${metric.color}`} />
-                        <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">PoS</span>
-                      </div>
-                      <p className="text-slate-400 text-sm">{metric.label}</p>
-                      <p className="text-2xl font-bold">{metric.value}</p>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Mining Pool Metrics */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">NFT Mining Pools</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {miningPoolMetrics.map((metric, index) => {
-                  const Icon = metric.icon;
-                  return (
-                    <motion.div
-                      key={metric.label}
-                      className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 + index * 0.1 }}
-                >
-                      <div className="flex items-center justify-between mb-2">
-                        <Icon className={`w-6 h-6 ${metric.color}`} />
-                        <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">NFT</span>
-                      </div>
-                      <p className="text-slate-400 text-sm">{metric.label}</p>
-                      <p className="text-2xl font-bold">{metric.value}</p>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recent Blocks */}
-            <motion.div
-              className="bg-slate-800/30 backdrop-blur-xl rounded-xl p-6 border border-slate-700/50"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <h3 className="text-xl font-semibold mb-4">Recent Blocks</h3>
-              <div className="space-y-3">
-                {recentBlocks.map((block, _index) => (
-                  <motion.div
-                    key={block.hash}
-                    className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <Cpu className="w-6 h-6 text-blue-400" />
-                        <div>
-                          <p className="font-medium">Block #{block.height.toLocaleString()}</p>
-                          <p className="text-sm text-slate-400">{block.hash}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{block.txs} txs</p>
-                        <p className="text-sm text-slate-400">{block.validator}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-slate-400">{block.time}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* zkRollup Status */}
-            <motion.div
-                className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <div className="flex items-start space-x-4">
-                <div className="p-3 bg-purple-600/20 rounded-lg">
-                  <Shield className="w-6 h-6 text-purple-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-purple-400 mb-2">zkRollup Security Status</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-emerald-400">99.98%</p>
-                      <p className="text-slate-400 text-sm">Proof Success Rate</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-400">2.3s</p>
-                      <p className="text-slate-400 text-sm">Avg. Proof Time</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-yellow-400">847,392</p>
-                      <p className="text-slate-400 text-sm">Verified on ALT</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 text-xs text-slate-400">
-                    <p>• Last Altcoinchain validation: Block 847,392 (12 seconds ago)</p>
-                    <p>• Next validation: Block 847,400 (estimated 8 seconds)</p>
-                    <p>• Private transaction pool: 1,247 pending</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-white">Latest blocks</h3>
+            <a className="text-xs text-cyan-400 inline-flex items-center gap-1" href="https://nu-exp.wattxchange.app" target="_blank" rel="noopener noreferrer">Explorer <ExternalLink size={12} /></a>
           </div>
-        )}
-
-        {activeSubTab === 'live' && <LiveMiningDashboard />}
-        {activeSubTab === 'contracts' && <ContractDeployment />}
-      </motion.div>
+          <div className="space-y-2">
+            {d.blocks.map((b) => (
+              <a key={b.height} href={`https://nu-exp.wattxchange.app/#/block/${b.height}`} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-between bg-slate-900/50 hover:bg-slate-900 rounded-lg px-3 py-2 text-sm">
+                <span className="text-blue-300 font-mono">#{fmt(b.height)}</span>
+                <span className="text-slate-500 font-mono hidden md:inline">{b.hash.slice(0, 10)}...</span>
+                <span className="text-slate-300">{b.txs} tx</span>
+                <span className="text-slate-500">{ago(b.time)}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-4">
+          {d.proposal && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+              <div className="flex items-center gap-2 font-semibold text-white mb-2"><Vote size={16} className="text-amber-400" /> Governance</div>
+              <div className="text-sm text-slate-200">#{d.proposal.id} {d.proposal.title}</div>
+              <div className="text-xs text-slate-400 mt-1 capitalize">{d.proposal.status}{d.proposal.status.includes('voting') ? `, ends ${new Date(d.proposal.end).toLocaleString()}` : ''}</div>
+            </div>
+          )}
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+            <div className="flex items-center gap-2 font-semibold text-white mb-2"><ArrowLeftRight size={16} className="text-cyan-400" /> WTX bridge</div>
+            {d.bridge ? (
+              <div className="text-sm text-slate-300">{d.bridge.backingWTX} WTX held for {d.bridge.wWTXSupply} wWTX
+                <span className={d.bridge.fullyBacked ? 'text-emerald-400' : 'text-red-400'}> ({d.bridge.fullyBacked ? 'fully backed' : 'check backing'})</span></div>
+            ) : <div className="text-sm text-slate-500">bridge status unavailable</div>}
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 text-sm text-slate-300 space-y-1">
+            <div className="font-semibold text-white mb-1">Mining</div>
+            <div>zhash (equihash 144,5), merged with BitcoinZ and WATTx</div>
+            <div>Last claimed block: {d.lastClaimed ? fmt(d.lastClaimed) : 'none yet'}</div>
+            <div className="text-xs text-slate-400">Unclaimed rewards roll over to the next miner.</div>
+          </div>
+        </div>
+      </div>
+      {err && <div className="text-xs text-amber-400">Last refresh failed: {err}</div>}
     </div>
   );
 };

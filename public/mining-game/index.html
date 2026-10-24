@@ -8867,6 +8867,7 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 <script type="module" src="stage.js?v=3"></script>
 <script type="module" src="partybot.js?v=1"></script>
 <script type="module" src="jam.js?v=1"></script>
+<script type="module" src="xauth.js?v=1"></script>
 </body>
 </html>
 <script type="module">
@@ -9073,7 +9074,7 @@ const NET = (() => {
       state.connected = true; state.retry = 0;
       setDot('#3ddc84');
       let look = null; try { look = JSON.parse(localStorage.getItem('mgLook') || 'null'); } catch {}
-      ws.send(JSON.stringify({ t: 'hello', name: state.name, wallet: state.wallet, room: NET._room, look: lookOut(look) }));
+      ws.send(JSON.stringify({ t: 'hello', name: state.name, wallet: state.wallet, room: NET._room, look: lookOut(look), x: (() => { try { return localStorage.getItem('mgX') || undefined; } catch { return undefined; } })() }));
     };
     ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } if (m && m.t) onMsg(m); };
     ws.onclose = () => {

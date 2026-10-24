@@ -1,5 +1,10 @@
 [
 {
+"id": "Female_Lizz",
+"sex": "f",
+"name": "Lizz"
+},
+{
 "id": "Construction_Male_01",
 "sex": "m",
 "name": "Miner (hard hat)"

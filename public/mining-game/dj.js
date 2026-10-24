@@ -355,6 +355,45 @@ function standAt() {
   return { x: LX + (slot || 0), z: BOOTH_Z - 2.05, ry: 0 };
 }
 
+// ─────────────────────────────── MIDI controller → on-screen mixer (learn mode) ──
+// Works for the host and for co-DJs: a mapped control just drives the on-screen control,
+// which already routes through act() → the shared mix.
+let midiMap = {}; try { midiMap = JSON.parse(localStorage.getItem('mgDjMidi') || '{}') || {}; } catch (e) { /* */ }
+let learn = false, learnSel = null;
+const qv = (v) => String(v).replace(/["\\]/g, '\\$&');
+function selOf(el) {
+  const own = [...el.attributes].filter((a) => a.name.startsWith('data-')).map((a) => `[${a.name}="${qv(a.value)}"]`).join('');
+  if (!own) return el.id ? '#' + el.id : null;
+  const par = el.parentElement?.closest('[data-deck],[data-ch]');
+  const pre = par ? [...par.attributes].filter((a) => a.name === 'data-deck' || a.name === 'data-ch').map((a) => `[${a.name}="${qv(a.value)}"]`).join('') + ' ' : '';
+  return pre + el.tagName.toLowerCase() + own;
+}
+function midiBtn() {
+  const b = ov?.querySelector('#dj-midi'); if (!b) return;
+  b.classList.toggle('on', learn);
+  b.textContent = !learn ? `🎛 MIDI${Object.keys(midiMap).length ? ' · ' + Object.keys(midiMap).length : ''}` : learnSel ? '🎛 now move a knob / hit a pad…' : '🎛 LEARN: touch a control (tap again to finish)';
+}
+/** Called by the MIDI input (jam.js). Returns true when the message was used by the DJ mixer. */
+function midiLearn(d) {
+  if (!ov) return false;
+  const [s, n, v] = d, cmd = s & 0xf0;
+  if (cmd !== 0xb0 && cmd !== 0x90 && cmd !== 0x80) return false;
+  const k = (cmd === 0xb0 ? 'cc' : 'nt') + ':' + (s & 15) + ':' + n;
+  if (learn && learnSel && (cmd === 0xb0 || (cmd === 0x90 && v > 0))) {
+    midiMap[k] = learnSel; learnSel = null; try { localStorage.setItem('mgDjMidi', JSON.stringify(midiMap)); } catch (e) { /* */ }
+    midiBtn(); toast('Mapped ✓ — touch another control or tap 🎛 to finish'); return true;
+  }
+  const sel = midiMap[k]; if (!sel) return false;
+  if (cmd === 0x80 || (cmd === 0x90 && v === 0)) return true;
+  let el = null; try { el = ov.querySelector(sel); } catch (e) { /* stale selector */ }
+  if (!el) return true;
+  if (el.type === 'range') {
+    const lo = +el.min || 0, hi = el.max === '' ? 100 : +el.max;
+    el.value = String(lo + (v / 127) * (hi - lo)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+  } else el.click();
+  return true;
+}
+
 // ───────────────────────────────────────────────────────────── UI ──
 let ov = null;
 const CSS = `
@@ -569,10 +608,20 @@ function openDJ() {
   ov?.remove();
   ov = document.createElement('div'); ov.id = 'mg-dj';
   ov.innerHTML = `<div class="bar"><b style="font-size:15px;letter-spacing:.08em">🎛 DJ BOOTH</b><span id="dj-status"></span><span style="flex:1"></span>
-    <span id="dj-lights"></span><button id="dj-ext" title="Play Serato / Traktor / rekordbox (or any audio input) to the room">🎚 Serato / line-in</button><button id="dj-live" class="on">Go live</button><button id="dj-x">✕ Close</button></div><div id="dj-body"></div>`;
+    <span id="dj-lights"></span><button id="dj-midi" title="MIDI-learn: tap this, touch a control, then move a knob / hit a pad on your controller">🎛 MIDI</button><button id="dj-ext" title="Play Serato / Traktor / rekordbox (or any audio input) to the room">🎚 Serato / line-in</button><button id="dj-live" class="on">Go live</button><button id="dj-x">✕ Close</button></div><div id="dj-body"></div>`;
   document.body.appendChild(ov);
   ov.querySelector('#dj-x').onclick = closeDJ;
   ov.querySelector('#dj-ext').onclick = () => { if (window.MGSTAGE) window.MGSTAGE.open('booth'); else toast('Stage module still loading — try again'); };
+  ov.querySelector('#dj-midi').onclick = () => {
+    if (!window.MGJAM?.connectMidi) return toast('MIDI not ready yet');
+    window.MGJAM.connectMidi(); learn = !learn; learnSel = null; midiBtn();
+  };
+  ov.addEventListener('pointerdown', (e) => {          // MIDI-learn: pick the control to map
+    if (!learn) return;
+    const el = e.target.closest?.('#dj-body input[type=range], #dj-body button'); if (!el) return;
+    e.preventDefault(); e.stopPropagation(); learnSel = selOf(el); midiBtn();
+  }, true);
+  midiBtn();
   ov.querySelector('#dj-live').onclick = () => {
     if (role === 'codj') { leaveDecks(); return; }
     const rr = remoteDJ();
@@ -898,7 +947,7 @@ function tick(now) {
     danceBar.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:31;display:none;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:96vw;background:rgba(8,10,18,.85);border:1px solid #2a3350;border-radius:14px;padding:8px;color:#e6ebf5;font:13px system-ui';
     document.body.appendChild(danceBar); renderDanceBar();
     drawMarquee('🎛 DJ BOOTH · tap to spin', 0);
-    window.MGDJ = { onSignal, standAt, join: joinDecks, leave: leaveDecks, lights: setLights, _L: L, _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
+    window.MGDJ = { midiLearn, onSignal, standAt, join: joinDecks, leave: leaveDecks, lights: setLights, _L: L, _mc: { play: mcPlay, stop: mcStop, state: () => ({ key: mc.key, playing: mc.playing, pos: mc.pos, widget: !!mc.widget }) }, open: openDJ, close: closeDJ, decks: () => decks, beat: () => beatOn, bounce: () => (anyPlaying() ? beatOn : 0), role: () => role, dance: startDance, stopDance, _lib: lib, _fetch: fetchLib };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);
 })();

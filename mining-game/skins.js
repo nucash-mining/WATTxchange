@@ -10,7 +10,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 const UPS = 2.25;                                   // game units per metre (matches the netcode)
 const HEIGHT = 1.75 * UPS;
 const BASE = new URL('.', import.meta.url).href;     // works at / and at /mining-game/
-const V = '?v=3';
+const V = '?v=4';
 const loader = new GLTFLoader();
 
 let LIST = [];

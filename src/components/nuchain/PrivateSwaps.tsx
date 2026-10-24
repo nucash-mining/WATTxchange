@@ -3,8 +3,10 @@ import { ethers } from 'ethers';
 import { Shield, ArrowLeftRight, Download, Copy, KeyRound, Wallet, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react';
 import { SHIELDED, NUCHAIN_ADD_NETWORK } from '../../config/nuchainShielded';
 import * as Z from '../../lib/shielded/client';
+import WtxBridgePanel from './WtxBridgePanel';
+import LiquidityPanel from './LiquidityPanel';
 
-type Mode = 'deposit' | 'swap' | 'withdraw' | 'notes';
+type Mode = 'deposit' | 'swap' | 'withdraw' | 'notes' | 'bridge' | 'liquidity';
 type Asset = 'NU' | 'wWTX';
 const EXPLORER_TX = (h: string) => `https://nu-exp.wattxchange.app/#/tx/${h}`;
 const STORE_KEY = 'nuchain-private-notes';
@@ -234,6 +236,7 @@ const PrivateSwaps: React.FC = () => {
 
       <div className="flex flex-wrap gap-2 bg-slate-800/50 rounded-lg p-1 w-fit">
         {tabBtn('deposit', 'Deposit')}{tabBtn('swap', 'Private swap')}{tabBtn('withdraw', 'Withdraw')}{tabBtn('notes', `My notes (${notes.length})`)}
+        {tabBtn('bridge', 'Get wWTX')}{tabBtn('liquidity', 'Liquidity')}
       </div>
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
@@ -300,9 +303,11 @@ const PrivateSwaps: React.FC = () => {
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-medium">
             {mode === 'swap' ? <><ArrowLeftRight size={16} /> Swap privately (NU and wWTX)</> : <><Shield size={16} /> Withdraw privately</>}
           </button>
-          {mode === 'swap' && !stats.price && <div className="text-xs text-amber-300">Private swaps open once the wWTX/NU pool has liquidity. Your notes are safe meanwhile: you can withdraw them any time.</div>}
+          {mode === 'swap' && !stats.price && <div className="text-xs text-amber-300">Private swaps open once the wWTX/NU pool has liquidity (<button className="underline" onClick={() => setMode('liquidity')}>add liquidity</button>; bridge WTX first under <button className="underline" onClick={() => setMode('bridge')}>Get wWTX</button>). Your notes are safe meanwhile: you can withdraw them any time.</div>}
         </>)}
 
+        {mode === 'bridge' && <WtxBridgePanel />}
+        {mode === 'liquidity' && <LiquidityPanel />}
         {mode === 'notes' && (<>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />

@@ -8,11 +8,13 @@ import MiningPools from './nuchain/MiningPools';
 import NFTMiningRigs from './nuchain/NFTMiningRigs';
 import NodeRewardDashboard from './nuchain/NodeRewardDashboard';
 import NuChainBridges from './nuchain/NuChainBridges';
+import TabErrorBoundary from './nuchain/TabErrorBoundary';
 const PrivateSwaps = React.lazy(() => import('./nuchain/PrivateSwaps'));
+const OsmosisSwap = React.lazy(() => import('./nuchain/OsmosisSwap'));
 
 const NuChainView: React.FC = () => {
-  type Tab = 'dashboard' | 'bridges' | 'private' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards';
-  const TABS: Tab[] = ['dashboard', 'bridges', 'private', 'staking', 'validators', 'pools', 'rigs', 'rewards'];
+  type Tab = 'dashboard' | 'swap' | 'bridges' | 'private' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards';
+  const TABS: Tab[] = ['dashboard', 'swap', 'bridges', 'private', 'staking', 'validators', 'pools', 'rigs', 'rewards'];
   // sub-tab from /nuchain/<tab> or #nuchain/<tab>
   const tabFromUrl = (): Tab => {
     const base = import.meta.env.BASE_URL || '/';
@@ -90,6 +92,16 @@ const NuChainView: React.FC = () => {
             }`}
           >
             Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('swap')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'swap'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Cosmos Swap
           </button>
           <button
             onClick={() => setActiveTab('bridges')}
@@ -272,11 +284,20 @@ const NuChainView: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         {activeTab === 'dashboard' && <NuChainDashboard />}
+        {activeTab === 'swap' && (
+          <TabErrorBoundary name="Cosmos Swap">
+            <React.Suspense fallback={<div className="text-slate-400 p-6">Loading Cosmos swap...</div>}>
+              <OsmosisSwap />
+            </React.Suspense>
+          </TabErrorBoundary>
+        )}
         {activeTab === 'bridges' && <NuChainBridges />}
         {activeTab === 'private' && (
-          <React.Suspense fallback={<div className="text-slate-400 p-6">Loading private swaps...</div>}>
-            <PrivateSwaps />
-          </React.Suspense>
+          <TabErrorBoundary name="Private">
+            <React.Suspense fallback={<div className="text-slate-400 p-6">Loading private swaps...</div>}>
+              <PrivateSwaps />
+            </React.Suspense>
+          </TabErrorBoundary>
         )}
         {activeTab === 'staking' && <StakingView />}
         {activeTab === 'validators' && <ValidatorNodes />}

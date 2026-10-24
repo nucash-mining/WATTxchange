@@ -87,7 +87,7 @@ export const KEPLR_CHAIN_INFO = {
   currencies: [{ coinDenom: NUCHAIN.nativeSymbol, coinMinimalDenom: NUCHAIN.nativeDenom, coinDecimals: 18 }],
   feeCurrencies: [{
     coinDenom: NUCHAIN.nativeSymbol, coinMinimalDenom: NUCHAIN.nativeDenom, coinDecimals: 18,
-    gasPriceStep: { low: 0, average: 0, high: 0.000000001 },
+    gasPriceStep: { low: 1000000000, average: 1500000000, high: 2000000000 }, // anu per gas (1-2 gwei)
   }],
   stakeCurrency: { coinDenom: NUCHAIN.nativeSymbol, coinMinimalDenom: NUCHAIN.nativeDenom, coinDecimals: 18 },
   features: ['eth-address-gen', 'eth-key-sign'],

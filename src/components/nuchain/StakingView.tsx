@@ -262,7 +262,7 @@ async function buildKeplrChain() {
       bech32PrefixConsAddr: 'nuvalcons', bech32PrefixConsPub: 'nuvalconspub',
     },
     currencies: [{ coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18 }],
-    feeCurrencies: [{ coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18, gasPriceStep: { low: 0, average: 0, high: 0 } }],
+    feeCurrencies: [{ coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18, gasPriceStep: { low: 1000000000, average: 1500000000, high: 2000000000 } }],
     stakeCurrency: { coinDenom: 'NU', coinMinimalDenom: 'anu', coinDecimals: 18 },
     features: ['eth-address-gen', 'eth-key-sign'],
   };

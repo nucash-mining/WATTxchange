@@ -10,7 +10,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const UPS = 2.25;
-const BASE = new URL('.', import.meta.url).href, V = '?v=1';
+const BASE = new URL('.', import.meta.url).href, V = '?v=2';
 const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
 let gltfP = null, traitsP = null;
 const getGltf = () => (gltfP ||= loader.loadAsync(`${BASE}chibi/chibi.glb${V}`));
@@ -105,7 +105,7 @@ function paintFace(t, skinCol) {
 }
 
 // ── build one Milady ──────────────────────────────────────────────────────────
-const HEIGHT = 1.05 * UPS;
+const HEIGHT = 1.33 * UPS;
 async function build(id) {
   const [g, t] = await Promise.all([getGltf(), traitsOf(id)]);
   const model = SkeletonUtils.clone(g.scene);
@@ -117,6 +117,7 @@ async function build(id) {
   const gl = glassShape(t.g);
   const shirtC = colorFrom(t.s, hashCol(t.s || 'x')), bottomC = (t.s || '').match(/lolita|maid|sailor|kogal|ribbon/) ? '#2a2633' : '#3b3f52';
   const face = paintFace(t, skin);
+  const pants = !/lolita|maid|sailor|kogal|dress|skirt|ribbon/.test(t.s || '') && ((+id || 1) % 3 === 0 || /hoodie|jacket|tracksuit|cargo|overall|work/.test(t.s || ''));
   model.traverse((o) => {
     const n = o.name || '';
     if (/^hair_/.test(n)) o.visible = n === `hair_${hairStyle}`;
@@ -124,6 +125,7 @@ async function build(id) {
     if (/^glasses_/.test(n)) o.visible = !!gl && n === `glasses_${gl.s}`;
     if (n === 'earrings') o.visible = !!t.er;
     if (n === 'necklace') o.visible = !!t.n;
+    if (n === 'bottom_skirt' || n === 'bottom_pants') o.visible = (n === 'bottom_pants') === pants;
     if (!o.isMesh) return;
     o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false;
     const mats = Array.isArray(o.material) ? o.material : [o.material];

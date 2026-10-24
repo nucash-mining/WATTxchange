@@ -763,6 +763,48 @@ function renderDanceBar() {
 }
 function toast(t) { const el = document.createElement('div'); el.textContent = t; el.style.cssText = 'position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:2147483001;background:rgba(8,10,18,.92);border:1px solid #2a3350;color:#e6ebf5;padding:8px 14px;border-radius:12px;font:14px system-ui'; document.body.appendChild(el); setTimeout(() => el.remove(), 2600); }
 
+
+// ───────────────────────────────────────── live everywhere: pill + mute + unlock ──
+// Whoever is in the game hears the live set (DJ decks, Mixcloud, Serato/line-in, music desk).
+// The pill shows what's on, lets anyone mute it, and unlocks audio on browsers that need a tap.
+const OUTSIDE = 0.7;
+const liveMuted = () => { try { return localStorage.getItem('mgLiveMute') === '1'; } catch (e) { return false; } };
+function setLiveMuted(v) {
+  try { localStorage.setItem('mgLiveMute', v ? '1' : '0'); } catch (e) { /* */ }
+  if (mc.widget) (v ? mc.widget.pause() : mc.widget.play()).catch?.(() => {});
+}
+function unlockAudio() {
+  try { if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); } catch (e) { /* */ }
+  try { window.MGSTAGE?._resume?.(); } catch (e) { /* */ }
+}
+['pointerdown', 'keydown', 'touchend'].forEach((ev) => window.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+let pill = null, pillKey = '';
+function livePill() {
+  const st = window.MGSTAGE?._state?.(), stageOn = !!(st && st.listen && st.listen.from);
+  const rdj = role === 'dj' ? null : remoteDJ();
+  const on = role !== 'dj' && !(st && st.live && st.live.on) && (stageOn || !!rdj);
+  if (!on) { if (pill) pill.style.display = 'none'; pillKey = ''; return; }
+  if (!pill) {
+    pill = document.createElement('div'); pill.id = 'mg-livepill';
+    pill.style.cssText = 'position:fixed;left:50%;bottom:62px;transform:translateX(-50%);z-index:2147482990;display:flex;gap:8px;align-items:center;background:rgba(8,10,18,.88);border:1px solid #ff4fd8;color:#fff;padding:6px 8px 6px 12px;border-radius:999px;font:600 13px system-ui;max-width:min(92vw,520px);box-shadow:0 0 18px #ff4fd855';
+    pill.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-lp]'); if (!b) return; e.stopPropagation();
+      if (b.dataset.lp === 'mute') setLiveMuted(!liveMuted()); else unlockAudio();
+      pillKey = '';
+    });
+    document.body.appendChild(pill);
+  }
+  const blocked = (ctx && ctx.state !== 'running') || (window.MGSTAGE?._blocked?.() || false);
+  const name = stageOn ? st.listen.label : (rdj.name + (decks.find((d) => d.playing)?.track?.title ? ' · ' + decks.find((d) => d.playing).track.title : mc.key ? ' · Mixcloud' : ''));
+  const muted = liveMuted();
+  const key = [name, muted, blocked].join('|'); if (key === pillKey) { pill.style.display = 'flex'; return; }
+  pillKey = key;
+  pill.innerHTML = `<span style="color:#ff4fd8">● LIVE</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>`
+    + (blocked && !muted ? '<button data-lp="unlock" style="background:#ffd23f;color:#111;border:0;border-radius:999px;padding:5px 10px;font-weight:800;cursor:pointer">🔊 Tap to listen</button>' : '')
+    + `<button data-lp="mute" style="background:#161b2b;color:#fff;border:1px solid #2a3350;border-radius:999px;padding:5px 10px;font-weight:700;cursor:pointer">${muted ? '🔇 Unmute' : '🔊 Mute'}</button>`;
+  pill.style.display = 'flex';
+}
+
 // ───────────────────────────────────────────────────────────── per frame ──
 const ray = new THREE.Raycaster();
 let prompt = null, lastMarquee = 0, ducked = false;
@@ -772,9 +814,9 @@ setInterval(() => {
   const vis = !!inLoungeNow();
   const r = role === 'dj' ? null : remoteDJ();
   if (role === 'codj') {
-    if (r && r.id === hostId && r.dj.co) { if (vis) follow(r); try { window.MGSKIN?.setMyLook?.({ djco: { h: hostId, at: Date.now() } }); } catch (e) { /* */ } }
+    if (r && r.id === hostId && r.dj.co) { follow(r); try { window.MGSKIN?.setMyLook?.({ djco: { h: hostId, at: Date.now() } }); } catch (e) { /* */ } }
     else { leaveDecks(); decks.forEach((d) => d.el.pause()); if (mc.key) mcRemove(); }
-  } else if (r && vis) { role = 'listen'; follow(r); }
+  } else if (r && !liveMuted()) { role = 'listen'; follow(r); }   // the set plays for everyone in the game, not just the lounge
   else if (role === 'listen') { role = 'idle'; decks.forEach((d) => d.el.pause()); if (mc.key) mcRemove(); }
   if (role === 'dj' && Date.now() - lastSent > 450) broadcast();
 }, 500);
@@ -791,16 +833,17 @@ function tick(now) {
   const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   const vis = !!inLoungeNow();
   root.visible = vis;
-  // room volume falls off away from the booth; silent outside the lounge
+  // room volume falls off away from the booth; the rest of the game hears it a bit lower
   if (master && role !== 'dj') {
     const c = MG().cam.position, dist = Math.hypot(c.x - LX, c.z - BOOTH_Z);
-    master.gain.setTargetAtTime(vis ? clamp(1.15 - dist / 26, 0.2, 1) * (mix.master || 0.9) : 0, ctx.currentTime, 0.2);
+    master.gain.setTargetAtTime(liveMuted() ? 0 : (vis ? clamp(1.15 - dist / 26, 0.2, 1) : OUTSIDE) * (mix.master || 0.9), ctx.currentTime, 0.2);
   }
   // duck the game's own soundtrack while a set is playing
   const AU = MG()?.AU;
-  const wantDuck = vis && anyPlaying();
+  const wantDuck = anyPlaying() && !liveMuted();
   if (AU?.musG && wantDuck !== ducked) { ducked = wantDuck; AU.musG.gain.setTargetAtTime(ducked ? 0 : 0.17, AU.ctx.currentTime, 0.6); }
   if (mc.iframe) mc.iframe.style.display = vis || ov ? 'block' : 'none';
+  livePill();
   if (!vis && L.level < 0.999) { L.level = 1; L.club = 0; for (const l of lightsOf()) l.intensity = l.userData.baseI; if ('environmentIntensity' in MG().scene) MG().scene.environmentIntensity = 1; if (L.exp != null && MG().renderer) MG().renderer.toneMappingExposure = L.exp; }
   if (!vis) { if (prompt) prompt.style.display = 'none'; if (danceBar) danceBar.style.display = 'none'; if (dancing) stopDance(); return; }
   updateBeat(now);

@@ -295,12 +295,12 @@ const PrivateSwaps: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 font-mono" />
             </div>
           )}
-          <button disabled={busy || !noteInput || preview?.spent === true || (mode === 'withdraw' && !recipient)}
+          <button disabled={busy || !noteInput || preview?.spent === true || (mode === 'withdraw' && !recipient) || (mode === 'swap' && !stats.price)}
             onClick={mode === 'swap' ? doSwap : doWithdraw}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-medium">
             {mode === 'swap' ? <><ArrowLeftRight size={16} /> Swap privately (NU and wWTX)</> : <><Shield size={16} /> Withdraw privately</>}
           </button>
-          {mode === 'swap' && !stats.price && <div className="text-xs text-amber-300">The wWTX/NU pool has no liquidity yet, so swaps will fail until it is seeded.</div>}
+          {mode === 'swap' && !stats.price && <div className="text-xs text-amber-300">Private swaps open once the wWTX/NU pool has liquidity. Your notes are safe meanwhile: you can withdraw them any time.</div>}
         </>)}
 
         {mode === 'notes' && (<>

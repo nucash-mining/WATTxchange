@@ -32,6 +32,19 @@ const VIEW_ALIASES: Record<string, ViewType> = {
   mm: 'pool', 'merged-mining': 'pool', pools: 'pool', exp: 'explorer',
 };
 
+// Sections with their own path (wattxchange.app/nuchain, /nuchain/private ...).
+// The build writes a copy of index.html at each of these so Pages serves them.
+export const PATH_VIEWS: ViewType[] = ['nuchain'];
+function pathSegments(): string[] {
+  const base = import.meta.env.BASE_URL || '/';
+  const p = window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : window.location.pathname;
+  return p.split('/').filter(Boolean);
+}
+function viewFromPath(): ViewType | null {
+  const v = VIEW_ALIASES[(pathSegments()[0] || '').toLowerCase()];
+  return v && PATH_VIEWS.includes(v) ? v : null;
+}
+
 function viewFromHash(): ViewType | null {
   // Only the first segment names the view; anything after it belongs to the
   // view (e.g. "#mm/xmr" selects the XMR card inside merged mining).
@@ -40,7 +53,7 @@ function viewFromHash(): ViewType | null {
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewType>(() => viewFromHash() ?? 'wallet');
+  const [currentView, setCurrentView] = useState<ViewType>(() => viewFromPath() ?? viewFromHash() ?? 'wallet');
   const [, setIsSidebarOpen] = useState(true); // Show sidebar by default
 
   // Keep the view in sync with the URL fragment so a shared link (or the
@@ -51,9 +64,23 @@ function App() {
       const v = viewFromHash();
       if (v) setCurrentView(v);
     };
+    const onPop = () => { const v = viewFromPath() ?? viewFromHash(); if (v) setCurrentView(v); };
     window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onPop);
+    return () => { window.removeEventListener('hashchange', onHashChange); window.removeEventListener('popstate', onPop); };
   }, []);
+
+  // Sections with a path get it in the address bar (/nuchain); leaving one
+  // returns the address to the site root so other sections keep their #links.
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL || '/';
+    const onPathView = viewFromPath();
+    if (PATH_VIEWS.includes(currentView)) {
+      if (onPathView !== currentView) window.history.pushState(null, '', base + currentView);
+    } else if (onPathView) {
+      window.history.pushState(null, '', base + (window.location.hash || ''));
+    }
+  }, [currentView]);
   const [isNativeApp, setIsNativeApp] = useState(false);
   const { isMobile, isMobileWallet } = useDeviceDetect();
 

@@ -11,7 +11,23 @@ import NuChainBridges from './nuchain/NuChainBridges';
 const PrivateSwaps = React.lazy(() => import('./nuchain/PrivateSwaps'));
 
 const NuChainView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bridges' | 'private' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards'>('dashboard');
+  type Tab = 'dashboard' | 'bridges' | 'private' | 'staking' | 'validators' | 'pools' | 'rigs' | 'rewards';
+  const TABS: Tab[] = ['dashboard', 'bridges', 'private', 'staking', 'validators', 'pools', 'rigs', 'rewards'];
+  // sub-tab from /nuchain/<tab> or #nuchain/<tab>
+  const tabFromUrl = (): Tab => {
+    const base = import.meta.env.BASE_URL || '/';
+    const path = window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : '';
+    const seg = (path.split('/')[1] || window.location.hash.replace(/^#\/?/, '').split('/')[1] || '').toLowerCase() as Tab;
+    return TABS.includes(seg) ? seg : 'dashboard';
+  };
+  const [activeTab, setActiveTabState] = useState<Tab>(tabFromUrl);
+  const setActiveTab = (t: Tab) => {
+    setActiveTabState(t);
+    const base = import.meta.env.BASE_URL || '/';
+    if (window.location.pathname.startsWith(base + 'nuchain')) {
+      window.history.replaceState(null, '', base + 'nuchain' + (t === 'dashboard' ? '' : '/' + t));
+    }
+  };
 
   const stats = [
     {

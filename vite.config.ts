@@ -1,12 +1,32 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { copyFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+// Sections served at their own path (wattxchange.app/nuchain): give each a copy
+// of index.html so GitHub Pages answers 200 and the app picks the section from
+// the path. Keep in sync with PATH_VIEWS in src/App.tsx.
+const PATH_SECTIONS = ['nuchain']
+const sectionPages = () => ({
+  name: 'section-pages',
+  apply: 'build' as const,
+  writeBundle(opts: { dir?: string }) {
+    const out = opts.dir || 'dist'
+    for (const s of PATH_SECTIONS) {
+      mkdirSync(join(out, s), { recursive: true })
+      copyFileSync(join(out, 'index.html'), join(out, s, 'index.html'))
+    }
+    // deeper links (/nuchain/private) have no file: Pages serves 404.html, the app routes them
+    copyFileSync(join(out, 'index.html'), join(out, '404.html'))
+  },
+})
 
 // https://vitejs.dev/config/
 export default defineConfig({
   // GitHub Pages project site serves under /WATTxchange/. Set VITE_BASE=/ for
   // the custom-domain (wattxchange.app) build once the domain is renewed.
   base: process.env.VITE_BASE ?? '/WATTxchange/',
-  plugins: [react()],
+  plugins: [react(), sectionPages()],
   // Shim Node's `process.env` in the browser. Several services reference
   // `process.env.X || 'default'` at module top-level; without this, the first
   // one evaluated throws `ReferenceError: process is not defined` and takes

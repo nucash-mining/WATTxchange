@@ -10,7 +10,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const UPS = 2.25;
-const BASE = new URL('.', import.meta.url).href, V = '?v=3';
+const BASE = new URL('.', import.meta.url).href, V = '?v=4';
 const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
 let gltfP = null, traitsP = null;
 const getGltf = () => (gltfP ||= loader.loadAsync(`${BASE}chibi/chibi.glb${V}`));
@@ -160,6 +160,13 @@ function paintFace(t, skinCol) {
   { const [x, y] = uvToPx(0, -0.098); c.strokeStyle = '#7a3a44'; c.lineWidth = 4; c.beginPath();
     if (E === 'smug') { c.moveTo(x - 14, y); c.quadraticCurveTo(x + 4, y + 6, x + 16, y - 6); } else { c.moveTo(x - 10, y - 2); c.quadraticCurveTo(x - 5, y + 5, x, y); c.quadraticCurveTo(x + 5, y + 5, x + 10, y - 2); }
     c.stroke(); }
+  // facial definition: soft jaw contour, cheek highlights, nostrils, a little lower lip
+  { const [cx, cy] = uvToPx(0, -0.02); const g = c.createRadialGradient(cx, cy - 10, 120, cx, cy + 10, 250);
+    g.addColorStop(0, 'rgba(120,60,60,0)'); g.addColorStop(0.75, 'rgba(120,60,60,0.10)'); g.addColorStop(1, 'rgba(120,60,60,0.22)');
+    c.save(); c.beginPath(); c.rect(0, uvToPx(0, -0.045)[1], 512, 512); c.clip(); c.fillStyle = g; c.fillRect(0, 0, 512, 512); c.restore(); }
+  c.fillStyle = 'rgba(255,255,255,0.18)'; for (const s3 of [1, -1]) { const [x, y] = uvToPx(s3 * 0.1, -0.06); c.beginPath(); c.ellipse(x, y, 22, 10, 0, 0, Math.PI * 2); c.fill(); }
+  c.fillStyle = 'rgba(120,60,60,0.55)'; for (const s3 of [1, -1]) { const [x, y] = uvToPx(s3 * 0.008, -0.058); c.beginPath(); c.ellipse(x, y, 2.6, 1.8, 0, 0, Math.PI * 2); c.fill(); }
+  { const [x, y] = uvToPx(0, -0.106); c.fillStyle = 'rgba(225,120,135,0.45)'; c.beginPath(); c.ellipse(x + 1, y, 9, 4, 0, 0, Math.PI * 2); c.fill(); }
   // face decorations (tattoos / piercings)
   const fd = (t.fd || '').toLowerCase();
   const at = (x, z) => uvToPx(x, z);
@@ -176,7 +183,7 @@ function paintFace(t, skinCol) {
 }
 
 // ── build one Milady ──────────────────────────────────────────────────────────
-const HEIGHT = 1.33 * UPS;
+const HEIGHT = 1.19 * UPS;
 async function build(id) {
   const [g, t] = await Promise.all([getGltf(), traitsOf(id)]);
   const model = SkeletonUtils.clone(g.scene);

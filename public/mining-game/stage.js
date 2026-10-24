@@ -152,23 +152,29 @@ async function serve(listenerId) {
   const offer = await pc.createOffer(); offer.sdp = stereo(offer.sdp); await pc.setLocalDescription(offer);
   send(listenerId, 'stage-offer', pc.localDescription);
 }
+// ICE candidates can beat the offer/answer (we may still be fetching TURN): hold them until the
+// remote description is set, then apply.
+const early = new Map();      // key -> [candidates]
+const hold = (k, c) => { if (!early.has(k)) early.set(k, []); early.get(k).push(c); };
+async function flush(k, pc) { const q = early.get(k) || []; early.delete(k); for (const c of q) { try { await pc.addIceCandidate(c); } catch (e) { /* */ } } }
 async function onSignal(from, kind, data) {
   try {
     if (kind === 'stage-req') return serve(from);
-    if (kind === 'stage-answer') { const pc = live.pcs.get(from); if (pc) await pc.setRemoteDescription(data); return; }
-    if (kind === 'stage-ice-p') { const pc = live.pcs.get(from); if (pc) await pc.addIceCandidate(data); return; }   // from a listener to the performer
+    if (kind === 'stage-answer') { const pc = live.pcs.get(from); if (pc) { await pc.setRemoteDescription(data); await flush('p' + from, pc); } return; }
+    if (kind === 'stage-ice-p') { const pc = live.pcs.get(from); if (pc && pc.remoteDescription) await pc.addIceCandidate(data); else hold('p' + from, data); return; }   // from a listener to the performer
     if (kind === 'stage-offer') {
       if (listen.from !== from) return;
       closeListen(true);
-      const pc = new RTCPeerConnection(await ice()); listen.pc = pc;
+      const cfg = await ice(); if (listen.from !== from) return;
+      const pc = new RTCPeerConnection(cfg); listen.pc = pc;
       pc.onicecandidate = (e) => { if (e.candidate) send(from, 'stage-ice-p', e.candidate); };
       pc.ontrack = (e) => attach(e.streams[0]);
-      await pc.setRemoteDescription(data);
+      await pc.setRemoteDescription(data); await flush('l' + from, pc);
       const ans = await pc.createAnswer(); ans.sdp = stereo(ans.sdp); await pc.setLocalDescription(ans);
       send(from, 'stage-answer', pc.localDescription);
       return;
     }
-    if (kind === 'stage-ice-l') { if (listen.pc && listen.from === from) await listen.pc.addIceCandidate(data); }
+    if (kind === 'stage-ice-l' && listen.from === from) { if (listen.pc && listen.pc.remoteDescription) await listen.pc.addIceCandidate(data); else hold('l' + from, data); }
   } catch (e) { /* renegotiation race — next request retries */ }
 }
 function attach(stream) {
@@ -192,7 +198,8 @@ setInterval(() => {
   let perf = null;
   for (const p of (net()?.peerLooks?.() || [])) { const st = p.look?.stage; if (st && p.id !== me && Date.now() - st.at < 10000 && (!perf || st.at > perf.st.at)) perf = { id: p.id, name: p.name, st }; }
   const vis = !!inLoungeNow();
-  if (perf && vis && !live.on) {
+  const muted = (() => { try { return localStorage.getItem('mgLiveMute') === '1'; } catch (e) { return false; } })();
+  if (perf && !live.on && !muted) {      // everyone in the game hears it, not just the lounge
     listen.where = perf.st.w; listen.label = `${perf.st.l || 'live'} · ${perf.name}`;
     const healthy = listen.pc && ['connected', 'connecting', 'new'].includes(listen.pc.connectionState);
     if (listen.from !== perf.id || (!healthy && Date.now() - listen.reqAt > 6000)) {
@@ -378,7 +385,7 @@ function tick(now) {
   if (meter && (live.on || ov)) { meter.getByteTimeDomainData(vu); for (const v of vu) level = Math.max(level, Math.abs(v - 128) / 128); }
   if (listen.gain) {        // distance falloff from the performer's spot
     const c = MG().cam.position, at = listen.where === 'desk' ? DESK : BOOTH;
-    const g = vis ? clamp(1.2 - Math.hypot(c.x - at.x, c.z - at.z) / 26, 0.18, 1) : 0;
+    const g = vis ? clamp(1.2 - Math.hypot(c.x - at.x, c.z - at.z) / 26, 0.18, 1) : 0.7;
     listen.gain.gain.setTargetAtTime(g, ctx.currentTime, 0.25);
   }
   if (ov) {
@@ -397,7 +404,8 @@ function tick(now) {
     prompt = document.createElement('div'); prompt.textContent = '🎹 tap the music desk to play';
     prompt.style.cssText = 'position:fixed;left:50%;bottom:190px;transform:translateX(-50%);z-index:30;background:rgba(8,10,18,.88);border:1px solid #2a3350;border-radius:12px;padding:8px 14px;color:#e6ebf5;font:13px system-ui;display:none;pointer-events:none';
     document.body.appendChild(prompt);
-    window.MGSTAGE = { open, close, onSignal, live: () => (live.on ? live.label : listen.from ? listen.label : null), goLive, endLive, _synth: synth, _pc: () => listen.pc, _state: () => ({ live: { ...live, pcs: live.pcs.size }, listen: { from: listen.from, state: listen.pc?.connectionState, label: listen.label } }) };
+    ice().catch(() => {});   // warm the TURN list so the first connection is quick
+    window.MGSTAGE = { open, close, onSignal, _resume: () => { try { if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); if (listen.el && listen.el.paused) listen.el.play().catch(() => {}); } catch (e) { /* */ } }, _blocked: () => !!(listen.from && ctx && ctx.state !== 'running'), live: () => (live.on ? live.label : listen.from ? listen.label : null), goLive, endLive, _synth: synth, _pc: () => listen.pc, _state: () => ({ live: { ...live, pcs: live.pcs.size }, listen: { from: listen.from, state: listen.pc?.connectionState, label: listen.label } }) };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);
 })();

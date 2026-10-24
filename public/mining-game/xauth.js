@@ -3,7 +3,8 @@
    server's /auth/x/start, X asks them to approve, and the server hands back a signed
    session (handle + avatar only — no X token ever reaches the browser). The game sends
    that session with its lounge hello, so everyone sees a verified "@handle".
-   UI: a chip above the lounge bar, plus a row in the wallet sign-in picker. */
+   UI: a row in the wallet sign-in picker (WALLET button) — nothing floats over the game
+   controls. It reads "coming soon" until the server has X app keys (/auth/x/status). */
 const AUTH = 'https://lounge.wattxchange.app';
 const KEY = 'mgX';
 const get = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
@@ -12,6 +13,8 @@ function profile() {
   const t = get(); if (!t) return null;
   try { const o = JSON.parse(atob(t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/'))); return o.exp > Date.now() ? o : (set(''), null); } catch (e) { return null; }
 }
+let enabled = null;           // null = unknown yet
+fetch(AUTH + '/auth/x/status', { cache: 'no-store' }).then((r) => r.json()).then((j) => { enabled = !!j.enabled; }).catch(() => { enabled = false; });
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // session arriving by redirect (#mgx=…) when a popup wasn't possible
@@ -35,26 +38,7 @@ function signIn() {
 }
 function signOut() { set(''); render(); toast('Signed out of X'); setTimeout(() => location.reload(), 700); }
 
-let chip = null;
-function render() {
-  if (!chip) {
-    chip = document.createElement('div'); chip.id = 'mg-xchip';
-    chip.style.cssText = 'position:fixed;left:12px;bottom:62px;z-index:60;display:flex;align-items:center;gap:6px;background:rgba(8,10,18,.85);border:1px solid #2a3350;color:#e6ebf5;border-radius:999px;padding:4px 10px 4px 4px;font:600 12px system-ui;cursor:pointer;max-width:60vw';
-    chip.onclick = () => (profile() ? (confirmOut()) : signIn());
-    document.body.appendChild(chip);
-  }
-  const p = profile();
-  chip.innerHTML = p
-    ? `${p.img ? `<img src="${esc(p.img)}" alt="" style="width:22px;height:22px;border-radius:50%">` : '<span style="width:22px;text-align:center">𝕏</span>'}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@${esc(p.u)}</span>`
-    : '<span style="width:22px;height:22px;border-radius:50%;background:#000;display:grid;place-items:center;font-weight:900">𝕏</span><span>Sign in with X</span>';
-}
-function confirmOut() {
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;left:12px;bottom:96px;z-index:61;background:#11141f;border:1px solid #2a3350;border-radius:12px;padding:10px;color:#e6ebf5;font:13px system-ui;display:flex;gap:8px;align-items:center';
-  box.innerHTML = `Signed in as <b>@${esc(profile()?.u)}</b><button style="background:#3a1220;border:1px solid #a33a4a;color:#fff;border-radius:8px;padding:5px 9px;cursor:pointer">Sign out</button><button style="background:#161b2b;border:1px solid #2a3350;color:#fff;border-radius:8px;padding:5px 9px;cursor:pointer">✕</button>`;
-  const [o, x] = box.querySelectorAll('button'); o.onclick = () => { box.remove(); signOut(); }; x.onclick = () => box.remove();
-  document.body.appendChild(box); setTimeout(() => box.remove(), 6000);
-}
+function render() { /* the X option lives in the wallet picker; nothing floats over the controls */ }
 function toast(t) { const el = document.createElement('div'); el.textContent = t; el.style.cssText = 'position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:2147483001;background:rgba(8,10,18,.92);border:1px solid #2a3350;color:#e6ebf5;padding:8px 14px;border-radius:12px;font:14px system-ui'; document.body.appendChild(el); setTimeout(() => el.remove(), 2600); }
 
 // add an X row to the wallet sign-in picker
@@ -67,8 +51,10 @@ function toast(t) { const el = document.createElement('div'); el.textContent = t
     if (body && !body.querySelector('#wpick-x')) {
       const p = profile(), row = document.createElement('div'); row.id = 'wpick-x';
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #2a3350;border-radius:12px;margin:8px 0 2px;cursor:pointer;background:#0b0d16';
-      row.innerHTML = `<span style="width:26px;height:26px;border-radius:6px;background:#000;color:#fff;display:grid;place-items:center;font-weight:900">𝕏</span><div><div style="font-weight:700">${p ? '@' + esc(p.u) : 'Sign in with X'}</div><div style="color:var(--dim,#8b94ab);font-size:11px">${p ? 'signed in — your @handle shows in the lounge · tap to sign out' : 'show your verified @handle in the lounge (can be used with a wallet too)'}</div></div>`;
-      row.onclick = () => (p ? signOut() : signIn());
+      const off = !p && enabled === false;
+      row.innerHTML = `<span style="width:26px;height:26px;border-radius:6px;background:#000;color:#fff;display:grid;place-items:center;font-weight:900">𝕏</span><div><div style="font-weight:700">${p ? '@' + esc(p.u) : 'Sign in with X'}${off ? ' <span style="font-size:11px;color:#f59e0b;font-weight:600">· coming soon</span>' : ''}</div><div style="color:var(--dim,#8b94ab);font-size:11px">${p ? 'signed in — your @handle shows in the lounge · tap to sign out' : off ? 'X sign-in is being set up — use a wallet for now' : 'show your verified @handle in the lounge (can be used with a wallet too)'}</div></div>`;
+      if (off) { row.style.opacity = '0.55'; row.style.cursor = 'default'; }
+      row.onclick = () => (p ? signOut() : off ? null : signIn());
       body.prepend(row);
     }
     return r;

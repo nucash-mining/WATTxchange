@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { SKIN_ON, skin, tileUV, FLOOR_TILE, WALL_TILE } from './roomskin.js?v=1';
 
 const MG = () => window.MG;
 const UPS = 2.25;                               // game units per metre
@@ -43,24 +44,49 @@ function pbr(name, repeat, extra = {}) {
 
 // ── room shell: floor + walls over the old neon box ────────────────────────────
 function shell() {
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(LW - 0.4, LD), pbr('herringbone_parquet', [LW / 4, LD / 4], { color: 0x9a8a7a, envMapIntensity: 0.25 }));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.035; root.add(floor);
-  const plaster = pbr('grey_plaster_02', [LW / 3, 2], { color: 0x4a4458, normalScale: new THREE.Vector2(0.25, 0.25), envMapIntensity: 0.3 });
-  const panel = pbr('dark_wood', [LW / 2.2, 1], { color: 0x8a6a55, envMapIntensity: 0.5 });
+  // SKIN_ON (default): procedural chevron parquet / upholstered panels / coffered ceiling
+  // from roomskin.js — no texture downloads; localStorage.mgSkin='pbr' restores the
+  // Poly Haven parquet + plaster maps
+  const S = SKIN_ON ? skin() : null;
   const WAIN = 1.15 * UPS, TOP = LH - 0.6;
+  const floorGeo = new THREE.PlaneGeometry(LW - 0.4, LD);
+  const floor = new THREE.Mesh(S ? tileUV(floorGeo, LW - 0.4, LD, FLOOR_TILE, FLOOR_TILE) : floorGeo,
+    S ? S.floor : pbr('herringbone_parquet', [LW / 4, LD / 4], { color: 0x9a8a7a, envMapIntensity: 0.25 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.035; root.add(floor);
+  const plaster = S ? S.wall : pbr('grey_plaster_02', [LW / 3, 2], { color: 0x4a4458, normalScale: new THREE.Vector2(0.25, 0.25), envMapIntensity: 0.3 });
+  const upper = (w, h) => { const g = new THREE.PlaneGeometry(w, h); return S ? tileUV(g, w, h, WALL_TILE, TOP - WAIN) : g; };
+  const panel = pbr('dark_wood', [LW / 2.2, 1], { color: 0x8a6a55, envMapIntensity: 0.5 });
   const wall = (w, x, z, ry) => {
     const lo = new THREE.Mesh(new THREE.PlaneGeometry(w, WAIN), panel); lo.position.set(x, WAIN / 2, z); lo.rotation.y = ry; root.add(lo);
-    const hi = new THREE.Mesh(new THREE.PlaneGeometry(w, TOP - WAIN), plaster); hi.position.set(x, WAIN + (TOP - WAIN) / 2, z); hi.rotation.y = ry; root.add(hi);
+    const hi = new THREE.Mesh(upper(w, TOP - WAIN), plaster); hi.position.set(x, WAIN + (TOP - WAIN) / 2, z); hi.rotation.y = ry; root.add(hi);
     const rail = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0xb08a50, metalness: 0.6, roughness: 0.35 }));
     rail.position.set(x, WAIN, z); rail.rotation.y = ry; root.add(rail);
   };
   wall(LW - 0.4, 0, -LD / 2 + 0.2, 0);                        // back (behind the big screen)
   wall(LD - 0.4, -LW / 2 + 0.2, 0, Math.PI / 2);              // left (bar side)
-  // right wall has the CASINO / ARCADE / STAGE doorways: panel between them only
-  [[-10, 6.4], [-3, 2.6], [3, 2.6], [9.9, 4]].forEach(([z, w]) => wall(w, LW / 2 - 0.2, z, -Math.PI / 2));
+  // right wall has the CASINO / ARCADE / STAGE doorways and the front wall the MINING ROOM
+  // door (index.html + doorways.js): panel the pieces between the openings, and plaster
+  // the strip above each door head
+  const DH = 4.6, HALF = 2.4 / 2 + 0.26;
+  const spans = (from, to, cs) => { const o = []; let at = from; for (const c of cs) { o.push([at, c - HALF]); at = c + HALF; } o.push([at, to]); return o; };
+  const over = (x, z, ry) => { const m = new THREE.Mesh(upper(2 * HALF, TOP - DH), plaster); m.position.set(x, DH + (TOP - DH) / 2, z); m.rotation.y = ry; root.add(m); };
+  spans(-LD / 2 + 0.2, LD / 2 - 0.2, [-6, 0, 6]).forEach(([a, b]) => wall(b - a, LW / 2 - 0.2, (a + b) / 2, -Math.PI / 2));
+  [-6, 0, 6].forEach((z) => over(LW / 2 - 0.2, z, -Math.PI / 2));
+  spans(-LW / 2 + 0.2, LW / 2 - 0.2, [0]).forEach(([a, b]) => wall(b - a, (a + b) / 2, LD / 2 - 0.2, Math.PI));
+  over(0, LD / 2 - 0.2, Math.PI);
   // skirting light strip along the floor (warm)
   const strip = new THREE.Mesh(new THREE.BoxGeometry(LW - 0.6, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xffb36b }));
   strip.position.set(0, 0.06, -LD / 2 + 0.3); root.add(strip);
+  if (S) {
+    // coffered ceiling just under the old dark slab (lamps hang from LH-0.12, so their tops hide in it)
+    const cw = LW - 0.4, cd = LD - 0.4, cg = tileUV(new THREE.PlaneGeometry(cw, cd), cw, cd, cw / 6, cd / 5);
+    const ceil = new THREE.Mesh(cg, S.ceiling); ceil.rotation.x = Math.PI / 2; ceil.position.y = LH - 0.14; root.add(ceil);
+    // crown moulding where the walls meet the ceiling (the room's neon line runs just below it)
+    const crownM = new THREE.MeshStandardMaterial({ color: 0x1b1722, roughness: 0.6, metalness: 0.3 });
+    [[0, -LD / 2 + 0.3, cw, 0], [0, LD / 2 - 0.3, cw, 0], [-LW / 2 + 0.3, 0, cd, Math.PI / 2], [LW / 2 - 0.3, 0, cd, Math.PI / 2]].forEach(([x, z, len, ry]) => {
+      const c = new THREE.Mesh(new THREE.BoxGeometry(len, 0.22, 0.22), crownM); c.position.set(x, LH - 0.25, z); c.rotation.y = ry; root.add(c);
+    });
+  }
 }
 
 // ── the bar ────────────────────────────────────────────────────────────────────

@@ -2860,6 +2860,9 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {clampToRects} from './lounge-physics.js?v=2';
+import {doorway} from './doorways.js?v=1';
+import {FURN_ON, furnDesk, furnChair, furnInfo} from './furniture.js?v=1';
 
 /* ================= DATA : the real Mining Game collection ================= */
 const ITEMS = {
@@ -3369,9 +3372,21 @@ floor.rotation.x=-Math.PI/2; scene.add(floor);
 const wallMat = new THREE.MeshStandardMaterial({color:0x17132e, roughness:.95, metalness:.05, side:THREE.DoubleSide});
 const backWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.W+6,ROOM.H), wallMat);
 backWall.position.set(0,ROOM.H/2,-ROOM.D/2-1); scene.add(backWall);
-const sideL = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.D+6,ROOM.H), wallMat.clone());
-sideL.rotation.y=Math.PI/2; sideL.position.set(-ROOM.W/2-1,ROOM.H/2,0); scene.add(sideL);
-const sideR = sideL.clone(); sideR.rotation.y=-Math.PI/2; sideR.position.x=ROOM.W/2+1; scene.add(sideR);
+const sideR = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.D+6,ROOM.H), wallMat.clone());
+sideR.rotation.y=-Math.PI/2; sideR.position.set(ROOM.W/2+1,ROOM.H/2,0); scene.add(sideR);
+/* left wall: a real doorway to The Lounge (was a floating torus portal on the open front).
+   The wall is a shape with the opening cut out; doorways.js adds the casing, vestibule
+   and sliding leaves, and a walk lane so the WALKBOX lets you through the opening only. */
+const MDOOR={ z:6.6, w:2.6, h:4.8 };
+const sideL = (()=>{ const L=ROOM.D+6, sh=new THREE.Shape();
+  sh.moveTo(-L/2,-ROOM.H/2); sh.lineTo(L/2,-ROOM.H/2); sh.lineTo(L/2,ROOM.H/2); sh.lineTo(-L/2,ROOM.H/2); sh.lineTo(-L/2,-ROOM.H/2);
+  const hx=-MDOOR.z, hole=new THREE.Path();            // plane x axis runs along world -z after the +90° turn
+  hole.moveTo(hx-MDOOR.w/2,-ROOM.H/2); hole.lineTo(hx-MDOOR.w/2,-ROOM.H/2+MDOOR.h); hole.lineTo(hx+MDOOR.w/2,-ROOM.H/2+MDOOR.h); hole.lineTo(hx+MDOOR.w/2,-ROOM.H/2); hole.lineTo(hx-MDOOR.w/2,-ROOM.H/2);
+  sh.holes.push(hole);
+  const m=new THREE.Mesh(new THREE.ShapeGeometry(sh), wallMat.clone()); m.rotation.y=Math.PI/2; m.position.set(-ROOM.W/2-1,ROOM.H/2,0); scene.add(m); return m; })();
+const miningDoor = doorway({ axis:'x', at:-ROOM.W/2-1, c:MDOOR.z, dir:-1, w:MDOOR.w, h:MDOOR.h, depth:3.4, color:0x35e0ff, label:'🛋 THE LOUNGE' });
+scene.add(miningDoor.group);
+window.MGDOORS=Object.assign(window.MGDOORS||{}, { mining: miningDoor });
 /* neon trims */
 function neonStrip(w, color, x,y,z, ry=0){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.07,0.07),
@@ -3380,9 +3395,10 @@ function neonStrip(w, color, x,y,z, ry=0){
 }
 neonStrip(ROOM.W+6,0x8247e5, 0,ROOM.H-0.4,-ROOM.D/2-0.98);
 neonStrip(ROOM.W+6,0x2ee6d6, 0,0.12,-ROOM.D/2-0.97);
-neonStrip(ROOM.D+6,0x8247e5, -ROOM.W/2-0.98,ROOM.H-0.4,0, Math.PI/2);
+neonStrip(ROOM.D+6,0x8247e5, -ROOM.W/2-0.98,ROOM.H-0.4,0, Math.PI/2);   // above the door head (h 4.8) — stays whole
 neonStrip(ROOM.D+6,0x8247e5, ROOM.W/2+0.98,ROOM.H-0.4,0, Math.PI/2);
-neonStrip(ROOM.D+6,0x2ee6d6, -ROOM.W/2-0.97,0.12,0, Math.PI/2);
+{ const a=-(ROOM.D+6)/2, b=MDOOR.z-MDOOR.w/2-0.26, c=MDOOR.z+MDOOR.w/2+0.26, e=(ROOM.D+6)/2;   // floor strip: split at the doorway
+  neonStrip(b-a,0x2ee6d6, -ROOM.W/2-0.97,0.12,(a+b)/2, Math.PI/2); neonStrip(e-c,0x2ee6d6, -ROOM.W/2-0.97,0.12,(c+e)/2, Math.PI/2); }
 neonStrip(ROOM.D+6,0x2ee6d6, ROOM.W/2+0.97,0.12,0, Math.PI/2);
 /* logo wall text */
 function makeLogoTex(){
@@ -3425,7 +3441,9 @@ const deskTopMat = new THREE.MeshStandardMaterial({color:0x2d2557, roughness:.55
 const DESK={W:4.3, D:2.2, TOP:1.60, SURF:1.68, SHELF:3.05};
 function makeDesk(x,z,slot){
   const g=new THREE.Group();
-  if(PROTO.desk){ // real GLB asset (authored meters @2.25u/m, matches DESK.* exactly)
+  if(FURN_ON){ // procedural gaming desk (furniture.js); localStorage mgFurn='glb' restores the GLB
+    g.add(furnDesk(DESK));
+  } else if(PROTO.desk){ // real GLB asset (authored meters @2.25u/m, matches DESK.* exactly)
     const d=instOf('desk'); d.scale.setScalar(2.25); g.add(d);
   } else { // procedural fallback (no asset host)
     const top=new THREE.Mesh(new THREE.BoxGeometry(DESK.W,0.16,DESK.D), deskTopMat); top.position.y=DESK.TOP; g.add(top);
@@ -3446,6 +3464,10 @@ function makeDesk(x,z,slot){
 /* office / gaming chair — real GLB assets, procedural fallback */
 function makeChair(gaming){
   const key=gaming?'chairG':'chairD';
+  if(FURN_ON){ // detailed procedural chair (furniture.js), built facing +z so the π turn faces it at the desk
+    const g=furnChair(gaming); g.position.set(0.55,0,1.55); g.rotation.y=Math.PI+0.15;
+    window.MGFURN=furnInfo([g]); return g;
+  }
   if(PROTO[key]){
     const g=new THREE.Group(); g.name='chairG';
     const m=instOf(key); m.scale.setScalar(2.25); g.add(m);
@@ -3877,7 +3899,7 @@ async function loadModels(progress){
   const defs=[['pc','pc.glb'],['cpu','cpu.glb'],['tx120','gpu_tx120.glb'],['gp50','gpu_gp50.glb'],['board','pcboard.glb'],
     /* furniture & farm structures (procedural fallback if the host doesn't serve them) */
     ['desk','desk.glb'],['mon27','monitor.glb'],['chairD','chair_desk.glb'],['chairG','chair_gaming.glb'],
-    ['rack','server_rack.glb'],['container','container.glb'],['warehouse','warehouse.glb']];
+    ['rack','server_rack.glb'],['container','container.glb'],['warehouse','warehouse.glb']].filter(([k])=>!(FURN_ON&&/^(desk|chairD|chairG)$/.test(k))); // procedural furniture: skip ~215KB of GLBs
   const total=defs.length+1; let done=0;
   const g2p=loadGLB('gen2.glb'); // fetch in parallel with the rest
   await Promise.all(defs.map(async ([k,f])=>{
@@ -8109,7 +8131,7 @@ const walkVel=new THREE.Vector3();
 /* Keep the player inside the room. Side walls sit at ±(ROOM.W/2+1) and the back wall
    at -(ROOM.D/2+1); the +z side is open, so we allow pulling back past the room depth
    for the wide establishing shot the default camera (z=8.6) starts in. */
-const WALKBOX={ x:ROOM.W/2+0.4, zMin:-(ROOM.D/2+0.4), zMax:ROOM.D/2+4 };
+const WALKBOX={ x:ROOM.W/2+0.4, zMin:-(ROOM.D/2+0.4), zMax:ROOM.D/2+4, lanes:[miningDoor.lane] };   // lanes: doorway openings you may walk through
 /* Soft clamp: never shove a camera that is ALREADY outside the box (old saves, the
    trailer rig, a future wider start) — just refuse to let it go further out. Hard
    clamping here made the very first keypress snap the camera across the room. */
@@ -8193,10 +8215,18 @@ function tickWalk(dt){
   const step=walkVel.clone().multiplyScalar(dt);
   // clamp against the room on the camera itself, then move the target by the same
   // delta so the orbit framing is preserved exactly
-  const nx=walkClamp(cam.position.x,cam.position.x+step.x,-WALKBOX.x,WALKBOX.x);
-  const nz=walkClamp(cam.position.z,cam.position.z+step.z,WALKBOX.zMin,WALKBOX.zMax);
-  const dx=nx-cam.position.x, dz=nz-cam.position.z;
-  cam.position.x=nx; cam.position.z=nz;
+  let nx, nz;
+  if(WALKBOX.lanes&&WALKBOX.lanes.length){ // room box ∪ doorway lanes: through the openings, never through the wall beside them
+    const r=clampToRects([{x0:-WALKBOX.x,x1:WALKBOX.x,z0:WALKBOX.zMin,z1:WALKBOX.zMax},...WALKBOX.lanes],cam.position.x,cam.position.z,cam.position.x+step.x,cam.position.z+step.z);
+    nx=r.x; nz=r.z;
+  } else {
+    nx=walkClamp(cam.position.x,cam.position.x+step.x,-WALKBOX.x,WALKBOX.x);
+    nz=walkClamp(cam.position.z,cam.position.z+step.z,WALKBOX.zMin,WALKBOX.zMax);
+  }
+  let dx=nx-cam.position.x, dz=nz-cam.position.z;
+  // furniture / bar / booth / cabinets: slide the body (not the floating camera) along them
+  if(window.MGCOLL&&window.MGCOLL.on&&FP.mode!=='orbit'){ const b=fpBody(), r=window.MGCOLL.move(b.x,b.z,dx,dz); dx=r.dx; dz=r.dz; }
+  cam.position.x+=dx; cam.position.z+=dz;
   controls.target.x+=dx; controls.target.z+=dz;
   if(!WALK.on){ WALK.on=true; const h=$('ctrlhint'); if(h) setTimeout(()=>h.classList.add('gone'),2500); }
 }
@@ -8284,7 +8314,7 @@ function fpTick(dt,moving){
     fpAvatar(true);
     { // keep your body inside the room; pull the camera in near walls instead of clipping out
       const f=fpFlat(), b=fpBody(), WB=WALKBOX;
-      b.x=Math.max(-WB.x,Math.min(WB.x,b.x)); b.z=Math.max(WB.zMin,Math.min(WB.zMax,b.z));
+      if(!(WB.lanes||[]).some(l=>b.x>=l.x0&&b.x<=l.x1&&b.z>=l.z0&&b.z<=l.z1)){ b.x=Math.max(-WB.x,Math.min(WB.x,b.x)); b.z=Math.max(WB.zMin,Math.min(WB.zMax,b.z)); }   // standing in a doorway is fine
       let dd=TP_DIST; while(dd>1.4){ const cx=b.x-f.x*dd, cz=b.z-f.z*dd; if(cx>=-WB.x&&cx<=WB.x&&cz>=WB.zMin&&cz<=WB.zMax) break; dd-=0.2; }
       FP.dist=dd; cam.position.x=b.x-f.x*dd; cam.position.z=b.z-f.z*dd; }
     if(FP.av){ const f=fpFlat(), b=fpBody(); FP.av.position.set(b.x,0,b.z); FP.av.rotation.y=Math.atan2(f.x,f.z);
@@ -8305,7 +8335,8 @@ addEventListener('pointerup',e=>{ if(FP.drag&&e.pointerId===FP.drag.id) FP.drag=
 addEventListener('pointercancel',()=>{ FP.drag=null; });
 renderer.domElement.addEventListener('wheel',e=>{ if(FP.mode!=='orbit'&&e.deltaY>0){ FP.auto=false; fpExit(true); } },{passive:true});
 addEventListener('keydown',e=>{ if(e.target.matches&&e.target.matches('input,textarea,select')) return; if((e.key==='v'||e.key==='V')&&!walkBlocked()) fpToggle(); });
-window.MGFP={ enter:fpEnter, exit:fpExit, toggle:fpToggle, mode:(m)=>fpSetMode(m,true), bodyPos:fpBody, get on(){ return FP.mode!=='orbit'; }, get view(){ return FP.mode; }, set auto(v){ FP.auto=!!v; } };
+window.MGFP={ enter:fpEnter, exit:fpExit, toggle:fpToggle, mode:(m)=>fpSetMode(m,true), bodyPos:fpBody, get on(){ return FP.mode!=='orbit'; }, get view(){ return FP.mode; }, set auto(v){ FP.auto=!!v; },
+  get dist(){ return FP.dist; }, set dist(v){ FP.dist=v; } };   // third-person boom (camera clamp shortens it)
 /* ---------- menu hotkeys (number row — the letters belong to movement now) ---------- */
 addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea,select')) return;
@@ -8338,7 +8369,7 @@ function frame(t){
   if(window.__audioOnly) return; // trailer audio pass: sim + SFX only, no 3D rendering
   // visuals
   if(SIT.on&&SIT.toPos){ cam.position.lerp(SIT.toPos,Math.min(1,dt*5)); controls.target.lerp(SIT.toTgt,Math.min(1,dt*5)); cam.lookAt(controls.target); }
-  else { tickWalk(dt); controls.update(); }
+  else { tickWalk(dt); controls.update(); if(window.MGCAM) window.MGCAM.clamp(); }   // never through walls/ceiling
   tickParts(dt);
   if(badgeMesh&&badgeMesh.visible) badgeMesh.rotation.y+=dt*0.9;
   if(badgeHolo&&badgeHolo.visible) badgeHolo.rotation.y+=dt*0.5;
@@ -8386,6 +8417,7 @@ function frame(t){
   if(benchOpen){ benchLoop(dt); return; }
   if(window.MGARCADE&&MGARCADE.isOpen&&MGARCADE.isOpen()) return; // arcade overlay covers the screen: skip the 3D render so the game gets the frame budget
   renderer.render(scene,cam);
+  if(window.MGVM) window.MGVM.render(renderer,cam);   // first-person arms on top
 }
 requestAnimationFrame(frame);
 setInterval(()=>{ if(running&&S) save(); },10000);
@@ -8860,14 +8892,15 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 </script>
 <script type="module" src="arcade.js?v=3"></script>
 <script type="module" src="casino.js?v=2"></script>
-<script type="module" src="chibi.js?v=4"></script>
-<script type="module" src="skins.js?v=8"></script>
-<script type="module" src="miladys.js?v=2"></script>
-<script type="module" src="loungefx.js?v=3"></script>
-<script type="module" src="dj.js?v=8"></script>
+<script type="module" src="chibi.js?v=5"></script>
+<script type="module" src="skins.js?v=9"></script>
+<script type="module" src="miladys.js?v=3"></script>
+<script type="module" src="loungefx.js?v=5"></script>
+<script type="module" src="dj.js?v=9"></script>
 <script type="module" src="stage.js?v=3"></script>
 <script type="module" src="partybot.js?v=1"></script>
 <script type="module" src="jam.js?v=1"></script>
+<script type="module" src="loungeplus.js?v=2"></script>
 <script type="module" src="xauth.js?v=2"></script>
 </body>
 </html>
@@ -8977,7 +9010,7 @@ const NET = (() => {
     if (state.mode === 'full') createMesh(peer);
   }
   function createMesh(peer) {
-    if (peer.group || isAway(peer)) return;
+    if (peer.group || isAway(peer) || !scene) return;   // !scene: ?solo/?trailer never bound MG.scene
     const group = makeAvatar(peer.look);
     const tag = makeTag(peer.name || 'guest');
     group.add(tag);
@@ -9102,6 +9135,7 @@ const NET = (() => {
     return Math.atan2(d.x, d.z);
   }
   setInterval(() => {
+    if (!cam) return;                 // ?solo / ?trailer return from start() before cam is set
     // Only broadcast movement in the full immersive space; chat-only stays put.
     if (state.mode !== 'full' || !state.connected || !state.ws || state.ws.readyState !== 1) return;
     const S = SITref() || { on: false, slot: -1 };
@@ -9707,6 +9741,8 @@ import * as THREE from 'three';
    calls MGNET.enter()/leave() for the netcode. */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { doorway as realDoor } from './doorways.js?v=1';
+import { wallSpans } from './lounge-physics.js?v=2';
 
 (() => {
   const UPS = 2.25;
@@ -9728,33 +9764,15 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     return m;
   };
 
-  // A hollow doorway in the right wall: jambs + lintel with a neon inner trim and a
-  // dark corridor painted into the opening (was one solid glowing box).
-  function doorway(z, color) {
-    const OW = 2.4, OH = 3.4, J = 0.26, DEP = 0.42, xw = LW / 2 - 0.15;
-    const frameM = mat(0x1a1d2c, 0.45), trim = mat(0x111111, 0.4, color, 1.5);
-    const box = (w, h, d, x, y, zz, m) => { const o = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, Math.min(w, h, d) * 0.3), m); o.position.set(x, y, zz); room.add(o); };
-    [-1, 1].forEach((s) => {
-      box(DEP, OH + J, J, xw - DEP / 2, (OH + J) / 2, z + s * (OW / 2 + J / 2), frameM);
-      box(0.04, OH, 0.04, xw - DEP - 0.01, OH / 2, z + s * OW / 2, trim);
-    });
-    box(DEP, J, OW + 2 * J, xw - DEP / 2, OH + J / 2, z, frameM);
-    box(0.04, 0.04, OW, xw - DEP - 0.01, OH, z, trim);
-    // the opening: a dim corridor receding into the light
-    const c = document.createElement('canvas'); c.width = 256; c.height = 360; const g = c.getContext('2d');
-    const hex = '#' + new THREE.Color(color).getHexString();
-    g.fillStyle = '#04050a'; g.fillRect(0, 0, 256, 360);
-    const vx = 128, vy = 170, inset = [[0, 0], [256, 0], [256, 360], [0, 360]];
-    g.strokeStyle = hex + '55'; g.lineWidth = 2; inset.forEach(([x, y]) => { g.beginPath(); g.moveTo(x, y); g.lineTo(vx + (x - vx) * 0.32, vy + (y - vy) * 0.32); g.stroke(); });
-    const far = g.createRadialGradient(vx, vy, 4, vx, vy, 70); far.addColorStop(0, hex + 'cc'); far.addColorStop(1, hex + '00');
-    g.fillStyle = far; g.fillRect(0, 0, 256, 360);
-    const fl = g.createLinearGradient(0, 360, 0, 230); fl.addColorStop(0, hex + '33'); fl.addColorStop(1, hex + '00');
-    g.fillStyle = fl; g.fillRect(0, 230, 256, 130);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    const hole = new THREE.Mesh(new THREE.PlaneGeometry(OW, OH), new THREE.MeshBasicMaterial({ map: t }));
-    hole.position.set(xw - 0.02, OH / 2, z); hole.rotation.y = -Math.PI / 2; room.add(hole);
-    const sill = new THREE.Mesh(new THREE.BoxGeometry(DEP, 0.02, OW), trim); sill.position.set(xw - DEP / 2, 0.01, z); room.add(sill);
-    const glow = new THREE.PointLight(color, 0.5, 5); glow.position.set(xw - 1, 1.6, z); room.add(glow);
+  // Real walk-through doorways (doorways.js): casing, reveals, a lit vestibule and sliding
+  // leaves. The right wall's CASINO / ARCADE / STAGE openings lead to short vestibules
+  // (the rooms themselves are still "soon": their leaves stay shut); the front wall's
+  // MINING ROOM door is the way back (replaces the torus return portal).
+  const DOOR_W = 2.4, DOOR_H = 4.6;                // 1.07 m × 2.05 m — taller than the avatars' eye line (3.64)
+  const doors = [];                               // { d, kind: 'exit' | 'deco' }
+  function doorway(zLocal, color, label, closed) {
+    const d = realDoor({ axis: 'x', at: LX + LW / 2, c: LZ + zLocal, dir: 1, w: DOOR_W, h: DOOR_H, depth: 2.6, color, label, closed });
+    doors.push({ d, kind: 'deco' }); return d;
   }
 
   // ── build the lounge environment ────────────────────────────────────────────
@@ -9774,9 +9792,14 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
       const strip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, 0.34), mat(NEON, 0.4, NEON, 1.4)); strip.position.set(x, h - 0.4, z); strip.rotation.y = ry; room.add(strip); };
     mkWall(LW, LH, 0, -LD / 2, 0);                 // back
     mkWall(LD, LH, -LW / 2, 0, Math.PI / 2);        // left
-    mkWall(LD, LH, LW / 2, 0, Math.PI / 2);         // right
-    // front wall is open (that's where you arrive), just corner posts
-    [[-LW / 2, LD / 2], [LW / 2, LD / 2]].forEach(([x, z]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, LH, 8), mat(0x11131f, 0.7, NEON2, 0.5)); p.position.set(x, LH / 2, z); room.add(p); });
+    // right wall: wall pieces between the three doorways, and a lintel band above them
+    const RZ = [-6, 0, 6], half = DOOR_W / 2 + 0.26;
+    wallSpans(-LD / 2, LD / 2, RZ.map((z) => [z - half, z + half])).forEach(([a, b]) => mkWall(b - a, LH, LW / 2, (a + b) / 2, Math.PI / 2));
+    RZ.forEach((z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(2 * half, LH - DOOR_H, 0.3), wallMat); m.position.set(LW / 2, DOOR_H + (LH - DOOR_H) / 2, z); m.rotation.y = Math.PI / 2; room.add(m); });
+    // front wall (was open with corner posts): solid, with the MINING ROOM door in the middle
+    { const fh = DOOR_W / 2 + 0.26;
+      wallSpans(-LW / 2, LW / 2, [[-fh, fh]]).forEach(([a, b]) => mkWall(b - a, LH, (a + b) / 2, LD / 2, 0));
+      const m = new THREE.Mesh(new THREE.BoxGeometry(2 * fh, LH - DOOR_H, 0.3), wallMat); m.position.set(0, DOOR_H + (LH - DOOR_H) / 2, LD / 2); room.add(m); }
 
     // ceiling with a soft glow panel
     const ceil = new THREE.Mesh(new THREE.BoxGeometry(LW, 0.2, LD), mat(0x0a0c15, 0.9)); ceil.position.y = LH; room.add(ceil);
@@ -9803,30 +9826,25 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     // BAR counter along the left wall
     // (the real bar — wood, marble, bottles, stools — is built by loungefx.js)
 
-    // DOORWAYS for future rooms (labeled placeholders) on the right wall
-    ['POKER', 'ARCADE', 'STAGE'].forEach((label, i) => {
-      const z = -6 + i * 6;
-      doorway(z, [GOLD, NEON, NEON2][i]);
-      const dc = document.createElement('canvas'); dc.width = 256; dc.height = 64; const dx = dc.getContext('2d');
-      dx.fillStyle = 'rgba(6,8,14,0.9)'; dx.fillRect(0, 0, 256, 64); dx.fillStyle = '#ffd23f'; dx.font = 'bold 34px system-ui'; dx.textAlign = 'center'; dx.textBaseline = 'middle'; dx.fillText(label === 'ARCADE' ? '🕹 ARCADE' : label === 'POKER' ? '🃏 CASINO' : label + ' · soon', 128, 34);
-      const dt = new THREE.CanvasTexture(dc); dt.colorSpace = THREE.SRGBColorSpace;
-      const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: dt, transparent: true })); sign.scale.set(2.4, 0.6, 1); sign.position.set(LW / 2 - 0.6, 3.3, z); room.add(sign);
+    // DOORWAYS on the right wall (the rooms behind them are still to come: leaves stay shut)
+    [['🃏 CASINO', GOLD], ['🕹 ARCADE', NEON], ['🎤 STAGE · soon', NEON2]].forEach(([label, color], i) => doorway(-6 + i * 6, color, label, true));
+    // the way back: the front-wall door (walk through it, or click it)
+    const back = realDoor({ axis: 'z', at: LZ + LD / 2, c: LX, dir: 1, w: DOOR_W, h: DOOR_H, depth: 2.6, color: 0xff7a3c, label: '↩ MINING ROOM' });
+    doors.push({ d: back, kind: 'exit' });
+    // doorways are built in world space; the room group sits at (LX, 0, LZ) — keep them in their own group
+    const dg = new THREE.Group(); dg.name = 'loungeDoors'; doors.forEach(({ d }) => dg.add(d.group)); room.add(dg); dg.position.set(-LX, 0, -LZ);
+    portals.push({ mesh: back.group, kind: 'exit', door: back });
+    window.MGDOORS = Object.assign(window.MGDOORS || {}, {
+      lounge: { lanes: doors.map(({ d }) => d.lane), boxes: doors.flatMap(({ d }) => d.boxes), alcoves: doors.map(({ d }) => d.alcove), doors: doors.map(({ d }) => d) },
     });
-
-    // RETURN portal (near the open front edge)
-    const rp = makePortal('↩ MINING ROOM', 0xff7a3c);
-    rp.position.set(0, 0, LD / 2 - 1.5); room.add(rp);
-    portals.push({ mesh: rp, kind: 'exit' });
 
     room.visible = false;
     scene.add(room);
     built = true;
 
-    // ENTER portal in the MINING room (world coords, added straight to scene)
-    const ep = makePortal('🛋 THE LOUNGE', NEON);
-    ep.position.set(0, 0, 11.4);                   // the open +z side of the mining room
-    scene.add(ep);
-    portals.push({ mesh: ep, kind: 'enter' });
+    // ENTER: the doorway in the mining room's left wall (built with the room, index.html walls)
+    const md = window.MGDOORS && window.MGDOORS.mining;
+    if (md) portals.push({ mesh: md.group, kind: 'enter', door: md });
   }
 
   function makePortal(label, color) {
@@ -9846,12 +9864,16 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
   }
 
   // ── enter / exit ─────────────────────────────────────────────────────────────
-  function enterLounge() {
+  function enterLounge(viaDoor) {
     if (inLounge) return;
     build(); if (!built) return;
     const cam = MG().cam, controls = MG().controls;
     save = { pos: cam.position.clone(), tgt: controls.target.clone(),
-      box: { x: MG().WALKBOX.x, zMin: MG().WALKBOX.zMin, zMax: MG().WALKBOX.zMax } };
+      box: { x: MG().WALKBOX.x, zMin: MG().WALKBOX.zMin, zMax: MG().WALKBOX.zMax, lanes: MG().WALKBOX.lanes } };
+    if (viaDoor && viaDoor.front) {                // came through the door: come back out of it, facing the room
+      save.pos.set(viaDoor.front.x, cam.position.y, viaDoor.front.z);
+      save.tgt.set(viaDoor.frontLook.x, controls.target.y, viaDoor.frontLook.z);
+    }
     room.visible = true;
     // teleport into the lounge, facing the big screen
     cam.position.set(LX, 4.4, LZ + LD / 2 - 3);
@@ -9859,7 +9881,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     controls.enabled = true;
     // re-bound the walk clamp to the lounge footprint
     MG().WALKBOX.x = LW / 2 - 0.6; MG().WALKBOX.zMin = LZ - LD / 2 + 0.6; MG().WALKBOX.zMax = LZ + LD / 2 - 0.6;
-    inLounge = true;
+    MG().WALKBOX.lanes = (window.MGDOORS && window.MGDOORS.lounge && window.MGDOORS.lounge.lanes) || [];
+    inLounge = true; armed = false;
     NET() && NET().enter && NET().enter();         // presence + furniture + voice
     updateButton();
   }
@@ -9870,10 +9893,10 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     if (room) room.visible = false;
     if (save) {
       cam.position.copy(save.pos); controls.target.copy(save.tgt);
-      MG().WALKBOX.x = save.box.x; MG().WALKBOX.zMin = save.box.zMin; MG().WALKBOX.zMax = save.box.zMax;
+      MG().WALKBOX.x = save.box.x; MG().WALKBOX.zMin = save.box.zMin; MG().WALKBOX.zMax = save.box.zMax; MG().WALKBOX.lanes = save.box.lanes;
     }
     controls.enabled = true;
-    inLounge = false;
+    inLounge = false; armed = false;
     updateButton();
   }
   function toggle() { inLounge ? exitLounge() : enterLounge(); }
@@ -9898,19 +9921,34 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
       if (p.kind === 'exit' && !inLounge) continue;
       if (ray.intersectObject(p.mesh, true).length) {
         ev.stopImmediatePropagation(); ev.preventDefault();
-        p.kind === 'enter' ? enterLounge() : exitLounge();
+        p.kind === 'enter' ? enterLounge(p.door) : exitLounge();
         return;
       }
     }
   }
 
   // spin portal rings + proximity auto-prompt/enter
-  let prompt;
+  let prompt, armed = false, lastT = performance.now();
+  const inR = (r, x, z) => r && x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
   function tick() {
     requestAnimationFrame(tick);
     if (!built) return;
     const cam = MG().cam; let near = null;
+    const now = performance.now(), dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+    // doorways: leaves part as you walk up; walking deep into an open vestibule takes you through
+    const fp = window.MGFP, body = fp && fp.view !== 'orbit' && fp.bodyPos ? fp.bodyPos() : cam.position;
+    const D = window.MGDOORS || {}, all = [...(D.lounge ? D.lounge.doors : []), ...(D.mining ? [D.mining] : [])];
+    all.forEach((d) => d.tick(body.x, body.z, dt));
+    let inTrig = null;
+    for (const p of portals) if (p.door && ((p.kind === 'enter') !== inLounge) && inR(p.door.trigger, body.x, body.z)) inTrig = p;
+    if (!inTrig) armed = true;
+    else if (armed && !(MG().walkBlocked && MG().walkBlocked())) { armed = false; inTrig.kind === 'enter' ? enterLounge(inTrig.door) : exitLounge(); return; }
     for (const p of portals) {
+      if (p.door) {                                // doorways: always visible, prompt when standing in front
+        const active = (p.kind === 'enter') ? !inLounge : inLounge;
+        if (active && Math.hypot(body.x - p.door.group.position.x, body.z - p.door.group.position.z) < 3.2) near = p;
+        continue;
+      }
       p.mesh.userData.ring.rotation.z += 0.02;
       const active = (p.kind === 'enter') ? !inLounge : inLounge;
       p.mesh.visible = active;
@@ -9919,7 +9957,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
       if (d < 2.4) near = p;
     }
     if (prompt) prompt.style.display = near ? 'block' : 'none';
-    if (near) prompt.textContent = near.kind === 'enter' ? '🛋 click the portal to enter The Lounge' : '↩ click the portal to return to your mining room';
+    if (near) prompt.textContent = near.door
+      ? (near.kind === 'enter' ? '🛋 walk through the door (or click it) to enter The Lounge' : '↩ walk through the door (or click it) to return to your mining room')
+      : (near.kind === 'enter' ? '🛋 click the portal to enter The Lounge' : '↩ click the portal to return to your mining room');
   }
 
   // ── boot ─────────────────────────────────────────────────────────────────────
@@ -9943,7 +9983,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
         const w = setInterval(() => { const sp = document.getElementById('splash'); if (sp && getComputedStyle(sp).display === 'none') { clearInterval(w); enterLounge(); } }, 200);
         setTimeout(() => clearInterval(w), 60000);
       }
-      window.MGLOUNGE = { enter: enterLounge, exit: exitLounge, toggle };
+      window.MGLOUNGE = { enter: enterLounge, exit: exitLounge, toggle, get on() { return inLounge; } };
       return;
     }
     if (t > 250) return;

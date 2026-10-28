@@ -774,7 +774,7 @@ function updateBeat(now) {
 const anyPlaying = () => decks.some((d) => d.playing) || mc.playing || !!window.MGSTAGE?.live?.();
 
 // ── dance mode (third person) ──────────────────────────────────────────────────
-const MOVES = [['groove', '🕺 Groove'], ['shake', '🙌 Shake'], ['cheer', '🎉 Cheer'], ['cheer2', '🔥 Hype'], ['cheer3', '⚡ Jump'], ['clap', '👏 Clap'], ['wave', '👋 Wave'], ['strut', '😎 Strut']];
+const MOVES = [['groove', '🕺 Groove'], ['shake', '🙌 Shake'], ['cheer', '🎉 Cheer'], ['cheer2', '🔥 Hype'], ['cheer3', '⚡ Jump'], ['clap', '👏 Clap'], ['wave', '👋 Wave'], ['strut', '😎 Strut'], ['sway', '🌊 Sway'], ['bop', '🎧 Bop'], ['twist', '🌀 Twist']];
 let danceBar = null, dancing = null, me = null, saved = null;
 function onFloor() { const c = MG().cam.position; return c.x > FLOOR.x0 - 0.5 && c.x < FLOOR.x1 + 0.5 && c.z > FLOOR.z0 - 0.5 && c.z < FLOOR.z1 + 1.5; }
 function startDance(move) {

@@ -72,10 +72,11 @@ function makeRaiders() {
   function reset() {
     st = { score: 0, lives: 3, stage: 0, player: { x: W / 2, alive: true, respawn: 0, inv: 0 }, shots: [], bombs: [],
       foes: [], booms: [], stars: Array.from({ length: 60 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 20 + Math.random() * 60 })),
-      t: 0, sway: 0, diveT: 2, phase: 'title', msgT: 0, extra: false, fireCd: 0 };
+      t: 0, sway: 0, diveT: 2, phase: 'title', msgT: 0, extra: false, fireCd: 0,
+      acc: 0, dual: false, captured: null, beam: null, beamUsed: false };
   }
   function nextStage() {
-    st.stage++; st.foes = []; st.phase = 'play'; st.msgT = 2; st.diveT = 2.5;
+    st.stage++; st.foes = []; st.phase = 'play'; st.msgT = 2; st.msg = null; st.diveT = 2.5; st.beamUsed = false; st.beam = null; st.captured = null;
     const rows = [['boss', 4], ['raider', 8], ['raider', 8], ['drone', 10], ['drone', 10]];
     rows.forEach(([kind, n], r) => {
       for (let i = 0; i < n; i++) {
@@ -88,6 +89,12 @@ function makeRaiders() {
     });
   }
   const speedK = () => 1 + Math.min(1.2, (st.stage - 1) * 0.12);
+  // tractor beam (stage 3+, once per stage): a boss flies down, hovers and beams; a ship caught in it is carried off
+  const canBeam = () => st.stage >= 3 && !st.beamUsed && !st.captured && !st.dual && st.lives > 1 && st.player.alive;
+  function startBeam(f) {
+    f.mode = 'beam'; f.t = 0; f.bx = Math.max(24, Math.min(W - 24, st.player.x)); f.fx = f.x; f.fy = f.y; st.beamUsed = true;
+    beep(300, 900, 0.5, 'sine', 0.05);
+  }
   function startDive(f) {
     const p = st.player, dir = f.x < W / 2 ? 1 : -1;
     f.mode = 'dive'; f.t = 0; f.shots = st.stage > 1 ? 2 : 1; f.shotT = 0.5;
@@ -99,10 +106,16 @@ function makeRaiders() {
   function boom(x, y, color) { st.booms.push({ x, y, t: 0, color }); }
   function killPlayer() {
     const p = st.player; if (!p.alive || p.inv > 0) return;
+    if (st.dual) { st.dual = false; p.inv = 1.2; boom(p.x + 7, H - 24, '#35e0ff'); beep(400, 40, 0.5, 'sawtooth', 0.1); return; }   // lose the right-hand ship only
     p.alive = false; boom(p.x, H - 24, '#35e0ff'); beep(400, 40, 0.8, 'sawtooth', 0.12);
     st.lives--; p.respawn = 2;
   }
+  // fixed 1/120 s steps: shots move ~2 px per step, so they can't skip over a target on a slow frame
   function update(dt) {
+    st.acc = (st.acc || 0) + dt;
+    while (st.acc >= SIM_STEP) { st.acc -= SIM_STEP; sim(SIM_STEP); }
+  }
+  function sim(dt) {
     st.t += dt; st.sway += dt;
     for (const s of st.stars) { s.y += s.v * dt; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } }
     for (const b of st.booms) b.t += dt; st.booms = st.booms.filter((b) => b.t < 0.5);
@@ -110,22 +123,28 @@ function makeRaiders() {
     if (st.msgT > 0) st.msgT -= dt;
     const p = st.player, k = speedK();
     if (p.alive) {
-      p.x = Math.max(10, Math.min(W - 10, p.x + (inp.right - inp.left) * 110 * dt));
+      const m = st.dual ? 17 : 10; p.x = Math.max(m, Math.min(W - m, p.x + (inp.right - inp.left) * 110 * dt));
       if (p.inv > 0) p.inv -= dt;
       st.fireCd -= dt;
-      if (inp.fire && st.fireCd <= 0 && st.shots.length < 2) { st.shots.push({ x: p.x, y: H - 34 }); st.fireCd = 0.18; beep(1400, 500, 0.08, 'square', 0.04); }
+      if (inp.fire && st.fireCd <= 0 && st.shots.length < (st.dual ? 4 : 2)) {
+        if (st.dual) st.shots.push({ x: p.x - 7, y: H - 34, py: H - 34 }, { x: p.x + 7, y: H - 34, py: H - 34 });
+        else st.shots.push({ x: p.x, y: H - 34, py: H - 34 });
+        st.fireCd = 0.18; beep(1400, 500, 0.08, 'square', 0.04);
+      }
     } else if ((p.respawn -= dt) <= 0) {
       if (st.lives <= 0) { gameOver(); return; }
       p.alive = true; p.inv = 2; p.x = W / 2;
     }
-    for (const s of st.shots) s.y -= 260 * dt; st.shots = st.shots.filter((s) => s.y > -6);
+    for (const s of st.shots) { s.py = s.y; s.y -= 260 * dt; } st.shots = st.shots.filter((s) => s.y > -6);
     for (const b of st.bombs) { b.x += b.vx * dt; b.y += b.vy * dt; } st.bombs = st.bombs.filter((b) => b.y < H + 4);
     const swayX = Math.sin(st.sway * 1.2) * 10;
     st.diveT -= dt;
     const inForm = st.foes.filter((f) => f.mode === 'form');
     if (st.diveT <= 0 && inForm.length && p.alive) {
       const n = Math.min(inForm.length, st.stage > 2 && Math.random() < 0.4 ? 2 : 1);
-      for (let i = 0; i < n; i++) startDive(inForm[(Math.random() * inForm.length) | 0]);
+      const boss = canBeam() && Math.random() < 0.5 && inForm.find((f) => f.kind === 'boss');
+      if (boss) startBeam(boss);
+      else for (let i = 0; i < n; i++) startDive(inForm[(Math.random() * inForm.length) | 0]);
       st.diveT = Math.max(0.55, 2.2 - st.stage * 0.18) * (0.7 + Math.random() * 0.6);
     }
     for (const f of st.foes) {
@@ -142,22 +161,39 @@ function makeRaiders() {
           st.bombs.push({ x: f.x, y: f.y + 4, vx: dx / d * 40, vy: 120 * k }); f.shots--; f.shotT = 0.35;
         }
         if (f.t >= 1) { f.mode = 'enter'; f.t = 0; f.x = tx; f.y = -16; }
+      } else if (f.mode === 'beam') {
+        // 0-1.2 s fly down over the player's column · 1.2-4.2 s beam on · then climb back to the formation
+        f.t += dt; const by = H * 0.52;
+        if (f.t < 1.2) { const a = f.t / 1.2; f.x = f.fx + (f.bx - f.fx) * a; f.y = f.fy + (by - f.fy) * a; st.beam = null; }
+        else if (f.t < 4.2) {
+          f.x = f.bx; f.y = by; st.beam = { x: f.x, y: f.y + 5, w: 8 + Math.min(1, (f.t - 1.2) / 0.6) * 10 };
+          if (p.alive && !(p.inv > 0) && !st.captured && Math.abs(p.x - f.x) < st.beam.w) {
+            p.alive = false; p.respawn = 2.5; st.lives--; f.carry = true; st.captured = f; st.beam = null; f.t = 4.2;
+            beep(900, 200, 1.0, 'sine', 0.08);
+          }
+        } else { st.beam = null; f.mode = 'enter'; f.t = 0; }
       }
-      // collisions: player shots
+      // collisions: player shots — swept test over the segment the shot covered this step
       for (const s of st.shots) {
-        if (!s.dead && Math.abs(s.x - f.x) < 6 && Math.abs(s.y - f.y) < 5) {
+        if (!s.dead && Math.abs(s.x - f.x) < 6 && s.y < f.y + 5 && s.py > f.y - 5) {
           s.dead = true; f.hp--;
           if (f.hp <= 0) {
-            f.dead = true; const diving = f.mode === 'dive';
+            f.dead = true; const diving = f.mode === 'dive' || f.mode === 'beam';
             st.score += { drone: 50, raider: 80, boss: 150 }[f.kind] * (diving ? 2 : 1);
+            if (f.mode === 'beam') st.beam = null;
+            if (f.carry) {                                     // shot the boss holding your ship
+              st.captured = null;
+              if (diving && p.alive) { st.dual = true; st.score += 1000; st.msgT = 2; st.msg = 'FIGHTER RESCUED'; beep(500, 1500, 0.7, 'triangle', 0.08); }
+              else { st.msgT = 2; st.msg = 'FIGHTER LOST'; }   // killed in formation (or while you're respawning): ship is gone
+            }
             boom(f.x, f.y, f.kind === 'boss' ? '#ffd23f' : f.kind === 'raider' ? '#ff4fd8' : '#35e0ff'); beep(500, 60, 0.25, 'square', 0.06);
           } else beep(300, 200, 0.1, 'triangle', 0.06);
         }
       }
-      if (p.alive && f.mode === 'dive' && Math.abs(f.x - p.x) < 9 && Math.abs(f.y - (H - 24)) < 8) { f.dead = true; boom(f.x, f.y, '#fff'); killPlayer(); }
+      if (p.alive && f.mode === 'dive' && Math.abs(f.x - p.x) < (st.dual ? 16 : 9) && Math.abs(f.y - (H - 24)) < 8) { f.dead = true; if (f.carry) st.captured = null; boom(f.x, f.y, '#fff'); killPlayer(); }
     }
     st.shots = st.shots.filter((s) => !s.dead); st.foes = st.foes.filter((f) => !f.dead);
-    if (p.alive) for (const b of st.bombs) if (Math.abs(b.x - p.x) < 5 && Math.abs(b.y - (H - 24)) < 6) { b.y = H + 10; killPlayer(); }
+    if (p.alive) for (const b of st.bombs) if (Math.abs(b.x - p.x) < (st.dual ? 12 : 5) && Math.abs(b.y - (H - 24)) < 6) { b.y = H + 10; killPlayer(); }
     if (!st.extra && st.score >= 20000) { st.extra = true; st.lives++; beep(600, 1200, 0.4, 'triangle', 0.08); }
     if (!st.foes.length) nextStage();
   }
@@ -166,12 +202,20 @@ function makeRaiders() {
     ctx.fillStyle = '#04040c'; ctx.fillRect(0, 0, W, H);
     for (const s of st.stars) { ctx.fillStyle = s.v > 55 ? '#8ab' : '#456'; ctx.fillRect(s.x | 0, s.y | 0, 1, 1); }
     const frame = (st.t * 2 | 0) % 2;
+    if (st.beam) {                                      // tractor beam cone
+      const b = st.beam; ctx.fillStyle = `rgba(80,160,255,${0.25 + 0.15 * Math.sin(st.t * 20)})`;
+      ctx.beginPath(); ctx.moveTo(b.x - 3, b.y); ctx.lineTo(b.x + 3, b.y); ctx.lineTo(b.x + b.w, H - 18); ctx.lineTo(b.x - b.w, H - 18); ctx.fill();
+    }
     for (const f of st.foes) {
       const img = f.kind === 'boss' ? BOSS[f.hp < 2 ? 1 : frame] : (f.kind === 'raider' ? RAIDER : DRONE)[frame];
       ctx.drawImage(img, (f.x - img.width / 2) | 0, (f.y - img.height / 2) | 0);
+      if (f.carry) { ctx.save(); ctx.globalAlpha = 0.8; ctx.filter = 'hue-rotate(150deg)'; ctx.drawImage(SHIP, (f.x - 6) | 0, (f.y - 16) | 0); ctx.restore(); }   // captured ship, tinted
     }
     const p = st.player;
-    if (p.alive && !(p.inv > 0 && (st.t * 10 | 0) % 2)) ctx.drawImage(SHIP, (p.x - 6) | 0, H - 29);
+    if (p.alive && !(p.inv > 0 && (st.t * 10 | 0) % 2)) {
+      if (st.dual) { ctx.drawImage(SHIP, (p.x - 13) | 0, H - 29); ctx.drawImage(SHIP, (p.x + 1) | 0, H - 29); }
+      else ctx.drawImage(SHIP, (p.x - 6) | 0, H - 29);
+    }
     ctx.fillStyle = '#fff'; for (const s of st.shots) ctx.fillRect(s.x - 0.5, s.y, 1, 5);
     ctx.fillStyle = '#ff5050'; for (const b of st.bombs) ctx.fillRect(b.x - 1, b.y - 2, 2, 4);
     for (const b of st.booms) { const r = 2 + b.t * 22; ctx.strokeStyle = b.color; ctx.globalAlpha = 1 - b.t * 2; ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
@@ -180,7 +224,7 @@ function makeRaiders() {
     for (let i = 0; i < Math.max(0, st.lives - (p.alive ? 1 : 0)); i++) ctx.drawImage(SHIP, 4 + i * 15, H - 12, 9, 7);
     if (st.stage) text(ctx, 'STAGE ' + st.stage, W - 4, H - 11, '#8b94ab', 8, 'right');
     if (st.phase === 'title') { title(ctx, 'BLOCK RAIDERS', '#35e0ff', ['50  DRONE   ×2 DIVING', '80  RAIDER  ×2 DIVING', '150 BOSS    2 HITS']); }
-    if (st.phase === 'play' && st.msgT > 0) text(ctx, 'STAGE ' + st.stage, W / 2, H / 2, '#ffd23f', 12, 'center');
+    if (st.phase === 'play' && st.msgT > 0) text(ctx, st.msg || 'STAGE ' + st.stage, W / 2, H / 2, st.msg === 'FIGHTER LOST' ? '#ff3b3b' : '#ffd23f', 12, 'center');
     if (st.phase === 'over') over(ctx, st.score);
   }
   reset();
@@ -216,9 +260,13 @@ const MAZE = [
 ];
 const MC = MAZE[0].length, MR = MAZE.length, T = 10, OX = (W - MC * T) / 2, OY = 30;
 const DIRS = [[0, -1], [-1, 0], [0, 1], [1, 0]];          // up, left, down, right (tie-break order)
+const TURN_BUFFER = 0.35;   // s: a tapped direction stays queued this long (forever while the key is held)
+const TURN_TOL = 0.45;      // tiles: a turn pressed this late after passing a junction still counts (corner cut)
+const SIM_STEP = 1 / 120;   // s: fixed simulation step, so movement/collisions don't depend on frame rate
+const HIT_R = 0.55;         // tiles: miner-bot contact distance (was 0.7)
 
 function makeMiner() {
-  let st, inp = { want: null };
+  let st, inp = { want: null, wantT: 0, held: new Set() };
   const wall = (c, r, bot) => {
     if (r === 9 && (c < 0 || c >= MC)) return false;          // tunnel
     if (c < 0 || c >= MC || r < 0 || r >= MR) return true;
@@ -239,7 +287,8 @@ function makeMiner() {
     const cols = ['#ff3b3b', '#ff8ad8', '#35e0ff', '#ffb347'];
     st.bots = cols.map((color, i) => ({ id: i, color, c: i === 0 ? 10 : 8 + i, r: i === 0 ? 7 : 9, x: 0, y: 0, d: 1, home: i === 0 ? 0 : 1.5 + i * 2.5, mode: 'normal' }));
     st.bots.forEach((b) => { b.x = b.c; b.y = b.r; });
-    st.modeT = 0; st.fright = 0; st.ready = 2; st.phase = 'play'; st.combo = 0;
+    st.modeT = 0; st.fright = 0; st.ready = 2; st.phase = 'play'; st.combo = 0; st.wasScatter = true; st.acc = 0;
+    inp.want = null; inp.wantT = 0;                                   // don't carry a stale turn into a new life
   }
   const speed = (base) => base * (1 + Math.min(0.35, (st.level - 1) * 0.05));
   const scatter = () => { const t = st.modeT % 27; return t < 7; };
@@ -274,14 +323,29 @@ function makeMiner() {
     // leave the bay through the door
     if (b.r === 9 && b.c >= 9 && b.c <= 11 && b.home <= 0 && !eyes) { b.c = 10; b.x = 10; b.r = 8; b.y = 8.5; b.d = 0; }
   }
+  // queued input: a tap is remembered for TURN_BUFFER seconds, a held key for as long as it is held
+  function steerDir(dt) {
+    if (inp.want == null) return null;
+    if (inp.held.has(inp.want)) inp.wantT = TURN_BUFFER;
+    else if ((inp.wantT -= dt) <= 0) { inp.want = null; return null; }
+    return inp.want;
+  }
   function stepPlayer(dt) {
     // (c,r) is the tile the miner is heading to; (x,y) its exact position.
-    const p = st.p; if (inp.want != null) p.nd = inp.want;
+    const p = st.p; const w = steerDir(dt); p.nd = w == null ? p.d : w;
     let left = speed(7.2) * dt, guard = 0;
     while (left > 1e-6 && guard++ < 8) {
       if (p.nd === (p.d + 2) % 4 && (p.x !== p.c || p.y !== p.r)) { p.c -= DIRS[p.d][0]; p.r -= DIRS[p.d][1]; p.d = p.nd; }   // turn back mid-corridor
-      const dist = Math.abs(p.c - p.x) + Math.abs(p.r - p.y);
-      if (dist > left) { p.x += Math.sign(p.c - p.x) * left; p.y += Math.sign(p.r - p.y) * left; p.mouth += dt * 14; break; }
+      else if (p.nd !== p.d && p.nd !== (p.d + 2) % 4) {
+        // late turn: we already passed the centre of a junction that opens toward nd -> take it anyway
+        const pc = p.c - DIRS[p.d][0], pr = p.r - DIRS[p.d][1], past = Math.abs(p.x - pc) + Math.abs(p.y - pr);
+        if (past > 0 && past <= TURN_TOL && !wall(pc + DIRS[p.nd][0], pr + DIRS[p.nd][1])) {
+          p.c = pc + DIRS[p.nd][0]; p.r = pr + DIRS[p.nd][1]; p.d = p.nd;   // the move below cuts the corner
+        }
+      }
+      const ex = p.c - p.x, ey = p.r - p.y, dist = Math.abs(ex) + Math.abs(ey);
+      // straight runs: one of ex/ey is 0 (same as before); corner cut: both axes close at up to `left`
+      if (dist > left) { p.x += Math.sign(ex) * Math.min(Math.abs(ex), left); p.y += Math.sign(ey) * Math.min(Math.abs(ey), left); p.mouth += dt * 14; break; }
       left -= dist; p.x = p.c; p.y = p.r;
       if (p.r === 9 && p.c < 0) { p.c = p.x = MC - 1; } else if (p.r === 9 && p.c > MC - 1) { p.c = p.x = 0; }   // tunnel
       eat(p.c, p.r); if (st.phase !== 'play') return;
@@ -300,20 +364,27 @@ function makeMiner() {
     if (st.eaten === 60 || st.eaten === 140) st.bonus = { t: 9, pts: 100 * st.level + 200 };
     if (!st.dots.size) { st.phase = 'clear'; st.clearT = 2; beep(500, 1500, 0.6, 'triangle', 0.08); }
   }
+  // frame-rate independent: run the game in fixed steps regardless of how long the frame took
   function update(dt) {
+    st.acc = (st.acc || 0) + dt;
+    while (st.acc >= SIM_STEP) { st.acc -= SIM_STEP; sim(SIM_STEP); }
+  }
+  function sim(dt) {
     st.t += dt;
     if (st.phase === 'clear') { if ((st.clearT -= dt) <= 0) newLevel(); return; }
     if (st.phase === 'dead') { if ((st.deadT -= dt) <= 0) { if (st.lives <= 0) { st.phase = 'over'; onScore('miner', 'MAZE MINER', st.score); } else placeActors(); } return; }
     if (st.phase !== 'play') return;
     if (st.ready > 0) { st.ready -= dt; return; }
     if (st.fright > 0) { st.fright -= dt; if (st.fright <= 0) st.bots.forEach((b) => { if (b.mode === 'fright') b.mode = 'normal'; }); } else st.modeT += dt;
+    // classic tell: bots reverse when they switch between scatter and chase, so the player sees it coming
+    const sc = scatter(); if (sc !== st.wasScatter) { st.wasScatter = sc; st.bots.forEach((b) => { if (b.mode === 'normal' && b.home <= 0) b.d = (b.d + 2) % 4; }); }
     stepPlayer(dt);
     st.bots.forEach((b) => stepBot(b, dt));
     if (st.bonus && (st.bonus.t -= dt) <= 0) st.bonus = null;
     const p = st.p;
     if (st.bonus && Math.hypot(p.x - 10, p.y - 11) < 0.6) { st.score += st.bonus.pts; st.bonus = null; beep(700, 1400, 0.3, 'triangle', 0.08); }
     for (const b of st.bots) {
-      if (b.home > 0 || b.mode === 'eyes' || Math.hypot(b.x - p.x, b.y - p.y) > 0.7) continue;
+      if (b.home > 0 || b.mode === 'eyes' || Math.hypot(b.x - p.x, b.y - p.y) > HIT_R) continue;
       if (b.mode === 'fright') { b.mode = 'eyes'; st.combo++; st.score += 100 * 2 ** st.combo; beep(1200, 200, 0.25, 'square', 0.06); }
       else { st.phase = 'dead'; st.deadT = 2; st.lives--; beep(800, 40, 1.2, 'sawtooth', 0.1); break; }
     }
@@ -421,7 +492,7 @@ function openGame(game) {
   cv.addEventListener('pointermove', (e) => {
     if (game.pads !== 'maze' || !(e.buttons || e.pointerType === 'touch')) return;
     const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.hypot(dx, dy) < 18) return;
-    game.inp.want = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 1) : (dy > 0 ? 2 : 0); sx = e.clientX; sy = e.clientY;
+    steer(game, Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 1) : (dy > 0 ? 2 : 0)); sx = e.clientX; sy = e.clientY;
   });
   last = performance.now();
   const loop = (now) => {
@@ -435,8 +506,17 @@ function openGame(game) {
 function closeGame() {
   if (raf) cancelAnimationFrame(raf); raf = 0;
   if (ov) ov.remove(); ov = null;
-  if (cur) { cur.inp.left = cur.inp.right = cur.inp.fire = 0; cur.inp.want = null; cur.reset(); } cur = null;
+  if (cur) { cur.inp.left = cur.inp.right = cur.inp.fire = 0; cur.inp.want = null; cur.inp.held?.clear(); cur.reset(); } cur = null;
 }
+// queue a maze direction (keyboard, d-pad or swipe); `hold` keeps it queued until released
+function steer(g, d, hold = false) {
+  g.inp.want = d; g.inp.wantT = TURN_BUFFER;
+  if (hold) g.inp.held?.add(d);
+}
+const release = (g, d) => {
+  const h = g.inp.held; if (!h) return; h.delete(d);
+  if (g.inp.want === d && h.size) g.inp.want = [...h].pop();         // fall back to a key that is still held
+};
 function pads(game) {
   const box = document.createElement('div');
   box.style.cssText = 'display:flex;gap:14px;align-items:center;justify-content:center;margin-top:6px';
@@ -452,7 +532,8 @@ function pads(game) {
     const grid = document.createElement('div'); grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,58px);gap:6px';
     [['', null], ['▲', 0], ['', null], ['◀', 1], ['▼', 2], ['▶', 3]].forEach(([l, d]) => {
       if (d === null) { grid.appendChild(document.createElement('span')); return; }
-      const b = btn(l, 58); b.addEventListener('pointerdown', (e) => { e.preventDefault(); game.inp.want = d; game.start(); }); grid.appendChild(b);
+      const b = btn(l, 58); b.addEventListener('pointerdown', (e) => { e.preventDefault(); steer(game, d, true); game.start(); });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => b.addEventListener(t, () => release(game, d))); grid.appendChild(b);
     });
     box.appendChild(grid);
   }
@@ -463,17 +544,19 @@ window.addEventListener('keydown', (e) => {
   if (!cur) return;
   const k = e.key, g = cur;
   if (k === 'Escape') closeGame();
-  else if (k === 'ArrowLeft' || k === 'a' || k === 'A') { g.inp.left = 1; g.inp.want = 1; }
-  else if (k === 'ArrowRight' || k === 'd' || k === 'D') { g.inp.right = 1; g.inp.want = 3; }
-  else if (k === 'ArrowUp' || k === 'w' || k === 'W') g.inp.want = 0;
-  else if (k === 'ArrowDown' || k === 's' || k === 'S') g.inp.want = 2;
+  else if (k === 'ArrowLeft' || k === 'a' || k === 'A') { g.inp.left = 1; if (!e.repeat) steer(g, 1, true); }
+  else if (k === 'ArrowRight' || k === 'd' || k === 'D') { g.inp.right = 1; if (!e.repeat) steer(g, 3, true); }
+  else if (k === 'ArrowUp' || k === 'w' || k === 'W') { if (!e.repeat) steer(g, 0, true); }
+  else if (k === 'ArrowDown' || k === 's' || k === 'S') { if (!e.repeat) steer(g, 2, true); }
   else if (k === ' ' || k === 'Enter' || k === 'z' || k === 'Z') { g.inp.fire = 1; g.start(); }
   e.stopImmediatePropagation(); e.preventDefault();
 }, true);
 window.addEventListener('keyup', (e) => {
   if (!cur) return; const k = e.key, g = cur;
-  if (k === 'ArrowLeft' || k === 'a' || k === 'A') g.inp.left = 0;
-  if (k === 'ArrowRight' || k === 'd' || k === 'D') g.inp.right = 0;
+  if (k === 'ArrowLeft' || k === 'a' || k === 'A') { g.inp.left = 0; release(g, 1); }
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') { g.inp.right = 0; release(g, 3); }
+  if (k === 'ArrowUp' || k === 'w' || k === 'W') release(g, 0);
+  if (k === 'ArrowDown' || k === 's' || k === 'S') release(g, 2);
   if (k === ' ' || k === 'Enter' || k === 'z' || k === 'Z') g.inp.fire = 0;
   e.stopImmediatePropagation();
 }, true);
@@ -565,7 +648,7 @@ function tick(now) {
     prompt = document.createElement('div');
     prompt.style.cssText = 'position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:30;background:rgba(6,8,14,.85);border:1px solid #2c3352;border-radius:12px;padding:8px 14px;color:#e8ecf6;font:13px system-ui;display:none;pointer-events:none';
     document.body.appendChild(prompt);
-    window.MGARCADE = { open: (id) => openGame(GAMES.find((g) => g.id === id) || GAMES[0]), close: closeGame, games: GAMES };
+    window.MGARCADE = { open: (id) => openGame(GAMES.find((g) => g.id === id) || GAMES[0]), close: closeGame, games: GAMES, isOpen: () => !!ov };
     requestAnimationFrame(tick);
   } else if (t < 600) setTimeout(() => boot(t + 1), 250);
 })();

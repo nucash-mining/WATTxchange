@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { poseBrain, fadeFor, blender, beat, beatScale, danceLayer, lifeLayer, applyLayers, DANCES, BASE_CLIP } from './animkit.js?v=1';
 
 const UPS = 2.25;
 const BASE = new URL('.', import.meta.url).href, V = '?v=4';
@@ -195,6 +196,10 @@ async function build(id) {
   const gl = glassShape(t.g);
   const spec = shirtSpec(t.s), shirtMap = shirtTex(t.s), shirtC = '#ffffff', collarC = spec[1] === '#ffffff' && spec[3] === 'polo' ? '#ffffff' : spec[3] === 'jacket' ? spec[0] : spec[1], bottomC = (t.s || '').match(/lolita|maid|sailor|kogal|ribbon/) ? '#2a2633' : '#3b3f52';
   const face = paintFace(t, skin);
+  // a closed-eye copy of the same face for blinking (skip styles that are already closed / not eyes)
+  const blinkable = !/closed|heart|spiral/.test((t.e || '').toLowerCase());
+  const faceShut = blinkable ? paintFace({ ...t, e: 'closed' }, skin) : null;
+  let faceMat = null;
   const pants = !/lolita|maid|sailor|kogal|dress|skirt|ribbon/.test(t.s || '') && ((+id || 1) % 3 === 0 || /hoodie|jacket|tracksuit|cargo|overall|work/.test(t.s || ''));
   model.traverse((o) => {
     const n = o.name || '';
@@ -210,7 +215,10 @@ async function build(id) {
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const cl = mats.map((m) => {
       const k = m.clone(), nm = m.name;
-      if (nm === 'skin') k.color.set(skin);
+      // soft, matte "plush" surfaces: at roughness ≈0.55 the lounge's RoomEnvironment
+      // reflection put a glossy vinyl sheen on skin + clothes — the toy/robot look
+      if (/^(skin|shirt|shirt2|bottom|sock|hair|hat|hat2)$/.test(nm)) { k.roughness = Math.max(k.roughness ?? 0.8, nm === 'hair' ? 0.72 : 0.86); k.metalness = 0; k.envMapIntensity = 0.45; }
+      if (nm === 'skin') { k.color.set(skin); k.emissive = new THREE.Color(skin).multiplyScalar(0.16); }   // a little "subsurface" lift
       else if (nm === 'hair') k.color.set(hairCol);
       else if (nm === 'shirt') { k.color.set(shirtC); k.map = shirtMap; }
       else if (nm === 'shirt2') k.color.set(collarC);
@@ -220,49 +228,87 @@ async function build(id) {
       else if (nm === 'frame' && gl?.frame) k.color.set(gl.frame);
       else if (nm === 'lens' && gl?.lens) { k.color.set(gl.lens); k.opacity = 0.85; }
       else if (nm === 'metal' && /gold|cherry|strawberry|burger/.test((t.er || '') + (t.n || ''))) k.color.set('#d6a632');
-      else if (nm === 'face') { k.map = face; k.transparent = true; k.alphaTest = 0.02; k.depthWrite = false; k.color.set('#ffffff'); k.polygonOffset = true; k.polygonOffsetFactor = -2; }
+      else if (nm === 'face') { k.map = face; k.transparent = true; k.alphaTest = 0.02; k.depthWrite = false; k.color.set('#ffffff'); k.polygonOffset = true; k.polygonOffsetFactor = -2; faceMat = k; }
       return k;
     });
     o.material = Array.isArray(o.material) ? cl : cl[0];
   });
-  return { model, clips: g.animations, traits: t };
+  const bones = {}; model.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  return { model, clips: g.animations, traits: t, bones, faceMat, faceOpen: face, faceShut };
 }
 
-const EMOTES = ['cheer', 'cheer2', 'cheer3', 'clap', 'wave', 'shake', 'groove', 'drink', 'strut'];
+const EMOTES = [...DANCES, 'drink'];
+const _v = new THREE.Vector3();
+let seedN = 0;
 function avatar(look) {
   const group = new THREE.Group(); group.userData.skinned = true; group.userData.chibi = true;
-  let mixer = null, current = null, model = null, prev = null, speed = 0, lastT = performance.now();
+  let mixer = null, blend = null, current = null, model = null, prev = null, speed = 0, lastT = performance.now();
+  let bones = null, bind = null, face = null, blinkAt = 0, blinkUntil = 0, lift = 0, headYaw = 0, headPitch = 0;
+  const seed = (++seedN * 0.618) % 1, brain = poseBrain(), layerW = new Map();
   const actions = new Map();
-  build(look.milady).then(({ model: m, clips }) => {
-    model = m; group.add(m); mixer = new THREE.AnimationMixer(m);
-    for (const c of clips) actions.set(c.name, mixer.clipAction(c));
+  build(look.milady).then((b) => {
+    model = b.model; group.add(model); mixer = new THREE.AnimationMixer(model); blend = blender(mixer);
+    bones = b.bones; bind = new Map(Object.values(bones).map((o) => [o, o.quaternion.clone()]));
+    face = b.faceMat && b.faceShut ? { mat: b.faceMat, open: b.faceOpen, shut: b.faceShut } : null;
+    for (const c of b.clips) actions.set(c.name, mixer.clipAction(c));
     play('idle', 0);
   }).catch(() => { /* leave empty */ });
-  function play(name, fade = 0.2) {
-    if (!mixer || current?.name === name) return;
-    const a = actions.get(name) || actions.get('idle'); if (!a) return;
-    a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play();
-    if (current && current.action !== a) current.action.crossFadeTo(a, fade, false);
-    current = { name, action: a };
+  function play(name, fade) {
+    if (!blend || current === name) return;
+    const a = actions.get(BASE_CLIP[name] || name) || actions.get('idle'); if (!a) return;
+    // NPCs that start the same move get a random phase so a crowd is never in lock-step
+    blend.to(a, fade ?? fadeFor(current, name), { phase: current ? 0 : seed });
+    current = name;
   }
   group.userData.update = (peer) => {
-    const t = performance.now(), dt = Math.min(0.1, (t - lastT) / 1000); lastT = t;
+    const now = performance.now(), t = now / 1000, dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
     for (const c of group.children) if (c.isSprite && c.material?.map?.image?.width === 256) c.position.y = HEIGHT + 0.35;
     if (!mixer) return;
+    beat.tick(now);
     const p = group.position;
     if (prev) speed = speed * 0.8 + (Math.hypot(p.x - prev.x, p.z - prev.z) / Math.max(dt, 1e-3)) * 0.2;
     prev = { x: p.x, z: p.z };
     const lk = (peer && peer.look) || look;
-    let pose = 'idle';
-    if (peer && peer.sit) pose = 'sit';
-    else if (speed > 0.6) pose = 'walk';
-    else if (lk.emote && EMOTES.includes(lk.emote)) pose = lk.emote;
+    const pose = brain(dt, { speed, sit: !!(peer && peer.sit), emote: lk.emote, emotes: EMOTES });
     play(pose);
-    if (current) current.action.timeScale = pose === 'walk' ? Math.min(1.8, Math.max(0.8, speed / 2.2)) : lk.drunk ? 0.7 : 1;
-    mixer.update(dt);
-    if (model) model.position.y = (lk.emote && window.MGDJ ? window.MGDJ.bounce() * 0.12 : 0);
+    const act = blend.current;
+    if (act) act.timeScale = pose === 'walk' ? Math.min(1.8, Math.max(0.8, speed / 2.2))
+      : DANCES.includes(pose) ? beatScale(act.getClip().duration) * (lk.drunk ? 0.8 : 1) : lk.drunk ? 0.7 : 1;
+    // clips write absolute bone rotations; restore the bind pose first so bones a clip
+    // doesn't key never accumulate the procedural layers below
+    for (const [o, q] of bind) o.quaternion.copy(q);
+    blend.update(dt);
+    // procedural layers: life (always), the current dance (eased in/out), head look-at
+    const k = 1 - Math.exp(-dt * 5);
+    for (const n of new Set([...layerW.keys(), pose])) { const w = (layerW.get(n) || 0) + ((n === pose ? 1 : 0) - (layerW.get(n) || 0)) * k; if (w < 0.003 && n !== pose) layerW.delete(n); else layerW.set(n, w); }
+    const b = beat.count, layers = [[lifeLayer(t, seed, pose === 'idle' || pose === 'drink'), pose === 'walk' ? 0.5 : pose === 'sit' ? 0.4 : 1]];
+    let wantLift = 0;
+    for (const [n, w] of layerW) { if (!DANCES.includes(n)) continue; const L = danceLayer(n, b + seed * 0.25, t); layers.push([L, w]); wantLift += (L.lift || 0) * w; }
+    // look at the viewer when they're close and in front (yaw ±0.65, pitch ±0.3)
+    let wy = 0, wp = 0; const cam = window.MG?.cam;
+    if (cam && (pose === 'idle' || pose === 'drink' || pose === 'sit')) {
+      _v.copy(cam.position); group.worldToLocal(_v);
+      const h = Math.hypot(_v.x, _v.z), yaw = Math.atan2(_v.x, _v.z);
+      if (h < 9 && Math.abs(yaw) < 1.4) { wy = THREE.MathUtils.clamp(yaw, -0.65, 0.65); wp = THREE.MathUtils.clamp(-Math.atan2(_v.y - HEIGHT * 0.85, h), -0.3, 0.3); }
+    }
+    headYaw += (wy - headYaw) * (1 - Math.exp(-dt * 3)); headPitch += (wp - headPitch) * (1 - Math.exp(-dt * 3));
+    layers.push([{ head: [headPitch, headYaw, 0] }, 1]);
+    applyLayers(bones, model, layers);
+    // blink every 2.5–6 s (sometimes a double blink)
+    if (face) {
+      if (!blinkAt) blinkAt = now + 1500 + seed * 4000;
+      if (now > blinkAt) { blinkUntil = now + 120; blinkAt = now + (Math.random() < 0.15 ? 260 : 2500 + Math.random() * 3500); }
+      const want = now < blinkUntil ? face.shut : face.open;
+      if (face.mat.map !== want) face.mat.map = want;   // same uniforms, no recompile
+    }
+    // dancers bounce on the beat — eased, so the body never teleports a frame
+    const bounce = (lk.emote && window.MGDJ ? window.MGDJ.bounce() * 0.08 : 0) + wantLift * 0.6;
+    lift += (bounce - lift) * (1 - Math.exp(-dt * 14));
+    model.position.y = lift;
   };
   return group;
 }
+/** Skin + shirt colours of a Milady (for the first-person viewmodel). */
+async function colorsOf(id) { const t = await traitsOf(id); return { skin: SKIN[t.r] || SKIN.pale, shirt: shirtSpec(t.s)[0] }; }
 
-window.MGCHIBI = { avatar, traitsOf, preload: () => Promise.all([getGltf(), getTraits()]) };
+window.MGCHIBI = { avatar, traitsOf, colorsOf, EMOTES, preload: () => Promise.all([getGltf(), getTraits()]) };

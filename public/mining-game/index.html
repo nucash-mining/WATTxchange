@@ -2862,6 +2862,7 @@ import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {clampToRects} from './lounge-physics.js?v=2';
 import {doorway} from './doorways.js?v=1';
+import {FURN_ON, furnDesk, furnChair, furnInfo} from './furniture.js?v=1';
 
 /* ================= DATA : the real Mining Game collection ================= */
 const ITEMS = {
@@ -3440,7 +3441,9 @@ const deskTopMat = new THREE.MeshStandardMaterial({color:0x2d2557, roughness:.55
 const DESK={W:4.3, D:2.2, TOP:1.60, SURF:1.68, SHELF:3.05};
 function makeDesk(x,z,slot){
   const g=new THREE.Group();
-  if(PROTO.desk){ // real GLB asset (authored meters @2.25u/m, matches DESK.* exactly)
+  if(FURN_ON){ // procedural gaming desk (furniture.js); localStorage mgFurn='glb' restores the GLB
+    g.add(furnDesk(DESK));
+  } else if(PROTO.desk){ // real GLB asset (authored meters @2.25u/m, matches DESK.* exactly)
     const d=instOf('desk'); d.scale.setScalar(2.25); g.add(d);
   } else { // procedural fallback (no asset host)
     const top=new THREE.Mesh(new THREE.BoxGeometry(DESK.W,0.16,DESK.D), deskTopMat); top.position.y=DESK.TOP; g.add(top);
@@ -3461,6 +3464,10 @@ function makeDesk(x,z,slot){
 /* office / gaming chair — real GLB assets, procedural fallback */
 function makeChair(gaming){
   const key=gaming?'chairG':'chairD';
+  if(FURN_ON){ // detailed procedural chair (furniture.js), built facing +z so the π turn faces it at the desk
+    const g=furnChair(gaming); g.position.set(0.55,0,1.55); g.rotation.y=Math.PI+0.15;
+    window.MGFURN=furnInfo([g]); return g;
+  }
   if(PROTO[key]){
     const g=new THREE.Group(); g.name='chairG';
     const m=instOf(key); m.scale.setScalar(2.25); g.add(m);
@@ -3892,7 +3899,7 @@ async function loadModels(progress){
   const defs=[['pc','pc.glb'],['cpu','cpu.glb'],['tx120','gpu_tx120.glb'],['gp50','gpu_gp50.glb'],['board','pcboard.glb'],
     /* furniture & farm structures (procedural fallback if the host doesn't serve them) */
     ['desk','desk.glb'],['mon27','monitor.glb'],['chairD','chair_desk.glb'],['chairG','chair_gaming.glb'],
-    ['rack','server_rack.glb'],['container','container.glb'],['warehouse','warehouse.glb']];
+    ['rack','server_rack.glb'],['container','container.glb'],['warehouse','warehouse.glb']].filter(([k])=>!(FURN_ON&&/^(desk|chairD|chairG)$/.test(k))); // procedural furniture: skip ~215KB of GLBs
   const total=defs.length+1; let done=0;
   const g2p=loadGLB('gen2.glb'); // fetch in parallel with the rest
   await Promise.all(defs.map(async ([k,f])=>{

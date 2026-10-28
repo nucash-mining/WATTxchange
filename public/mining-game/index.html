@@ -8195,8 +8195,10 @@ function tickWalk(dt){
   // delta so the orbit framing is preserved exactly
   const nx=walkClamp(cam.position.x,cam.position.x+step.x,-WALKBOX.x,WALKBOX.x);
   const nz=walkClamp(cam.position.z,cam.position.z+step.z,WALKBOX.zMin,WALKBOX.zMax);
-  const dx=nx-cam.position.x, dz=nz-cam.position.z;
-  cam.position.x=nx; cam.position.z=nz;
+  let dx=nx-cam.position.x, dz=nz-cam.position.z;
+  // furniture / bar / booth / cabinets: slide the body (not the floating camera) along them
+  if(window.MGCOLL&&window.MGCOLL.on&&FP.mode!=='orbit'){ const b=fpBody(), r=window.MGCOLL.move(b.x,b.z,dx,dz); dx=r.dx; dz=r.dz; }
+  cam.position.x+=dx; cam.position.z+=dz;
   controls.target.x+=dx; controls.target.z+=dz;
   if(!WALK.on){ WALK.on=true; const h=$('ctrlhint'); if(h) setTimeout(()=>h.classList.add('gone'),2500); }
 }
@@ -8305,7 +8307,8 @@ addEventListener('pointerup',e=>{ if(FP.drag&&e.pointerId===FP.drag.id) FP.drag=
 addEventListener('pointercancel',()=>{ FP.drag=null; });
 renderer.domElement.addEventListener('wheel',e=>{ if(FP.mode!=='orbit'&&e.deltaY>0){ FP.auto=false; fpExit(true); } },{passive:true});
 addEventListener('keydown',e=>{ if(e.target.matches&&e.target.matches('input,textarea,select')) return; if((e.key==='v'||e.key==='V')&&!walkBlocked()) fpToggle(); });
-window.MGFP={ enter:fpEnter, exit:fpExit, toggle:fpToggle, mode:(m)=>fpSetMode(m,true), bodyPos:fpBody, get on(){ return FP.mode!=='orbit'; }, get view(){ return FP.mode; }, set auto(v){ FP.auto=!!v; } };
+window.MGFP={ enter:fpEnter, exit:fpExit, toggle:fpToggle, mode:(m)=>fpSetMode(m,true), bodyPos:fpBody, get on(){ return FP.mode!=='orbit'; }, get view(){ return FP.mode; }, set auto(v){ FP.auto=!!v; },
+  get dist(){ return FP.dist; }, set dist(v){ FP.dist=v; } };   // third-person boom (camera clamp shortens it)
 /* ---------- menu hotkeys (number row — the letters belong to movement now) ---------- */
 addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea,select')) return;
@@ -8338,7 +8341,7 @@ function frame(t){
   if(window.__audioOnly) return; // trailer audio pass: sim + SFX only, no 3D rendering
   // visuals
   if(SIT.on&&SIT.toPos){ cam.position.lerp(SIT.toPos,Math.min(1,dt*5)); controls.target.lerp(SIT.toTgt,Math.min(1,dt*5)); cam.lookAt(controls.target); }
-  else { tickWalk(dt); controls.update(); }
+  else { tickWalk(dt); controls.update(); if(window.MGCAM) window.MGCAM.clamp(); }   // never through walls/ceiling
   tickParts(dt);
   if(badgeMesh&&badgeMesh.visible) badgeMesh.rotation.y+=dt*0.9;
   if(badgeHolo&&badgeHolo.visible) badgeHolo.rotation.y+=dt*0.5;
@@ -8385,6 +8388,7 @@ function frame(t){
   if(typeof PL!=='undefined'&&PL.open){ poseLabLoop(dt); return; }
   if(benchOpen){ benchLoop(dt); return; }
   renderer.render(scene,cam);
+  if(window.MGVM) window.MGVM.render(renderer,cam);   // first-person arms on top
 }
 requestAnimationFrame(frame);
 setInterval(()=>{ if(running&&S) save(); },10000);
@@ -8859,14 +8863,15 @@ if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeOb
 </script>
 <script type="module" src="arcade.js?v=2"></script>
 <script type="module" src="casino.js?v=2"></script>
-<script type="module" src="chibi.js?v=4"></script>
-<script type="module" src="skins.js?v=8"></script>
-<script type="module" src="miladys.js?v=2"></script>
+<script type="module" src="chibi.js?v=5"></script>
+<script type="module" src="skins.js?v=9"></script>
+<script type="module" src="miladys.js?v=3"></script>
 <script type="module" src="loungefx.js?v=3"></script>
-<script type="module" src="dj.js?v=8"></script>
+<script type="module" src="dj.js?v=9"></script>
 <script type="module" src="stage.js?v=3"></script>
 <script type="module" src="partybot.js?v=1"></script>
 <script type="module" src="jam.js?v=1"></script>
+<script type="module" src="loungeplus.js?v=1"></script>
 <script type="module" src="xauth.js?v=2"></script>
 </body>
 </html>
@@ -8976,7 +8981,7 @@ const NET = (() => {
     if (state.mode === 'full') createMesh(peer);
   }
   function createMesh(peer) {
-    if (peer.group || isAway(peer)) return;
+    if (peer.group || isAway(peer) || !scene) return;   // !scene: ?solo/?trailer never bound MG.scene
     const group = makeAvatar(peer.look);
     const tag = makeTag(peer.name || 'guest');
     group.add(tag);
@@ -9101,6 +9106,7 @@ const NET = (() => {
     return Math.atan2(d.x, d.z);
   }
   setInterval(() => {
+    if (!cam) return;                 // ?solo / ?trailer return from start() before cam is set
     // Only broadcast movement in the full immersive space; chat-only stays put.
     if (state.mode !== 'full' || !state.connected || !state.ws || state.ws.readyState !== 1) return;
     const S = SITref() || { on: false, slot: -1 };
@@ -9942,7 +9948,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
         const w = setInterval(() => { const sp = document.getElementById('splash'); if (sp && getComputedStyle(sp).display === 'none') { clearInterval(w); enterLounge(); } }, 200);
         setTimeout(() => clearInterval(w), 60000);
       }
-      window.MGLOUNGE = { enter: enterLounge, exit: exitLounge, toggle };
+      window.MGLOUNGE = { enter: enterLounge, exit: exitLounge, toggle, get on() { return inLounge; } };
       return;
     }
     if (t > 250) return;

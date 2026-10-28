@@ -20,7 +20,8 @@ const RESIDENTS = [
   { id: 9001, skin: 'Sports_Female_01', emote: 'wave', x: 11.4, z: 0.2, ry: -Math.PI / 2 },
 ];
 // Lizz: a resident on the dance floor (skin "Female_Lizz"), dancing whenever a set is playing
-const LIZZ = { x: -0.9, z: -3.1, ry: 0.25, dances: ['groove', 'shake', 'cheer2', 'strut', 'cheer'] };
+const LIZZ = { x: -0.9, z: -3.1, ry: 0.25, dances: ['groove', 'sway', 'shake', 'cheer2', 'bop', 'strut', 'twist', 'cheer'] };
+const FLOOR_MOVES = ['groove', 'shake', 'sway', 'bop', 'twist', 'cheer2'];
 const STROLLER = { id: 333, skin: 'Female_Adult_12', path: [[-9.6, 1.8], [-3.5, 0.5], [0, -1.2], [3.6, 0.8], [-1, 2.6], [-6.5, 2.6]] };
 
 const root = new THREE.Group(); root.visible = false;
@@ -99,6 +100,14 @@ function tick(now) {
   if (lizz) {                                   // switch dances every ~8 s while music plays
     if (musicOn()) { if (now > lizz.next) { lizz.look.emote = LIZZ.dances[lizz.k++ % LIZZ.dances.length]; lizz.next = now + 7000 + Math.random() * 3000; } }
     else { lizz.look.emote = null; lizz.next = 0; }
+  }
+  // floor dancers mix up their moves while a set plays (each on their own timer), and
+  // drift back to their signature move when the music stops
+  const on = musicOn();
+  for (const n of npcs) {
+    if (n.r.emote !== 'groove' && n.r.emote !== 'shake') continue;
+    if (on) { if (now > (n.next || 0)) { n.look.emote = n.next ? pick(FLOOR_MOVES.filter((m) => m !== n.look.emote)) : n.r.emote; n.next = now + 8000 + Math.random() * 6000; } }
+    else if (n.next) { n.look.emote = n.r.emote; n.next = 0; }
   }
   for (const n of npcs) n.g.userData.update?.({ look: n.look, sit: false });
   if (stroll) {                                  // walk the loop, pausing at each stop

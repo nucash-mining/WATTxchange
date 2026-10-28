@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { poseBrain, fadeFor, blender, beat, beatScale, DANCES } from './animkit.js?v=1';
 
 const UPS = 2.25;                                   // game units per metre (matches the netcode)
 const HEIGHT = 1.75 * UPS;
@@ -49,7 +50,9 @@ const sexOf = (id) => (/Female/.test(id) ? 'f' : 'm');
 const POSES = {
   idle: 'idle', walk: 'walk', sit: 'sit', drunkIdle: 'drunk_idle', drunkWalk: 'drunk_walk',
 };
-export const EMOTES = ['cheer', 'cheer2', 'cheer3', 'clap', 'wave', 'shake', 'groove', 'drink', 'strut'];
+export const EMOTES = [...DANCES, 'drink'];
+// the newer procedural dances (built for the Milady rig) borrow the closest mocap clip here
+const CLIP_OF = { sway: 'groove', bop: 'shake', twist: 'strut' };
 
 
 // ── Milady heads (Milady Maker, Viral Public License) ─────────────────────────
@@ -122,18 +125,18 @@ function avatar(look) {
   group.userData.skinned = true;
   const id = look.skin, sex = sexOf(id);
   let baseLift = 0, milFollow = null;
-  let mixer = null, current = null, model = null, lastT = performance.now(), wantLook = look;
-  const actions = new Map();
-  let wanted = null;                                 // newest pose asked for (play runs every frame)
-  async function play(name, fade = 0.25) {
+  let mixer = null, blend = null, current = null, model = null, lastT = performance.now(), wantLook = look;
+  const actions = new Map(), brain = poseBrain();
+  let wanted = null, bob = 0;                        // newest pose asked for (play runs every frame)
+  async function play(name, fade) {
     if (!mixer || current?.name === name || wanted === name) return;
     wanted = name;
-    const clip = await loadClip(sex, name);
-    if (!clip || !mixer || wanted !== name) return;  // a newer pose won while this clip loaded
-    let a = actions.get(name);
-    if (!a) { a = mixer.clipAction(clip); actions.set(name, a); }
-    a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play();
-    if (current && current.action !== a) current.action.crossFadeTo(a, fade, false);
+    const from = current?.name, clip = await loadClip(sex, CLIP_OF[name] || name);
+    if (!mixer || wanted !== name) return;            // a newer pose won while this clip loaded
+    if (!clip) { wanted = null; current = { name, action: current?.action }; return; }   // missing clip: keep the old one
+    const key = CLIP_OF[name] || name; let a = actions.get(key);
+    if (!a) { a = mixer.clipAction(clip); actions.set(key, a); }
+    blend.to(a, fade ?? fadeFor(from, name));         // eased weight blend, no snap on re-switch
     current = { name, action: a }; wanted = null;
   }
   loadSkin(id).then(({ scene, scale, lift }) => {
@@ -141,7 +144,7 @@ function avatar(look) {
     model.scale.setScalar(scale); model.position.y = lift; baseLift = lift;
     group.add(model);
     if (look.milady) milFollow = wearMilady(group, model, look.milady);
-    mixer = new THREE.AnimationMixer(model);
+    mixer = new THREE.AnimationMixer(model); blend = blender(mixer);
     play('idle', 0);
   }).catch(() => { /* leave the group empty; the name tag still shows */ });
 
@@ -157,17 +160,18 @@ function avatar(look) {
     prev = { x: p.x, z: p.z };
     const lk = (peer && peer.look) || wantLook;
     const drunk = !!lk.drunk;
-    let pose;
-    if (peer && peer.sit) pose = POSES.sit;
-    else if (speed > 0.6) pose = drunk ? POSES.drunkWalk : POSES.walk;
-    else if (lk.emote && EMOTES.includes(lk.emote)) pose = lk.emote;
-    else pose = drunk ? POSES.drunkIdle : POSES.idle;
+    const p0 = brain(dt, { speed, sit: !!(peer && peer.sit), emote: lk.emote, emotes: EMOTES });
+    const pose = p0 === 'sit' ? POSES.sit : p0 === 'walk' ? (drunk ? POSES.drunkWalk : POSES.walk) : p0 === 'idle' ? (drunk ? POSES.drunkIdle : POSES.idle) : p0;
     play(pose);
-    if (current) current.action.timeScale = pose === POSES.walk ? Math.min(1.6, Math.max(0.7, speed / 2.6)) : 1;
-    mixer.update(dt);
+    beat.tick(t);
+    if (current?.action) current.action.timeScale = pose === POSES.walk ? Math.min(1.6, Math.max(0.7, speed / 2.6))
+      : DANCES.includes(pose) ? beatScale(current.action.getClip().duration) : 1;
+    blend.update(dt);
     if (milFollow) milFollow();
     // dancers bounce on the DJ's beat
-    if (model) model.position.y = baseLift + (lk.emote && window.MGDJ ? window.MGDJ.bounce() * 0.18 : 0);
+    const want = lk.emote && window.MGDJ ? window.MGDJ.bounce() * 0.14 : 0;
+    bob += (want - bob) * (1 - Math.exp(-dt * 14));     // eased: no one-frame jumps
+    if (model) model.position.y = baseLift + bob;
   };
   return group;
 }

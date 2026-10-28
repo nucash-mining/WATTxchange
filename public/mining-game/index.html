@@ -8384,6 +8384,7 @@ function frame(t){
   }}
   if(typeof PL!=='undefined'&&PL.open){ poseLabLoop(dt); return; }
   if(benchOpen){ benchLoop(dt); return; }
+  if(window.MGARCADE&&MGARCADE.isOpen&&MGARCADE.isOpen()) return; // arcade overlay covers the screen: skip the 3D render so the game gets the frame budget
   renderer.render(scene,cam);
 }
 requestAnimationFrame(frame);
@@ -8857,7 +8858,7 @@ window.__recAudioStop=async function(){ clearInterval(window.__audEvT); window._
 addEventListener('resize',fit);addEventListener('load',fit);document.addEventListener('DOMContentLoaded',function(){fit();
 if(window.ResizeObserver){var h=document.getElementById('hud');if(h)new ResizeObserver(fit).observe(h);}});})();
 </script>
-<script type="module" src="arcade.js?v=2"></script>
+<script type="module" src="arcade.js?v=3"></script>
 <script type="module" src="casino.js?v=2"></script>
 <script type="module" src="chibi.js?v=4"></script>
 <script type="module" src="skins.js?v=8"></script>

@@ -56,8 +56,16 @@ function shell() {
   };
   wall(LW - 0.4, 0, -LD / 2 + 0.2, 0);                        // back (behind the big screen)
   wall(LD - 0.4, -LW / 2 + 0.2, 0, Math.PI / 2);              // left (bar side)
-  // right wall has the CASINO / ARCADE / STAGE doorways: panel between them only
-  [[-10, 6.4], [-3, 2.6], [3, 2.6], [9.9, 4]].forEach(([z, w]) => wall(w, LW / 2 - 0.2, z, -Math.PI / 2));
+  // right wall has the CASINO / ARCADE / STAGE doorways and the front wall the MINING ROOM
+  // door (index.html + doorways.js): panel the pieces between the openings, and plaster
+  // the strip above each door head
+  const DH = 4.6, HALF = 2.4 / 2 + 0.26;
+  const spans = (from, to, cs) => { const o = []; let at = from; for (const c of cs) { o.push([at, c - HALF]); at = c + HALF; } o.push([at, to]); return o; };
+  const over = (x, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * HALF, TOP - DH), plaster); m.position.set(x, DH + (TOP - DH) / 2, z); m.rotation.y = ry; root.add(m); };
+  spans(-LD / 2 + 0.2, LD / 2 - 0.2, [-6, 0, 6]).forEach(([a, b]) => wall(b - a, LW / 2 - 0.2, (a + b) / 2, -Math.PI / 2));
+  [-6, 0, 6].forEach((z) => over(LW / 2 - 0.2, z, -Math.PI / 2));
+  spans(-LW / 2 + 0.2, LW / 2 - 0.2, [0]).forEach(([a, b]) => wall(b - a, (a + b) / 2, LD / 2 - 0.2, Math.PI));
+  over(0, LD / 2 - 0.2, Math.PI);
   // skirting light strip along the floor (warm)
   const strip = new THREE.Mesh(new THREE.BoxGeometry(LW - 0.6, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xffb36b }));
   strip.position.set(0, 0.06, -LD / 2 + 0.3); root.add(strip);

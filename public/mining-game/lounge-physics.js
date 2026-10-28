@@ -86,3 +86,44 @@ export function boomFraction(boxes, bx, bz, by, cx, cz, cy, r = 0.25) {
   }
   return s;
 }
+
+/* ── doorways ────────────────────────────────────────────────────────────────
+   The walk clamp used to be one box (WALKBOX). A doorway is a second box (a
+   "lane") that overlaps the room box through the opening, so the walkable
+   floor is the UNION of rects { x0, x1, z0, z1 }. */
+export const inRect = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+export const inAny = (rects, x, z) => rects.some((b) => inRect(b, x, z));
+/** Move a point from (x, z) toward (nx, nz) without leaving the union of rects.
+    Full move first, then each axis alone (slides along walls and door jambs).
+    A point that starts outside every rect (teleport, restore) may only move
+    closer to the first rect, like the old walkClamp. Long moves are sub-stepped
+    so a 0.5 s frame can't hop over the gap between room and lane. */
+export function clampToRects(rects, x, z, nx, nz, maxStep = 0.25) {
+  if (!inAny(rects, x, z)) {
+    const b = rects[0], cl = (c, n, lo, hi) => (n >= lo && n <= hi) ? n : n > hi ? Math.max(hi, Math.min(c, n)) : Math.min(lo, Math.max(c, n));
+    return { x: cl(x, nx, b.x0, b.x1), z: cl(z, nz, b.z0, b.z1) };
+  }
+  const n = Math.max(1, Math.ceil(Math.hypot(nx - x, nz - z) / maxStep));
+  const sx = (nx - x) / n, sz = (nz - z) / n;
+  let cx = x, cz = z;
+  for (let i = 0; i < n; i++) {
+    if (inAny(rects, cx + sx, cz + sz)) { cx += sx; cz += sz; }
+    else if (sx && inAny(rects, cx + sx, cz)) cx += sx;
+    else if (sz && inAny(rects, cx, cz + sz)) cz += sz;
+    else break;
+  }
+  return { x: cx, z: cz };
+}
+/** The 3D room box (room shell or a door alcove) that contains p, else the first. */
+export function roomFor(rooms, p) {
+  for (const r of rooms) if (p.x >= r.x0 - 1e-6 && p.x <= r.x1 + 1e-6 && p.z >= r.z0 - 1e-6 && p.z <= r.z1 + 1e-6) return r;
+  return rooms[0];
+}
+/** Wall pieces left over after cutting door gaps out of a wall line.
+    from..to along the wall, gaps = [[a, b], …] → [[from, a0], [b0, a1], …, [bN, to]] */
+export function wallSpans(from, to, gaps) {
+  const out = []; let at = from;
+  for (const [a, b] of [...gaps].sort((p, q) => p[0] - q[0])) { if (a > at + 1e-6) out.push([at, a]); at = Math.max(at, b); }
+  if (to > at + 1e-6) out.push([at, to]);
+  return out;
+}

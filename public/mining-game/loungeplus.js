@@ -8,7 +8,7 @@
                    (idle sway, walk bob, look lag, sip animation when drinking, reach on use).
    Disable pieces for debugging: localStorage mgColl='0' / mgVM='0'. */
 import * as THREE from 'three';
-import { resolveMove, clampCamRay, boomFraction } from './lounge-physics.js?v=1';
+import { resolveMove, clampCamRay, boomFraction, roomFor } from './lounge-physics.js?v=2';
 
 const MG = () => window.MG;
 const LX = 0, LZ = -120, LW = 30, LD = 24, LH = 6;
@@ -64,7 +64,10 @@ function scan() {
   visit(scene, 0);
   return out;
 }
-function refresh() { boxes = scan(); lastScan = performance.now(); return boxes; }
+// doorway jambs / shut leaves (doorways.js) are static colliders, not scanned meshes
+const doorBoxes = () => window.MGDOORS?.lounge?.boxes || [];
+const rooms = () => [ROOM, ...(window.MGDOORS?.lounge?.alcoves || [])];
+function refresh() { boxes = scan().concat(doorBoxes()); lastScan = performance.now(); return boxes; }
 window.MGCOLL = {
   get on() { return inLounge() && !off('mgColl'); },
   get boxes() { return boxes; },
@@ -101,7 +104,7 @@ window.MGCAM = {
     const view = window.MGFP?.view || 'orbit';
     const before = cam.position.clone();
     if (view === 'first') {
-      clampCamRay(cam.position, cam.position, ROOM);
+      clampCamRay(cam.position, cam.position, roomFor(rooms(), cam.position));   // the room shell, or the door vestibule you're standing in
     } else {
       let anchor;
       if (view === 'third') { const b = window.MGFP.bodyPos(); anchor = _t.set(b.x, EYE, b.z); }
@@ -112,7 +115,7 @@ window.MGCAM = {
         const len = anchor.distanceTo(cam.position), keep = Math.max(Math.min(1.2, len), len * fr);
         cam.position.sub(anchor).setLength(keep).add(anchor);
       }
-      clampCamRay(anchor, cam.position, ROOM);
+      clampCamRay(anchor, cam.position, roomFor(rooms(), anchor));
       if (view === 'third') {                    // keep fpBody() (= cam + f·dist) where it was
         _f.subVectors(anchor, cam.position); _f.y = 0; window.MGFP.dist = Math.max(0.5, _f.length());
       }

@@ -75,6 +75,45 @@ const COINS: CoinData[] = [
       '<strong>How it works:</strong> Your miner connects to WATTx\'s RandomX stratum. For every valid share you submit, the stratum simultaneously submits a Monero block template (earning XMR to your XMR address) and a WATTx AuxPoW proof (earning WTX to your WTX address). You earn on both chains from a single mining rig.',
   },
   {
+    id: 'bmr',
+    ticker: 'BMR',
+    name: 'BitMonero',
+    logo: 'https://raw.githubusercontent.com/BitMoneroNet/bitmonero-gui/master/images/appicon.png',
+    logoFallback: WATT_LOGO,
+    sub: 'RandomX · Merge mine BMR and earn WTX simultaneously',
+    algorithm: 'RandomX',
+    port: 3343,
+    portLabel: '3343',
+    portColor: 'green',
+    wtxRewardAlgo: 'X25X',
+    statusLabel: 'Live',
+    statusColor: 'green',
+    userField: 'YOUR_BMR_ADDRESS.WORKER_NAME',
+    passField: 'YOUR_WTX_ADDRESS',
+    miners: [
+      {
+        name: 'XMRig',
+        command: `{
+  "pools": [{
+    "url": "stratum+tcp://stratum.wattxchange.app:3343",
+    "user": "YOUR_BMR_ADDRESS",
+    "pass": "YOUR_WTX_ADDRESS",
+    "algo": "rx/0"
+  }]
+}`,
+      },
+      {
+        name: 'SRBMiner-Multi',
+        command: `--algorithm randomx
+--pool stratum+tcp://stratum.wattxchange.app:3343
+--wallet YOUR_BMR_ADDRESS
+--password YOUR_WTX_ADDRESS`,
+      },
+    ],
+    infoHtml:
+      '<strong>How it works:</strong> Your miner connects to WATTx\'s RandomX stratum on port 3343. For every valid share you submit, the stratum simultaneously submits a BitMonero block template (earning BMR to your BMR address) and a WATTx AuxPoW proof (earning WTX to your WTX address). You earn on both chains from a single mining rig.',
+  },
+  {
     id: 'alt',
     ticker: 'ALT',
     name: 'Altcoinchain',
